@@ -1,0 +1,148 @@
+/////////////////////
+// Module-specific //
+/////////////////////
+
+@import "./module_accordion_common";
+@import "./module_references_common";
+@import "./module_mathjax-extensions_common";
+
+
+///////////
+// Stack //
+///////////
+
+// Definition of `.stack`
+.stack > :first-child,
+.stack   .first-child { // Sometimes the first child has to be identified manually
+  margin-top: 0 !important;
+}
+
+.stack > :last-child,
+.stack   .last-child { // Sometimes the last child has to be identified manually
+  margin-bottom: 0 !important;
+}
+
+// Common stacks
+section,
+.card-body,
+.list-group-item,
+.inline-grid > div,
+td,
+.col,
+.col-6 {
+  @extend .stack;
+}
+
+// Special stack: `main`
+// `main` is only a stack for non-`.sheets`
+main > :first-child:not(.sheet),
+main   .first-child:not(.sheet) { // Sometimes the first child has to be identified manually
+  margin-top: 0 !important;
+}
+
+main > :last-child:not(.sheet),
+main   .last-child:not(.sheet) { // Sometimes the last child has to be identified manually
+  margin-bottom: 0 !important;
+}
+
+
+
+//////////////////////////
+// Typography & Margins //
+//////////////////////////
+
+@mixin basic-defs($margin_p, $margin_float, $margin_section) {
+  
+  // Margins
+
+  .p   { margin-top: $margin_p;     margin-bottom: $margin_p;     }
+  .pp  { margin-top: $margin_p*1.5; margin-bottom: $margin_p*1.5; }
+  .ppp { margin-top: $margin_p*2;   margin-bottom: $margin_p*2;   }
+
+  p, ul, ol, pre, figure, .table { @extend .p; }
+
+  .float-start { margin-right: $margin_float; }
+  .float-end   { margin-left:  $margin_float; }
+
+  section { margin-top: $margin_section; margin-bottom: $margin_section; }
+
+
+  // Grid
+  // TODO: add documentation
+
+  .d-grid > * {
+    @extend .stack;  // Every grid item is a stack
+  }
+  .grid-row-gap-p { row-gap: $margin_p; }
+
+
+  // Typography 
+
+  dfn { font-weight: $font_weight_bold; }
+
+  
+  // Module-specific
+
+}
+
+.fs-7 { font-size: 0.75rem !important; }
+
+// Ordered lists
+ol       { list-style: decimal; }
+ol ol    { list-style: lower-alpha; }
+ol ol ol { list-style: lower-roman; }
+
+// Compare with `_reboot.scss` which defines: `margin-bottom: 0;`
+ol ol,
+ul ul,
+ol ul,
+ul ol {
+  margin-top: 0;
+}
+
+
+
+/////////////////////////////
+// Content Layout & Design //
+/////////////////////////////
+
+// empty
+
+
+
+///////////////////////////////////////////////
+// Lists (Bootstrap style, i.e. with border) //
+///////////////////////////////////////////////
+
+// Three decorations are available:
+
+ol.list-group {
+  // `bold-list-markers`: Bold markers; only for `ol`
+  &.bold-list-markers {
+    .list-group-item::before, &.first-child-p .list-group-item > p:first-child::before {
+      font-weight: $font_weight_bold;
+    }
+  }
+
+  // `first-child-p`: Move list marker into the first `p` child; only for `ol`
+  &.first-child-p {
+    .list-group-item > p:first-child::before {
+      content: counters(section, ".") ". ";
+      counter-increment: section;
+    }
+  
+    .list-group-item::before {
+      content: none;
+      counter-increment: none;
+    }
+  }
+}
+
+.list-group {
+  // `larger-padding`: Same padding as in accordion
+  &.larger-padding {
+    .list-group-item {
+      @extend .accordion-body;
+    }
+  }
+}

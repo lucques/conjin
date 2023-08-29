@@ -1,0 +1,368 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+import fire
+import subprocess
+import json
+import os
+import stat
+import textwrap
+from pprint import pprint
+import shutil
+
+
+# Globals
+script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
+tools_path = script_dir / 'tools.dhall'
+
+
+def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
+    '''
+    Input must be a file containing a Dhall expression of type `DockerNginxDepl`
+    (see also tools.dhall).
+    Output is written to the directory specified by the `targetDir` setting.
+    The flag `install_symlinks_in_local_bin` can be used to install symlinks to
+    the generated scripts in `~/bin`.
+    '''
+        
+    config_path = Path(config_path).absolute()
+
+    # Read config file
+    config_json = subprocess.check_output(f'dhall-to-json --file "{config_path}"', shell=True, text=True)
+    config = json.loads(config_json)
+
+
+    #########
+    # Paths #
+    #########
+
+    target_dir = Path(config['depl']['targetDir']).absolute()
+    conjin_dir = Path(config['depl']['conjinDir']).absolute()
+
+    linkchecker_vol_dir = Path(config['linkcheckerVolDir']).absolute()
+    preprocess_vol_dir  = Path(config['preprocessVolDir']).absolute()
+
+
+    ##############################
+    # Create directory structure #
+    ##############################
+
+    target_dirs = [
+        linkchecker_vol_dir,
+        preprocess_vol_dir,
+        target_dir,
+        target_dir / 'bin',
+        target_dir / 'htdocs',
+    ]
+
+    for module in config['depl']['modules']:
+        if module['compileScss']:
+            target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(module))
+
+    if 'db' in config:
+        target_dirs.append(Path(config['db']['volDir']))
+
+    build_dirs(target_dirs)
+
+    # Make `preprocess` dir writable for all users
+    preprocess_vol_dir.chmod(preprocess_vol_dir.stat().st_mode | stat.S_IWGRP | stat.S_IWOTH)
+
+
+    ###########################################
+    # Build config files generated from Dhall #
+    ###########################################
+
+    target_config_files = {
+        'docker-compose-app-yml': {
+            'path':   target_dir / 'docker-compose-app.yml',
+            'format': 'yaml'
+        },
+        'docker-compose-linkchecker-yml': {
+            'path':  target_dir / 'docker-compose-linkchecker.yml',
+            'format': 'yaml'
+        },
+        'config-json': {
+            'path': target_dir / 'htdocs/config.json',
+            'format': 'json'
+        }
+    }
+
+    build_dhall_config_files(target_config_files, config_path, 'makeDockerNginxConfigFiles')
+
+
+    ############################
+    # Build `htdocs/.htaccess` #
+    ############################
+
+    build_htaccess(target_dir, conjin_dir, False) # HTTPS is not supported for DockerNginxDepl
+    
+
+    #########################
+    # Build `bin/*` scripts #
+    #########################
+
+    target_bin_scripts = {
+        'up': {
+            'path': target_dir / 'bin' / 'up',
+            'content': textwrap.dedent(f'''\
+                #! /bin/bash
+                # This script was auto-generated.
+
+                docker compose \\
+                        --file         {target_config_files['docker-compose-app-yml']['path']} \\
+                        --project-name {config['depl']['dockerProjName']} \\
+                        up --detach \\
+                && sleep 1 \\
+                && {target_dir / 'bin' / 'preprocess'} \\
+                ''')
+        },
+        'down': {
+            'path': target_dir / 'bin' / 'down',
+            'content': textwrap.dedent(f'''\
+                #! /bin/bash
+                # This script was auto-generated.
+
+                docker compose \\
+                        --file         {target_config_files['docker-compose-app-yml']['path']} \\
+                        --project-name {config['depl']['dockerProjName']} \\
+                        down
+                ''')
+        },
+        'linkchecker': {
+            'path': target_dir / 'bin' / 'linkchecker',
+            'content': textwrap.dedent(f'''\
+                #! /bin/bash
+                # This script was auto-generated.
+
+                export UID="$(id -u)"
+                export GID="$(id -g)"
+                docker compose \\
+                        --file         {target_config_files['docker-compose-linkchecker-yml']['path']} \\
+                        --project-name {config['depl']['dockerProjName']}-linkchecker \\
+                        up
+                ''')
+        }
+    }
+
+    if 'auth' in config['depl']:
+        target_bin_scripts['preprocess'] = make_preprocess_target_bin_script_with_auth(
+            target_dir,
+            config['nginxVirtualHost'],
+            False, # HTTPS is not supported for DockerNginxDepl
+            config['depl']['auth']['preprocessScriptUser'],
+            config['depl']['auth']['preprocessScriptPasswordCmd'])
+    else:
+        target_bin_scripts['preprocess'] = make_preprocess_target_bin_script(
+            target_dir,
+            config['nginxVirtualHost'],
+            False) # HTTPS is not supported for DockerNginxDepl
+
+    build_bin_scripts(target_bin_scripts)
+
+
+    ####################
+    # Install in ~/bin #
+    ####################
+
+    if install_symlinks_in_local_bin:
+        install_symlinks_in_local_bin_function(target_bin_scripts, config['depl']['name'])
+
+
+def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
+    '''
+    Input must be a file containing a Dhall expression of type `DockerSyncDepl`
+    (see also tools.dhall).
+    Output is written to the directory specified by the `targetDir` setting.
+    The flag `install_symlinks_in_local_bin` can be used to install symlinks to
+    the generated scripts in `~/bin`.
+    '''
+    
+    config_path = Path(config_path).absolute()
+
+    # Read config file
+    config_json = subprocess.check_output(f'dhall-to-json --file "{config_path}"', shell=True, text=True)
+    config = json.loads(config_json)
+
+
+    #########
+    # Paths #
+    #########
+
+    target_dir = Path(config['depl']['targetDir']).absolute()
+    conjin_dir = Path(config['depl']['conjinDir']).absolute()
+
+
+    ##############################
+    # Create directory structure #
+    ##############################
+
+    target_dirs = [
+        target_dir,
+        target_dir / 'bin',
+        target_dir / 'htdocs',
+        target_dir / 'htdocs' / 'preprocess'
+    ]
+
+    for module in config['depl']['modules']:
+        if module['compileScss']:
+            target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(module))
+
+    build_dirs(target_dirs)
+
+
+    ###########################################
+    # Build config files generated from Dhall #
+    ###########################################
+
+    target_config_files = {
+        'docker-compose-sync-yml': {
+            'path': target_dir / 'docker-compose-sync.yml',
+            'format': 'yaml'
+        },
+        'config-json': {
+            'path': target_dir / 'htdocs/config.json',
+            'format': 'json'
+        }
+    }
+
+    build_dhall_config_files(target_config_files, config_path, 'makeDockerSyncConfigFiles')
+
+
+    ############################
+    # Build `htdocs/.htaccess` #
+    ############################
+
+    build_htaccess(target_dir, conjin_dir, config['forceHTTPS'])
+    
+
+    #########################
+    # Build `bin/*` scripts #
+    #########################
+
+    target_bin_scripts = {
+        'sync': {
+            'path': target_dir / 'bin' / 'sync',
+            'content': textwrap.dedent(f'''\
+                #! /bin/bash
+                # This script was auto-generated.
+                
+                export UID="$(id -u)"
+                export GID="$(id -g)"
+                docker compose \\
+                        --file         {target_config_files['docker-compose-sync-yml']['path']} \\
+                        --project-name {config['depl']['dockerProjName']}-sync \\
+                        up \\
+                && sleep 1 \\
+                && {target_dir / 'bin' / 'preprocess'} \\
+            ''')
+        }
+    }
+
+    if 'auth' in config['depl']:
+        target_bin_scripts['preprocess'] = make_preprocess_target_bin_script_with_auth(
+            target_dir,
+            config['host'],
+            config['preferHTTPS'],
+            config['depl']['auth']['preprocessScriptUser'],
+            config['depl']['auth']['preprocessScriptPasswordCmd'])
+    else:
+        target_bin_scripts['preprocess'] = make_preprocess_target_bin_script(
+            target_dir,
+            config['host'],
+            config['preferHTTPS'])
+
+    build_bin_scripts(target_bin_scripts)
+
+    ####################
+    # Install in ~/bin #
+    ####################
+
+    if install_symlinks_in_local_bin:
+        install_symlinks_in_local_bin_function(target_bin_scripts, config['depl']['dockerProjName'])
+
+
+def build_dirs(target_dirs):
+    for path in target_dirs:
+        path.mkdir(parents=True, exist_ok=True)
+
+def build_dhall_config_files(target_config_files, config_path, tools_function):
+    for key,file in target_config_files.items():
+        command = 'dhall-to-' + file['format']
+        input = f'(({tools_path}).{tools_function} ({config_path})).{key}'
+        content = subprocess.check_output(command, input=input, shell=True, text=True)
+
+        file['path'].write_text(content)
+
+def build_htaccess(target_dir, conjin_dir, force_https):
+    content  = (conjin_dir / 'src/htaccess_header').read_text()
+    
+    if force_https:
+        content += (conjin_dir / 'src/htaccess_force_https').read_text()
+
+    content += (conjin_dir / 'src/htaccess_footer').read_text()
+
+    (target_dir / 'htdocs/.htaccess').write_text(content)
+
+def make_preprocess_target_bin_script_with_auth(target_dir: str, host: str, prefer_https: bool, user: str, password_retrieval_cmd: str):
+    return {
+        'path': target_dir / 'bin' / 'preprocess',
+        'content': textwrap.dedent(f'''\
+            #! /bin/bash
+            # This script was auto-generated.
+
+            # Read Password and send it to the server
+            password=`{password_retrieval_cmd}` &&
+            curl --cookie "user={user}; password=$password" {'https' if prefer_https else 'http'}://"{host}"/preprocess/
+            ''')
+    }
+
+def make_preprocess_target_bin_script(target_dir: str, host: str, prefer_https: bool):
+    return {
+        'path': target_dir / 'bin' / 'preprocess',
+        'content': textwrap.dedent(f'''\
+            #! /bin/bash
+            # This script was auto-generated.
+
+            curl {'https' if prefer_https else 'http'}://"{host}"/preprocess/
+            ''')
+    }
+
+def build_bin_scripts(target_bin_scripts):
+    for file in target_bin_scripts.values():
+        file['path'].write_text(file['content'])
+        # Make file executable
+        st = os.stat(file['path'])
+        os.chmod(file['path'], st.st_mode | stat.S_IEXEC)
+
+def install_symlinks_in_local_bin_function(bin_scripts, depl_name):
+    local_bin_dir = Path.home() / 'bin'
+    local_bin_dir.mkdir(parents=True, exist_ok=True)
+
+    for file in bin_scripts.values():
+        link_path = local_bin_dir / (depl_name + '-' + file['path'].name)
+        if link_path.exists():
+            link_path.unlink()
+
+        os.symlink(file['path'], link_path)
+
+
+def get_template_css_dir(module):
+    if module['id']['isShared'] and module['id']['isExternal']:
+        return 'modules-shared-ext-css/' + module['id']['name']
+    elif module['id']['isShared'] and not module['id']['isExternal']:
+        return 'modules-shared-css/' + module['id']['name']
+    elif not module['id']['isShared'] and module['id']['isExternal']:
+        return 'modules-ext-css/' + module['id']['name']
+    else:
+        return 'modules-css/' + module['id']['name']
+
+
+########
+# Main #
+########
+
+if __name__ == '__main__':
+    fire.Fire({
+        'build-docker-nginx-depl': build_docker_nginx_depl,
+        'build-sync-depl':         build_sync_depl,
+    })

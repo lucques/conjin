@@ -1,0 +1,4 @@
+- Project info
+    - Bootstrap version 5.3.1
+    - https://getbootstrap.com/
+    - License: MIT

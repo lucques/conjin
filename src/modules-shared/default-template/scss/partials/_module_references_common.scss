@@ -1,0 +1,51 @@
+.ref-img-container {
+    position: relative;
+    display: inline-block; /* Or use "block" if needed */
+}
+
+.ref-img-number {
+    position: absolute;
+    bottom: 5px; /* Adjust the positioning as needed */
+    right: 5px; /* Adjust the positioning as needed */
+    
+    background-color: rgba(255, 255, 255, 0.5); /* Background color for the icon */
+}
+
+.ref-img-number, .ref-notes li:before {
+  font-size: 12px; /* Adjust the font size as needed */
+  padding: 2px 6px; /* Padding around the icon */
+  border-radius: 50%; /* Rounded border for circular icon */
+  border:1px solid black;
+}
+
+.ref-notes {
+  counter-reset: ref-notes;
+  list-style-type: none;
+  padding-left:0;
+
+  li {
+    display:flex;
+    align-items: flex-start;
+  }
+
+  li:before {
+    counter-increment: ref-notes;
+    content: counter(ref-notes);
+    margin-right: 1rem;
+  }
+
+  li {
+    margin-top:5px;
+    margin-bottom:5px;
+  }
+  > :first-child {
+    margin-top:0;
+  }
+  > :last-child {
+    margin-bottom:0;
+  }
+
+  .ref-note-backlink {
+    margin-right:7px;
+  }
+}

@@ -1,0 +1,30 @@
+# Module resources
+RewriteRule ^modules/([a-zA-Z0-9-_.]+)/res/(.+)$                modules/$1/res/$2 [L]
+RewriteRule ^modules-shared/([a-zA-Z0-9-_.]+)/res/(.+)$         modules-shared/$1/res/$2 [L]
+RewriteRule ^modules-ext/([a-zA-Z0-9-_.]+)/res/(.+)$            modules-ext/$1/res/$2 [L]
+RewriteRule ^modules-shared-ext/([a-zA-Z0-9-_.]+)/res/(.+)$     modules-shared-ext/$1/res/$2 [L]
+RewriteRule ^modules-css/([a-zA-Z0-9-_.]+)/res/(.+)$            modules-css/$1/res/$2 [L]
+RewriteRule ^modules-shared-css/([a-zA-Z0-9-_.]+)/res/(.+)$     modules-shared-css/$1/res/$2 [L]
+RewriteRule ^modules-ext-css/([a-zA-Z0-9-_.]+)/res/(.+)$        modules-ext-css/$1/res/$2 [L]
+RewriteRule ^modules-shared-ext-css/([a-zA-Z0-9-_.]+)/res/(.+)$ modules-shared-ext-css/$1/res/$2 [L]
+
+# Block any PHP file except top-level files in `conjin` (`conjin/index.php`)
+RewriteRule ^conjin/(.+)/(.+).php$                              - [F,L]
+RewriteRule ^content/(.+).php$                                  - [F,L]
+RewriteRule ^modules/(.+).php$                                  - [F,L]
+RewriteRule ^modules-shared/(.+).php$                           - [F,L]
+RewriteRule ^modules-ext/(.+).php$                              - [F,L]
+RewriteRule ^modules-shared-ext/(.+).php                        - [F,L]
+RewriteRule ^config.json$                                       - [F,L]
+
+# Misc
+RewriteRule ^preprocess/$                                       conjin/index.php?req=preprocess [L]
+RewriteRule ^login/$                                            conjin/index.php?req=login [QSA,L]
+RewriteRule ^logout/$                                           conjin/index.php?req=logout [QSA,L]
+
+# Content Explanation: QSA = query string appL; further GET attributes are kept
+RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)$                           conjin/index.php?req=process&target=$1 [QSA,L]
+RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)res/(.+)$                   conjin/index.php?req=res&target=$1&res=$2 [L]
+
+# Mime types
+AddType application/octet-stream fls

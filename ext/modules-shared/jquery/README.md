@@ -1,0 +1,4 @@
+- Project info
+    - jQuery 3.7.0
+    - https://jquery.com/
+    - License: MIT

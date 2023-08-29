@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+cd "$(dirname "$(readlink -f "$0")")/"
+
+mkdir -p ./res
+curl https://code.jquery.com/jquery-3.7.0.min.js --output ./res/jquery.min.js

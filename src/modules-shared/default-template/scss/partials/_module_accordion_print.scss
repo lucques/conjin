@@ -1,0 +1,33 @@
+.accordion {
+    /////////////////////
+    // Layout & Design //
+    /////////////////////
+    
+    $border-width: 1px;
+
+    .accordion-item {
+        border-width: $border-width;
+    }
+
+    // Set neutral border
+    .accordion-item,   .block-item,
+    .accordion-button, .block-title {
+        border-color: black !important;
+    }
+    
+    // Style title bar
+    .accordion-button, .block-title {
+        $padding: 0.3rem;
+
+        padding-top:    $padding;
+        padding-bottom: $padding;
+
+        box-shadow: none !important;
+        border-bottom-width: $border-width;
+        border-bottom-style: solid;
+        font-size: 1.1rem;
+        font-weight:500;
+        color:black !important;
+        background: white !important;
+    }
+}

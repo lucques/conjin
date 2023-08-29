@@ -1,0 +1,87 @@
+.accordion {
+    /////////////////////
+    // Layout & Design //
+    /////////////////////
+    
+    $border-width: 1px;
+
+    .accordion-item, .accordion-block {
+        border-width: $border-width;
+    }
+
+    // Set neutral border
+    .accordion-item,   .accordion-block,
+    .accordion-button, .block-title {
+        border-color: #838383 !important;
+    }
+
+    // Style title bar
+    .accordion-button, .block-title {
+        box-shadow: none !important;
+        border-bottom-width: $border-width;
+        border-bottom-style: solid;
+        font-size: 1.1rem;
+        font-weight:500;
+    }
+
+    // Set default theme
+    .accordion-button { @extend .accordion-item-primary-button; }
+    .block-title      { @extend .accordion-block-primary-title; }
+}
+
+
+////////////
+// Themes //
+////////////
+
+@each $state, $value in $theme-colors {
+    $accordion-button-bg: shift-color($value, -90%);
+    $accordion-button-color: shift-color($value, $alert-color-scale);
+    $accordion-button-active-bg: shift-color($value, -70%);
+    $accordion-button-active-color: shade-color($accordion-button-color, 10%);
+    @if (contrast-ratio($accordion-button-bg, $accordion-button-color) < $min-contrast-ratio) {
+        $accordion-button-color: mix($value, color-contrast($accordion-button-bg), abs($alert-color-scale));
+    }
+
+    .accordion-#{$state} .accordion-button,
+    .accordion .accordion-item-#{$state} .accordion-button,
+    .accordion .accordion-item-#{$state}-button,
+    .accordion-#{$state} .block-title,
+    .accordion .accordion-block-#{$state} .block-title,
+    .accordion .accordion-block-#{$state}-title {
+        color: $accordion-button-color;
+        @include gradient-bg($accordion-button-bg);
+
+        &:not(.collapsed) {
+            color: $accordion-button-active-color;
+            @include gradient-bg($accordion-button-active-bg);
+            box-shadow: none;
+        
+            // Accordion icon
+            &::after {
+                $accordion-button-active-icon: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='#{$accordion-button-active-color}'><path fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/></svg>");
+                background-image: escape-svg($accordion-button-active-icon);
+            }
+        }
+    }
+
+    .accordion-#{$state} .accordion-button,
+    .accordion .accordion-item-#{$state} .accordion-button,
+    .accordion .accordion-item-#{$state}-button {
+        // Accordion icon
+        &::after {
+            $accordion-button-icon: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='#{$accordion-button-color}'><path fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/></svg>");
+            background-image: escape-svg($accordion-button-icon);
+        }
+    }
+}
+
+// Deleted
+
+// Exercises and solutions
+// .solution.accordion {
+//     .accordion-button {
+//         @extend .bg-success;
+//         @extend .text-white;
+//     }
+// }

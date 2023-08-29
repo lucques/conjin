@@ -1,0 +1,4 @@
+- Project info
+    - malihu custom scrollbar plugin, version 3.1.5
+    - https://github.com/malihu/malihu-custom-scrollbar-plugin
+    - License: MIT

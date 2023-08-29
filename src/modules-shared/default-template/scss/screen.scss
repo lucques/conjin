@@ -1,0 +1,467 @@
+/////////////////////////////////
+// Customize & Import Boostrap //
+/////////////////////////////////
+
+// Since we change some colors, we have to manually set up Bootstrap.
+// See also https://getbootstrap.com/docs/5.3/customize/sass/#maps-and-loops.
+// Instead of simple Option A (single-line),
+//   `@import "bootstrap_scss/bootstrap";`
+// we choose the fine-grained Option B.
+
+// 0. Include CSS grid (https://getbootstrap.com/docs/5.1/layout/css-grid/)
+$enable-cssgrid: true;
+
+// 1. Include functions first (so you can manipulate colors, SVGs, calc, etc)
+@import "/modules-shared-ext/bootstrap/scss/functions";
+
+// 2. Include any default variable overrides here
+
+// 3. Include remainder of required Bootstrap stylesheets (including any separate color mode stylesheets)
+@import "/modules-shared-ext/bootstrap/scss/variables";
+@import "/modules-shared-ext/bootstrap/scss/variables-dark";
+
+// 4. Include any default map overrides here
+
+// Each theme color needs to be defined here.
+
+$color-extensions: (
+  "definition": (
+    "main":          $orange-700,
+    "text":          $orange-600,
+    "bg-subtle":     $orange-100,
+    "border-subtle": $orange-200
+  ),
+  "example": (
+    "main":          $green,
+    "text":          $green-600,
+    "bg-subtle":     $green-100,
+    "border-subtle": $green-200
+  ),
+  "exercise": (
+    "main":          $blue,
+    "text":          $blue-600,
+    "bg-subtle":     $blue-100,
+    "border-subtle": $blue-200
+  ),
+  "solution": (
+    "main":          $green,
+    "text":          $green-600,
+    "bg-subtle":     $green-100,
+    "border-subtle": $green-200
+  ),
+
+  // Reversed order: From top (1) to bottom (n)
+  "layer_1": (
+    "main":          $blue-500,
+    "text":          $blue-600,
+    "bg-subtle":     $blue-100,
+    "border-subtle": $blue-200
+  ),
+  "layer_2": (
+    "main":          $pink-800,
+    "text":          $pink-600,
+    "bg-subtle":     $pink-100,
+    "border-subtle": $pink-200
+  ),
+  "layer_3": (
+    "main":          $green,
+    "text":          $green-600,
+    "bg-subtle":     $green-100,
+    "border-subtle": $green-200
+  ),
+  "layer_4": (
+    "main":          $orange,
+    "text":          $orange-600,
+    "bg-subtle":     $orange-100,
+    "border-subtle": $orange-200
+  ),
+  "layer_5": (
+    "main":          $gray-500,
+    "text":          $gray-700,
+    "bg-subtle":     $gray-200,
+    "border-subtle": $gray-300
+  ),
+);
+
+@each $name, $color-map in $color-extensions {
+  $theme-colors: map-merge($theme-colors, ($name: map-get($color-map, "main")));
+}
+
+// 5. Include remainder of required parts
+@import "/modules-shared-ext/bootstrap/scss/maps";
+@import "/modules-shared-ext/bootstrap/scss/mixins";
+
+// 5.1
+// The following vars are introduced by the `maps` partial, therefore updating
+// them must happen here.
+@each $name, $color-map in $color-extensions {
+  $theme-colors-text: map-merge($theme-colors-text, ($name: map-get($color-map, "text")));
+  $theme-colors-bg-subtle: map-merge($theme-colors-bg-subtle, ($name: map-get($color-map, "bg-subtle")));
+  $theme-colors-border-subtle: map-merge($theme-colors-border-subtle, ($name: map-get($color-map, "border-subtle")));
+}
+
+@import "/modules-shared-ext/bootstrap/scss/root";
+@import "/modules-shared-ext/bootstrap/scss/utilities";
+
+// 6. Optionally include any other parts as needed
+
+@import "/modules-shared-ext/bootstrap/scss/reboot";
+@import "/modules-shared-ext/bootstrap/scss/type";
+@import "/modules-shared-ext/bootstrap/scss/helpers";
+@import "/modules-shared-ext/bootstrap/scss/images";
+@import "/modules-shared-ext/bootstrap/scss/containers";
+@import "/modules-shared-ext/bootstrap/scss/grid";
+@import "/modules-shared-ext/bootstrap/scss/tables";
+@import "/modules-shared-ext/bootstrap/scss/forms";
+@import "/modules-shared-ext/bootstrap/scss/buttons";
+@import "/modules-shared-ext/bootstrap/scss/transitions";
+@import "/modules-shared-ext/bootstrap/scss/dropdown";
+@import "/modules-shared-ext/bootstrap/scss/button-group";
+@import "/modules-shared-ext/bootstrap/scss/nav";
+@import "/modules-shared-ext/bootstrap/scss/navbar";
+@import "/modules-shared-ext/bootstrap/scss/card";
+@import "/modules-shared-ext/bootstrap/scss/accordion";
+@import "/modules-shared-ext/bootstrap/scss/breadcrumb";
+@import "/modules-shared-ext/bootstrap/scss/pagination";
+@import "/modules-shared-ext/bootstrap/scss/badge";
+@import "/modules-shared-ext/bootstrap/scss/alert";
+@import "/modules-shared-ext/bootstrap/scss/progress";
+@import "/modules-shared-ext/bootstrap/scss/list-group";
+@import "/modules-shared-ext/bootstrap/scss/close";
+@import "/modules-shared-ext/bootstrap/scss/toasts";
+@import "/modules-shared-ext/bootstrap/scss/modal";
+@import "/modules-shared-ext/bootstrap/scss/tooltip";
+@import "/modules-shared-ext/bootstrap/scss/popover";
+@import "/modules-shared-ext/bootstrap/scss/carousel";
+@import "/modules-shared-ext/bootstrap/scss/spinners";
+@import "/modules-shared-ext/bootstrap/scss/offcanvas";
+@import "/modules-shared-ext/bootstrap/scss/placeholders";
+
+// 7. Optionally include utilities API last to generate classes based on the Sass map in `_utilities.scss`
+@import "/modules-shared-ext/bootstrap/scss/utilities/api";
+
+
+//////////////////////////
+// Import common styles //
+//////////////////////////
+
+@import "./partials/common";
+
+
+////////////////////////////
+// Global Layout & Design //
+////////////////////////////
+
+$background-color: $gray-800;
+$main-background-color: white;
+$sidebar-background-color: white;
+
+$main-max-width: 960px;
+$sidebar-width: 300px;
+$sidebar-width-collapsed: 60px;
+$sidebar-header-height: 60px;           // Top bar in sidebar
+$sidebar-footer-height: 45px;           // Bottom bar in sidebar
+
+body {
+  background-color:$background-color;
+}
+
+#content {
+  position:absolute;
+  top:0;
+  right:0;
+  width: calc(100% - #{$sidebar-width});
+  padding-left:30px;
+  padding-right:30px;
+
+  > main {
+    @extend .container;
+    @extend .rounded;
+    margin-top: 30px;
+    margin-bottom: 30px;
+
+    background-color: $main-background-color;
+
+    max-width: $main-max-width;
+  }
+}
+
+
+/////////////
+// Sidebar //
+/////////////
+
+#sidebar {
+  width: $sidebar-width;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 999;
+  // transition: all 0.3s;  // Deactivated because transition not synced with all components
+  background: $sidebar-background-color;
+
+  #sidebar-header, #nav, #sidebar-footer {
+    width: $sidebar-width;
+    position: fixed;
+
+    padding:10px;
+  }
+
+  #nav, #sidebar-footer {
+    border-top: 1px solid $background-color;
+  }
+
+  #sidebar-header {
+    @extend .d-flex;
+
+    align-items: center; // vertical
+    justify-content: space-between; // horizontal
+
+    background-color: $sidebar-background-color;
+
+    // *Either* use a #logo *or* a #title 
+
+    #logo.logo-img img {
+      height: 18px;
+      margin-top:3px;
+      margin-right:10px;
+    }
+
+    #logo.logo-text {
+      @extend .me-2;
+      @extend .badge;
+      @extend .border;
+      @extend .border-primary;
+      cursor: default;
+      user-select: text;
+      color:$primary;
+      font-family: monospace;
+      font-size: large;
+      line-height: 2;
+    }
+  }
+
+  #sidebar-buttons {
+    @extend .d-flex;
+    gap: 3px;
+  }
+  
+  #nav {
+    top:  $sidebar-header-height;
+    left: 0;
+    height: calc(100% - #{$sidebar-header-height} - #{$sidebar-footer-height});
+    z-index: 999;
+  }
+
+  #sidebar-footer {
+    top: calc(100% - #{$sidebar-footer-height});
+
+    text-align: center;
+  }
+}
+
+// The `sidebar-active` class can be toggled. If turned on, the sidebar is
+// visible, otherwise not.
+body:not(.sidebar-active) {
+  #sidebar {
+    margin-left: calc(#{$sidebar-width-collapsed} - #{$sidebar-width});
+    height:auto;
+
+    #sidebar-buttons .btn:not(#sidebar-collapse-button) {
+      display:none;
+    }
+
+    #sidebar-collapse-button-deactivate,
+    #nav,
+    #sidebar-footer {
+      display:none;
+    }
+  }
+
+  #content {
+    width:100%;
+  }
+}
+
+body.sidebar-active {
+  #sidebar-collapse-button-activate {
+    display:none;
+  }
+}
+
+
+//////////////////////////
+// Typography & Margins //
+//////////////////////////
+
+$margin_p:       1rem;
+$margin_float:   1.5*$margin_p;
+$margin_section: 2.5*$margin_p;
+
+main {
+  padding: 2.8*$margin_p 2.2*$margin_p !important;
+  
+  @include basic-defs($margin_p, $margin_float, $margin_section);
+
+  // Headings
+  h1 { font-size: 2.0rem;  margin-top: 2.0*$margin_p;  margin-bottom: 0.8*$margin_p; }
+  h2 { font-size: 1.6rem;  margin-top: 2.0*$margin_p;  margin-bottom: 0.8*$margin_p; }
+  h3 { font-size: 1.4rem;  margin-top: 1.5*$margin_p;  margin-bottom: 0.8*$margin_p; }
+  h4 { font-size: 1.2rem;  margin-top: 1.5*$margin_p;  margin-bottom: 0.7*$margin_p; }
+  h5 { font-size: 1.1rem;  margin-top: 1.4*$margin_p;  margin-bottom: 0.6*$margin_p; }
+  h6 { font-size: 1.0rem;  margin-top: 1.4*$margin_p;  margin-bottom: 0.5*$margin_p; }
+
+  h4, h5, h6 { font-weight:$font_weight_bold; }
+
+  // Headings (boxed)
+  .boxed-h1, .boxed-h2, .boxed-h3 {
+    display:block;
+  }
+
+  .boxed-h1 { @extend h3; }
+  .boxed-h2 { @extend h4; }
+  .boxed-h3 { @extend h5; }
+  .boxed-h4 { @extend h6; }
+}
+
+
+////////////////////
+// Content Design //
+////////////////////
+
+main {
+  .border {
+    @extend .rounded;
+  }
+
+  pre {
+    @extend .border;
+    @extend .border-secondary;
+  }
+
+
+  ///////////////////////////////
+  // Table with rounded border //
+  ///////////////////////////////
+  
+  .table.table-bordered-roundly {
+    border-collapse:separate;
+    border-spacing: 0;
+
+    th {
+      border-bottom-width: 1.5px;
+    }
+
+    th:first-of-type, td:first-of-type {
+      border-left: solid $secondary 1px;
+    }
+    th:last-of-type, td:last-of-type {
+      border-right: solid $secondary 1px;
+    }
+
+    thead th:first-of-type {
+      border-top: solid $secondary 1px;
+      border-left: solid $secondary 1px;
+      border-top-left-radius: $border-radius;
+    }
+    thead th {
+      border-top: solid $secondary 1px;
+    }
+    thead th:last-of-type {
+      border-top: solid $secondary 1px;
+      border-right: solid $secondary 1px;
+      border-top-right-radius: $border-radius;
+    }
+
+    tr:last-of-type td:first-of-type {
+      border-bottom: solid $secondary 1px;
+      border-left: solid $secondary 1px;
+      border-bottom-left-radius: $border-radius;
+    }
+    tr:last-of-type td {
+      border-bottom: solid $secondary 1px;
+    }
+    tr:last-of-type td:last-of-type {
+      border-bottom: solid $secondary 1px;
+      border-right: solid $secondary 1px;
+      border-bottom-right-radius: $border-radius;
+    }
+  }
+
+
+  /////////////////
+  // With Asides //
+  /////////////////
+
+  .with-left-asides {
+    @extend .stack;
+  
+    margin-left: 200px;
+  
+    aside {
+      margin-left: -200px;
+      @extend .float-start;
+      @extend .stack;
+      width: 160px;
+    }
+  }
+  
+  .with-right-asides {
+    @extend .stack;
+    
+    margin-right: 200px;
+  
+    aside {
+      margin-right: -200px;
+      @extend .float-end;
+      @extend .stack;
+      width: 160px;
+    }
+  }
+}
+
+
+///////////////////
+// Miscellaneous //
+///////////////////
+
+// Anchors
+
+a.anchor {
+  display: block; 
+  position: relative;
+  top: 0px;
+  visibility: hidden;
+}
+
+
+////////////////////////
+// Show-top-level-nav //
+////////////////////////
+
+// The `show-top-level-nav` class can be set/unset. See also `res/script.js`
+body:not(.show-top-level-nav) {
+  // Hide top item
+  .item-level-0 > .caret, .item-level-0 > .bullet, .item-level-0 > .content > a {
+    display:none;
+  }
+}
+
+
+/////////////////
+// Reduced-nav //
+/////////////////
+
+// The `reduced-nav` class can be set/unset. See also `res/script.js`
+body.reduced-nav .hide-on-reduced-nav {
+  display: none !important;
+}
+
+
+/////////////////////
+// Module-specific //
+/////////////////////
+
+@import "./partials/module_accordion_screen";
+@import "./partials/module_nav_screen";

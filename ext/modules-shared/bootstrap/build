@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# Download from 
+
+cd "$(dirname "$(readlink -f "$0")")/"
+
+git clone https://github.com/twbs/bootstrap.git --branch "v5.3.1" --depth 1
+
+mkdir -p ./res
+mkdir -p ./scss
+
+cp ./bootstrap/dist/js/bootstrap.bundle.min.js ./res
+cp -r ./bootstrap/scss/* ./scss
+
+rm -rf ./bootstrap

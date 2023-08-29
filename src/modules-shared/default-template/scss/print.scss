@@ -1,0 +1,84 @@
+/////////////////////////////////
+// Customize & Import Boostrap //
+/////////////////////////////////
+
+// Include CSS grid (https://getbootstrap.com/docs/5.1/layout/css-grid/)
+$enable-cssgrid: true;
+
+@import "/modules-shared-ext/bootstrap/scss/bootstrap";
+
+
+//////////////////////////
+// Import common styles //
+//////////////////////////
+
+@import "./partials/common";
+
+
+////////////
+// Stacks //
+////////////
+
+// A sheet is a stack
+.sheet {
+    @extend .stack;
+}
+
+
+////////////////////////////
+// Global Layout & Design //
+////////////////////////////
+
+// Page breaks
+.sheet {
+    break-before: always;
+}
+.sheet:first-of-type {
+    break-before: avoid;
+}
+
+// Sidebar
+#sidebar {
+    display:none !important;
+}
+
+
+//////////////////////////
+// Typography & Margins //
+//////////////////////////
+
+$margin_p:       0.4cm;
+$margin_float:   2*$margin_p;
+$margin_section: 3*$margin_p;
+
+html { font-size:12pt !important; }
+
+main {
+
+    // Headings
+    h1 { font-size: 20pt; }
+    h2 { font-size: 16pt; }
+    h3 { font-size: 15pt; }
+    h4 { font-size: 14pt; }
+    h5 { font-size: 13pt; }
+    h6 { font-size: 12pt; }
+
+    @include basic-defs($margin_p, $margin_float, $margin_section);
+
+    // `pre` border becomes invisible in print, therefore eliminate space around it
+    pre {
+        margin-top:0 !important;
+        padding-top:0 !important;
+    }
+}
+
+body {
+    color:black !important;
+}
+
+
+/////////////////////
+// Module-specific //
+/////////////////////
+
+@import "./partials/module_accordion_print";
