@@ -15,20 +15,19 @@
     */
 
     abstract class NavItem {
-        // The children are indexed in two ways:
-        // 1) In a list where the order defines the order in the visible menu
-        protected array $children;
-        // 2) In a map so that access via their id is fast 
+        // The children are indexed in a map so that access via id is fast  
         protected array $id_2_child;
+        // The children are ordered as defined by this list
+        protected array $children_ids;
         
         public function __construct(
             public readonly array $target_ids,
             // Title to use explicitly in navigation (may contain normal
             // title, but may also vary from it)
-            public readonly string $nav_title
+            public readonly string $nav_title,
         ) {
-            $this->children = [];
             $this->id_2_child = [];
+            $this->children_ids = [];
         }
 
         public abstract function get_ids(): array;
@@ -37,20 +36,20 @@
         public abstract function get_css_slug(): string;
             
         public function add_anchor_child(AnchorNavItem $anchorItem): void {
-            $this->children[] = $anchorItem;
             $this->id_2_child[$anchorItem->get_last_id()] = $anchorItem;
+            $this->children_ids[] = $anchorItem->get_last_id();
         }
 
         public function has_child($id): bool {
-            return isset($this->id_2_child[$id]);
+            return in_array($id, $this->children_ids);
         }
 
         public function get_number_of_children(): int {
-            return count($this->children);
+            return count($this->children_ids);
         }
 
         public function iterate_children(): ArrayIterator {
-            return new ArrayIterator($this->children);
+            return new ArrayIterator(array_values($this->id_2_child));
         }
 
         // Recursively find an item in the tree; given a relative path
@@ -69,10 +68,11 @@
         }
     }
 
-    class TargetNavItem extends NavItem {
+    class TargetNavItem extends NavItem implements JsonSerializable {
         public function __construct(
             array $target_ids,
-            string $nav_title
+            string $nav_title,
+            public readonly array $privileged_groups // list<group_ser>
         ) {
             parent::__construct($target_ids, $nav_title);
         }
@@ -99,8 +99,18 @@
         }
 
         public function add_target_child(TargetNavItem $targetItem): void {
-            $this->children[] = $targetItem;
             $this->id_2_child[$targetItem->get_last_id()] = $targetItem;
+            $this->children_ids[] = $targetItem->get_last_id();
+        }
+
+        public function jsonSerialize(): mixed {
+            return [
+                'target_ids' => $this->target_ids,
+                'nav_title' => $this->nav_title,
+                'children_ids' => $this->children_ids,
+                'id_2_child' => $this->id_2_child,
+                'privileged_groups' => $this->privileged_groups
+            ];
         }
     }
 

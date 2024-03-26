@@ -36,12 +36,20 @@
 
     function css_start(): void {
         ob_start();
-        echo '<style>';
+        echo "<style>\n";
     }
 
     function css_end(): void {
-        echo '</style>';
+        echo "</style>";
         doc_extensions_add_css(ob_get_clean());
+    }
+
+    function head_start(): void {
+        ob_start();
+    }
+
+    function head_end(): void {
+        doc_extensions_add_head_import(ob_get_clean());
     }
 
 

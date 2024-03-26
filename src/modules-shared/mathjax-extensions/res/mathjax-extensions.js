@@ -4,15 +4,10 @@
 
 // Global variables
 
-mathJaxMacros = {};
 mathJaxAfterRenderingHooks = [];
 
 
 // Use these public interfaces to place your hooks
-
-function addMathJaxMacro(name, macro) {
-    mathJaxMacros[name] = macro;
-}
 
 function addMathJaxAfterRenderingHook(func) {
     mathJaxAfterRenderingHooks.push(func);
@@ -65,12 +60,6 @@ MathJax = {
             // Add macros //
             ////////////////
 
-            MathJax.config.tex.macros = {};
-            Object.keys(mathJaxMacros).forEach(name => {
-                const macro = mathJaxMacros[name];
-                MathJax.config.tex.macros[name] = macro;
-            });
-
             // --- Before rendering ("MathJax is loaded, but not yet initialized") ---
 
             MathJax.startup.defaultReady();
@@ -87,7 +76,7 @@ MathJax = {
                     '[tex]/unicode']},
     tex: {
         inlineMath: [['$', '$']],
-        displayMath: [['$$','$$'], ['\[','\]']],
+        displayMath: [['$$','$$']],
         packages: {'[+]': [
                         'color',
                         'unicode',

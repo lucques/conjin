@@ -1,13 +1,21 @@
 <?
     // Immutable
-    class ModuleId {
+    class ModuleLocation {
+        // TODO make private?
         public function __construct(
-            public readonly string $name,
+            public readonly string $dir_name,
             public readonly bool $is_shared,
             public readonly bool $is_external
         ) {
             assert(file_exists($this->get_path()),
-                "Module \"$this->name\" does not exist");
+                "Module {$this->dir_name} does not exist");
+        }
+
+        public static function construct(string $name): ModuleLocation {
+            return new ModuleLocation(
+                get_global_config('modules', $name, 'location', 'dirName'),
+                get_global_config('modules', $name, 'location', 'isShared'),
+                get_global_config('modules', $name, 'location', 'isExternal'));
         }
 
         public function get_path(): string {
@@ -24,31 +32,31 @@
 
         private function get_module_dir(): string {
             if ($this->is_shared && $this->is_external) {
-                return 'modules-shared-ext/' . $this->name;
+                return 'modules-shared-ext/' . $this->dir_name;
             }
             elseif ($this->is_shared && !$this->is_external) {
-                return 'modules-shared/' . $this->name;
+                return 'modules-shared/' . $this->dir_name;
             }
             elseif (!$this->is_shared && $this->is_external) {
-                return 'modules-ext/' . $this->name;
+                return 'modules-ext/' . $this->dir_name;
             }
             else {
-                return 'modules/' . $this->name;
+                return 'modules/' . $this->dir_name;
             }
         }
 
         private function get_template_css_dir(): string {
             if ($this->is_shared && $this->is_external) {
-                return 'modules-shared-ext-css/' . $this->name;
+                return 'modules-shared-ext-css/' . $this->dir_name;
             }
             elseif ($this->is_shared && !$this->is_external) {
-                return 'modules-shared-css/' . $this->name;
+                return 'modules-shared-css/' . $this->dir_name;
             }
             elseif (!$this->is_shared && $this->is_external) {
-                return 'modules-ext-css/' . $this->name;
+                return 'modules-ext-css/' . $this->dir_name;
             }
             else {
-                return 'modules-css/' . $this->name;
+                return 'modules-css/' . $this->dir_name;
             }
         }
         
@@ -67,7 +75,7 @@
             $defs = load_defs_from_script($this->get_path() . '/preprocessing.php');
 
             assert(isset($defs['create_preprocessor']),
-                "Module \"$this->name\" does not support preprocessing");
+                "Module \"$this->dir_name\" does not support preprocessing");
             return $defs['create_preprocessor']($ctx);
         }
 
@@ -92,7 +100,7 @@
             $defs = load_defs_from_script($script_path);
 
             assert(isset($defs['render_for_target']),
-                "Module \"$this->name\" does not support component \"$component\" to render for target");
+                "Module \"$this->dir_name\" does not support component \"$component\" to render for target");
             $defs['render_for_target']($this, $target);
         }
 
@@ -101,7 +109,7 @@
             $defs = load_defs_from_script($script_path);
 
             assert(isset($defs['render_for_target_with_sub_template']),
-                "Module \"$sub_template->name\" does not support component \"$component\" to render for target with sub template");
+                "Module \"$sub_template->dir_name\" does not support component \"$component\" to render for target with sub template");
             $defs['render_for_target_with_sub_template']($this, $sub_template, $target);
         }
 
@@ -110,7 +118,7 @@
             $defs = load_defs_from_script($script_path);
 
             assert(isset($defs['render_generic']),
-                "Module \"$this->name\" does not support component \"$component\" to render generically");
+                "Module \"$this->dir_name\" does not support component \"$component\" to render generically");
             $defs['render_generic']($this, $root_target, $params);
         }
 
@@ -119,32 +127,37 @@
             $defs = load_defs_from_script($script_path);
 
             assert(isset($defs['render_generic_with_sub_template']),
-                "Module \"$sub_template->name\" does not support component \"$component\" to render generically with sub template");
+                "Module \"$sub_template->dir_name\" does not support component \"$component\" to render generically with sub template");
             $defs['render_generic_with_sub_template']($this, $sub_template, $root_target, $params);
         }
     }
 
     // Immutable
-    class Module extends ModuleId {
-        public readonly bool $is_configured;
+    class Module extends ModuleLocation {
         public readonly ConfigTree $config;
 
         public function __construct(
-            string $name,
+            string $dir_name,
             bool $is_shared,
             bool $is_external,
             ?array $config = null)
         {
-            parent::__construct($name, $is_shared, $is_external);
+            parent::__construct($dir_name, $is_shared, $is_external);
 
             if ($config === null) {
-                $this->is_configured = false;
-                $this->config = new ConfigTree(get_global_config_or_default(['modules_default_config', $this->name], default: []));
+                $this->config = new ConfigTree(get_global_config_or_default(['modules', $this->dir_name, 'defaultConfig'], default: []));
             }
             else {
-                $this->is_configured = true;
                 $this->config = new ConfigTree($config);
             }
+        }
+
+        public static function construct(string $name, ?array $config = null): Module {
+            return new Module(
+                get_global_config('modules', $name, 'location', 'dirName'),
+                get_global_config('modules', $name, 'location', 'isShared'),
+                get_global_config('modules', $name, 'location', 'isExternal'),
+                $config);
         }
     }
 ?>

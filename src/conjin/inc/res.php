@@ -11,7 +11,7 @@
                     // File still cached by browser?
                     check_whether_unmodified_and_handle($path);            
 
-                    header('Content-Type: ' . mime_content_type($path));
+                    header('Content-Type: ' . get_mime($path));
                     readfile($real_path);
                     
                     exit();

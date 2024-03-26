@@ -27,7 +27,7 @@
         // Used after FINISH //
         ///////////////////////
 
-        private ?NavItem $nav_item = null;
+        private ?TargetNavItem $nav_item = null;
         
         public function get_nav_item(): NavItem {
             return $this->nav_item;
@@ -41,8 +41,9 @@
         public function finish(array $id_2_child_ctx): void {
             // Create nav item
             $this->nav_item = new TargetNavItem(
-                target_ids: $this->ctx->target_ids,
-                nav_title: $this->title ?? $this->ctx->title
+                target_ids:        $this->ctx->target_ids,
+                nav_title:         $this->title ?? $this->ctx->title,
+                privileged_groups: $this->ctx->actions_2_grouplist[auth_aux_ser_action(AUTH_VIEW_ACTION)]
             );
 
             // Recursively retrieve nav and add to nav item

@@ -40,32 +40,32 @@ let makeReadonlyVol =
 let makeModuleSourceDir =
     \(conjinDir:   Text) ->
     \(appDir:      Text) ->
-    \(m: T.ModuleId) ->
-        if      m.isShared && m.isExternal == False          then conjinDir  ++ "/src/modules-shared/" ++ m.name
-        else if m.isShared && m.isExternal                   then conjinDir  ++ "/ext/modules-shared/" ++ m.name
-        else if m.isShared == False && m.isExternal == False then appDir     ++ "/src/modules/"        ++ m.name
-        else                                                      appDir     ++ "/ext/modules/"        ++ m.name
+    \(m: T.ModuleLocation) ->
+        if      m.isShared && m.isExternal == False          then conjinDir  ++ "/src/modules-shared/" ++ m.dirName
+        else if m.isShared && m.isExternal                   then conjinDir  ++ "/ext/modules-shared/" ++ m.dirName
+        else if m.isShared == False && m.isExternal == False then appDir     ++ "/src/modules/"        ++ m.dirName
+        else                                                      appDir     ++ "/ext/modules/"        ++ m.dirName
 : Text
 
 let makeModuleDir =
     \(pathPrefix: Text) ->
     \(dirSuffix: Optional Text) ->
-    \(m: T.ModuleId) ->
+    \(m: T.ModuleLocation) ->
         let suf = merge { None = "", Some = \(d: Text) -> "-" ++ d } dirSuffix in
-        if      m.isShared && m.isExternal == False          then pathPrefix ++ "/modules-shared"     ++ suf ++ "/" ++ m.name
-        else if m.isShared && m.isExternal                   then pathPrefix ++ "/modules-shared-ext" ++ suf ++ "/" ++ m.name
-        else if m.isShared == False && m.isExternal == False then pathPrefix ++ "/modules"            ++ suf ++ "/" ++ m.name
-        else                                                      pathPrefix ++ "/modules-ext"        ++ suf ++ "/" ++ m.name
+        if      m.isShared && m.isExternal == False          then pathPrefix ++ "/modules-shared"     ++ suf ++ "/" ++ m.dirName
+        else if m.isShared && m.isExternal                   then pathPrefix ++ "/modules-shared-ext" ++ suf ++ "/" ++ m.dirName
+        else if m.isShared == False && m.isExternal == False then pathPrefix ++ "/modules"            ++ suf ++ "/" ++ m.dirName
+        else                                                      pathPrefix ++ "/modules-ext"        ++ suf ++ "/" ++ m.dirName
 : Text
 
 let makeModuleTargetCssDir =
     \(targetDir: Text) ->
-    \(m: T.ModuleId) ->
+    \(m: T.ModuleLocation) ->
     (makeModuleDir (targetDir ++ "/htdocs") (Some "css") m)
 : Text
 
 let moduleToString =
-    \(m: T.Module) -> m.id.name ++ (if m.id.isShared then "-shared" else "-local")
+    \(m: T.Module) -> m.location.dirName ++ (if m.location.isShared then "-shared" else "-local")
 : Text
 
 
@@ -75,26 +75,26 @@ let makeAppVols =
     \(targetDir:      Text) ->
     \(appDir:         Text) ->
     \(conjinDir:      Text) ->
-    \(faviconIcoFrom: Optional T.ModuleId) ->
-    \(modules:        List T.Module) ->
+    \(faviconIcoFrom: Optional T.ModuleLocation) ->
+    \(modules:        P.Map.Type Text T.Module) ->
     \(preprocessDir:  Bool) ->
 
     let htdocsDir = "/files/htdocs"
 
     let faviconVolume =
-        P.Optional.map T.ModuleId Compose.ServiceVolume (\(t: T.ModuleId) ->
+        P.Optional.map T.ModuleLocation Compose.ServiceVolume (\(t: T.ModuleLocation) ->
             makeReadonlyVol (makeModuleSourceDir conjinDir appDir t ++ "/res/favicon/favicon.ico")
                             (htdocsDir ++ "/favicon.ico"))
             faviconIcoFrom         
 
     let makeModuleVol =
         \(m: T.Module) ->
-        makeReadonlyVol (makeModuleSourceDir conjinDir appDir m.id) (makeModuleDir htdocsDir (None Text) m.id)
+        makeReadonlyVol (makeModuleSourceDir conjinDir appDir m.location) (makeModuleDir htdocsDir (None Text) m.location)
 
     let makeModuleCssVol =
         \(m: T.Module) ->
         if m.compileScss
-            then Some (makeReadonlyVol (makeModuleTargetCssDir targetDir m.id) (makeModuleDir htdocsDir (Some "css") m.id))
+            then Some (makeReadonlyVol (makeModuleTargetCssDir targetDir m.location) (makeModuleDir htdocsDir (Some "css") m.location))
             else None Compose.ServiceVolume
 
     let preprocessVol =
@@ -113,9 +113,9 @@ let makeAppVols =
     #
     unpackOptionals Compose.ServiceVolume [faviconVolume]
     #
-    map T.Module Compose.ServiceVolume makeModuleVol modules
+    map T.Module Compose.ServiceVolume makeModuleVol (P.Map.values Text T.Module modules)
     #
-    unpackOptionals Compose.ServiceVolume (map T.Module (Optional Compose.ServiceVolume) makeModuleCssVol modules)
+    unpackOptionals Compose.ServiceVolume (map T.Module (Optional Compose.ServiceVolume) makeModuleCssVol (P.Map.values Text T.Module modules))
     #
     unpackOptionals Compose.ServiceVolume [preprocessVol]
 : List Compose.ServiceVolume
@@ -197,17 +197,17 @@ let makeTemplateSassWatcher =
     \(appDir:    Text) ->
     \(template:  T.Module) ->
 
-    let moduleSassVol = makeReadonlyVol (makeModuleSourceDir conjinDir appDir template.id ++ "/scss") "/sass"
-    let moduleCssVol  = makeVol         (makeModuleTargetCssDir targetDir template.id)                "/css"
+    let moduleSassVol = makeReadonlyVol (makeModuleSourceDir conjinDir appDir template.location ++ "/scss") "/sass"
+    let moduleCssVol  = makeVol         (makeModuleTargetCssDir targetDir template.location)                "/css"
 
     let makeModuleDependencyVol = 
-        \(m: T.ModuleId) -> makeReadonlyVol (makeModuleSourceDir conjinDir appDir m ++ "/scss") (makeModuleDir   "" (None Text) m ++ "/scss")
+        \(m: T.ModuleLocation) -> makeReadonlyVol (makeModuleSourceDir conjinDir appDir m ++ "/scss") (makeModuleDir   "" (None Text) m ++ "/scss")
 
     let volumes = [moduleSassVol, moduleCssVol] #
-                  (map T.ModuleId Compose.ServiceVolume makeModuleDependencyVol template.scssModuleDeps)
+                  (map T.ModuleLocation Compose.ServiceVolume makeModuleDependencyVol template.scssModuleDeps)
     let moduleDependencyLoadPaths =
-        map T.ModuleId Text
-        (\(m: T.ModuleId) -> "--load-path=" ++ (makeModuleDir "" (None Text) m ++ "/scss"))
+        map T.ModuleLocation Text
+        (\(m: T.ModuleLocation) -> "--load-path=" ++ (makeModuleDir "" (None Text) m ++ "/scss"))
         template.scssModuleDeps
     in
 
@@ -231,14 +231,14 @@ let makeTemplateSassCompilation =
     \(appDir:    Text) ->
     \(template:  T.Module) ->
 
-    let moduleSassVol = makeReadonlyVol (makeModuleSourceDir conjinDir appDir template.id ++ "/scss") "/sass"
-    let moduleCssVol  = makeVol         (makeModuleTargetCssDir targetDir template.id)                "/css"
+    let moduleSassVol = makeReadonlyVol (makeModuleSourceDir conjinDir appDir template.location ++ "/scss") "/sass"
+    let moduleCssVol  = makeVol         (makeModuleTargetCssDir targetDir template.location)                "/css"
 
     let makeModuleDependencyVol = 
-        \(m: T.ModuleId) -> makeReadonlyVol (makeModuleSourceDir conjinDir appDir m ++ "/scss") (makeModuleDir   "" (None Text) m ++ "/scss")
+        \(m: T.ModuleLocation) -> makeReadonlyVol (makeModuleSourceDir conjinDir appDir m ++ "/scss") (makeModuleDir   "" (None Text) m ++ "/scss")
 
     let volumes = [moduleSassVol, moduleCssVol] #
-                  (map T.ModuleId Compose.ServiceVolume makeModuleDependencyVol template.scssModuleDeps)
+                  (map T.ModuleLocation Compose.ServiceVolume makeModuleDependencyVol template.scssModuleDeps)
     in
 
     Compose.Service::{
@@ -280,7 +280,11 @@ let makeDockerNginxDeplConfig =
             Some (makeDbService db)
     } config.db
 
-    let phpmyadmin = makePhpmyadmin config.nginxVirtualHost
+    let phpmyadmin = merge {
+        , None = None Compose.Service.Type
+        , Some = \(_: T.DockerDb) ->
+            Some (makePhpmyadmin config.nginxVirtualHost)
+    } config.db
 
     let templateSassWatchers =
         filterMap T.Module (Entry Text Compose.Service.Type)
@@ -291,7 +295,7 @@ let makeDockerNginxDeplConfig =
                         (makeTemplateSassWatcher config.depl.targetDir config.depl.conjinDir config.depl.appDir m))
                 else
                     None (Entry Text Compose.Service.Type))
-            config.depl.modules
+            (P.Map.values Text T.Module config.depl.modules)
 
 
     -- Wrap up
@@ -301,7 +305,7 @@ let makeDockerNginxDeplConfig =
         = P.Map.unpackOptionals Text Compose.Service.Type (toMap
             { webserver  = Some webserver
             , db         = db
-            , phpmyadmin = Some phpmyadmin
+            , phpmyadmin = phpmyadmin
             })
           #
           templateSassWatchers
@@ -335,7 +339,7 @@ let makeDockerSyncDeplConfig =
                         (makeTemplateSassCompilation config.depl.targetDir config.depl.conjinDir config.depl.appDir m))
                 else
                     None (Entry Text Compose.Service.Type))
-            config.depl.modules
+            (P.Map.values Text T.Module config.depl.modules)
     : P.Map.Type Text Compose.Service.Type
     
     let templateSassCompilationServices =
@@ -412,20 +416,7 @@ let makeDockerNginxConfigFiles =
                 path_preprocess = "../../preprocess",
                 url_root = "/",
                 auth = P.Optional.map T.Auth T.AppAuth (\(a: T.Auth) -> a.app) config.depl.auth,
-                modules_default_config =
-                    map T.Module (P.Map.Entry Text P.JSON.Type)
-                        (\(m: T.Module) -> keyValue P.JSON.Type m.id.name m.defaultConfig)
-                        config.depl.modules
-                    #
-                    unpackOptionals (P.Map.Entry Text P.JSON.Type) [
-                        P.Optional.map T.DockerDb (P.Map.Entry Text P.JSON.Type) (\(db: T.DockerDb) ->
-                            keyValue P.JSON.Type "db" (P.JSON.object [
-                                , { mapKey = "host"     , mapValue = P.JSON.string "db" }
-                                , { mapKey = "user"     , mapValue = P.JSON.string db.user }
-                                , { mapKey = "password" , mapValue = P.JSON.string db.userPassword }
-                            ]))
-                            config.db
-                    ]
+                modules = config.depl.modules
             }
             : T.ConfigJsonFileT
     }
@@ -442,20 +433,7 @@ let makeDockerSyncConfigFiles =
                 path_preprocess = "../preprocess",
                 url_root = "/",
                 auth = P.Optional.map T.Auth T.AppAuth (\(a: T.Auth) -> a.app) config.depl.auth,
-                modules_default_config =
-                    map T.Module (P.Map.Entry Text P.JSON.Type)
-                        (\(m: T.Module) -> keyValue P.JSON.Type m.id.name m.defaultConfig)
-                        config.depl.modules
-                    #
-                    unpackOptionals (P.Map.Entry Text P.JSON.Type) [
-                        P.Optional.map T.ServerDb (P.Map.Entry Text P.JSON.Type) (\(db: T.ServerDb) ->
-                            keyValue P.JSON.Type "db" (P.JSON.object [
-                                , { mapKey = "host"     , mapValue = P.JSON.string "localhost" }
-                                , { mapKey = "user"     , mapValue = P.JSON.string db.user }
-                                , { mapKey = "password" , mapValue = P.JSON.string db.password }
-                            ]))
-                            config.db
-                    ]
+                modules = config.depl.modules
             }
             : T.ConfigJsonFileT
     }
@@ -488,63 +466,112 @@ let grantPreprocPrivToUser =
     }
 : T.Group2Privilege
 
-let grantViewActionToGroup = 
+let grantDebugPrivToUser =
+    \(user: Text) -> {
+        group = T.Group.UserBased user,
+        privilege = T.Privilege.Debug {=}
+    }
+: T.Group2Privilege
+
+let allowViewActionForGroup = 
     \(targetIds: List Text) ->
     \(group: Text) -> {
         group = T.Group.Custom group,
-        privilege = T.Privilege.Target {
+        rule = T.TargetRule.Allow ({
             , targetIds
             , action = T.Action.View {=}
-            , inherit = True
-        }
+        })
     }
-: T.Group2Privilege
+: T.Group2TargetRule
 
-let grantViewActionToUser = 
+let allowViewActionForUser = 
     \(targetIds: List Text) ->
     \(user: Text) -> {
         group = T.Group.UserBased user,
-        privilege = T.Privilege.Target {
+        rule = T.TargetRule.Allow ({
             , targetIds
             , action = T.Action.View {=}
-            , inherit = True
-        }
+        })
     }
-: T.Group2Privilege
+: T.Group2TargetRule
 
-let grantCustomActionToGroup = 
+let allowCustomActionForGroup = 
     \(targetIds: List Text) ->
     \(group: Text) ->
     \(action: Text) -> {
         group = T.Group.Custom group,
-        privilege = T.Privilege.Target {
+        rule = T.TargetRule.Allow ({
             , targetIds
             , action = T.Action.Custom action
-            , inherit = True
-        }
+        })
     }
-: T.Group2Privilege
+: T.Group2TargetRule
 
-let grantCustomActionToUser = 
+let allowCustomActionForUser = 
     \(targetIds: List Text) ->
     \(user: Text) ->
     \(action: Text) -> {
         group = T.Group.UserBased user,
-        privilege = T.Privilege.Target {
+        rule = T.TargetRule.Allow ({
             , targetIds
             , action = T.Action.Custom action
-            , inherit = True
-        }
+        })
     }
-: T.Group2Privilege
+: T.Group2TargetRule
+
+let denyViewActionToGroup = 
+    \(targetIds: List Text) ->
+    \(group: Text) -> {
+        group = T.Group.Custom group,
+        rule = T.TargetRule.Deny ({
+            , targetIds
+            , action = T.Action.View {=}
+        })
+    }
+: T.Group2TargetRule
+
+let denyViewActionToUser =
+    \(targetIds: List Text) ->
+    \(user: Text) -> {
+        group = T.Group.UserBased user,
+        rule = T.TargetRule.Deny ({
+            , targetIds
+            , action = T.Action.View {=}
+        })
+    }
+: T.Group2TargetRule
+
+let denyCustomActionToGroup =
+    \(targetIds: List Text) ->
+    \(group: Text) ->
+    \(action: Text) -> {
+        group = T.Group.Custom group,
+        rule = T.TargetRule.Deny ({
+            , targetIds
+            , action = T.Action.Custom action
+        })
+    }
+: T.Group2TargetRule
+
+let denyCustomActionToUser =
+    \(targetIds: List Text) ->
+    \(user: Text) ->
+    \(action: Text) -> {
+        group = T.Group.UserBased user,
+        rule = T.TargetRule.Deny ({
+            , targetIds
+            , action = T.Action.Custom action
+        })
+    }
+: T.Group2TargetRule
 
 let makeModule = 
-    \(name: Text) ->
+    \(dirName: Text) ->
     \(isShared: Bool) ->
     \(isExternal: Bool) -> {
-        id = {name, isShared, isExternal},
+        location = {dirName, isShared, isExternal},
         compileScss = False,
-        scssModuleDeps = empty T.ModuleId,
+        scssModuleDeps = empty T.ModuleLocation,
         defaultConfig = P.JSON.null,
     }
 : T.Module
@@ -554,14 +581,46 @@ let makeModules =
     \(isExternal: Bool) ->
     \(names: List Text) ->
     map Text T.Module (\(n: Text) -> {
-        id = {name = n, isShared, isExternal},
+        location = {dirName = n, isShared, isExternal},
         compileScss = False,
-        scssModuleDeps = empty T.ModuleId,
+        scssModuleDeps = empty T.ModuleLocation,
         defaultConfig = P.JSON.null,
     })
     names
 : List T.Module
 
+let makeDbModuleForServerDb =
+    \(db: T.ServerDb) ->
+    {
+        location = {dirName = "db", isShared = True, isExternal = False},
+        compileScss = False,
+        scssModuleDeps = empty T.ModuleLocation,
+        defaultConfig = P.JSON.object [
+                            , { mapKey = "host"     , mapValue = P.JSON.string "localhost" }
+                            , { mapKey = "user"     , mapValue = P.JSON.string db.user }
+                            , { mapKey = "password" , mapValue = P.JSON.string db.password }
+                        ]
+    }
+: T.Module
+
+let makeDbModuleForDockerDb = 
+    \(db: T.DockerDb) ->
+    {
+        location = {dirName = "db", isShared = True, isExternal = False},
+        compileScss = False,
+        scssModuleDeps = empty T.ModuleLocation,
+        defaultConfig = P.JSON.object [
+                            , { mapKey = "host"     , mapValue = P.JSON.string "db" }
+                            , { mapKey = "user"     , mapValue = P.JSON.string db.user }
+                            , { mapKey = "password" , mapValue = P.JSON.string db.userPassword }
+                        ]
+    }
+: T.Module
+
+let moduleListToMap =
+    \(modules: List T.Module) ->
+    map T.Module (Entry Text T.Module) (\(m: T.Module) -> { mapKey = m.location.dirName, mapValue = m }) modules
+: P.Map.Type Text T.Module
 
 in {
     , makeDockerNginxConfigFiles
@@ -570,11 +629,21 @@ in {
     , assignUser2PasswordHash
     , addUserToGroup
     , grantPreprocPrivToUser
-    , grantViewActionToGroup
-    , grantViewActionToUser
-    , grantCustomActionToGroup
-    , grantCustomActionToUser
+    , grantDebugPrivToUser
+    
+    , allowViewActionForGroup
+    , allowViewActionForUser
+    , allowCustomActionForGroup
+    , allowCustomActionForUser
+
+    , denyViewActionToGroup
+    , denyViewActionToUser
+    , denyCustomActionToGroup
+    , denyCustomActionToUser
 
     , makeModule
     , makeModules
+    , makeDbModuleForServerDb
+    , makeDbModuleForDockerDb
+    , moduleListToMap
 }

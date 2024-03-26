@@ -1,0 +1,2 @@
+# Activate compression
+SetOutputFilter DEFLATE

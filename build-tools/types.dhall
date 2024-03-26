@@ -8,23 +8,25 @@ let Compose = https://raw.githubusercontent.com/lucques/dhall-docker-compose/b43
 
 let FlatConfig = P.Map.Type Text Text
 
-let ModuleId = { name: Text, isShared: Bool, isExternal: Bool }
-let Module   = { id: ModuleId,
-                 compileScss: Bool,
-                 scssModuleDeps: List ModuleId,
-                 defaultConfig: P.JSON.Type }
-
+let ModuleLocation = { dirName: Text, isShared: Bool, isExternal: Bool }
+let Module = { location: ModuleLocation,
+               compileScss: Bool,
+               scssModuleDeps: List ModuleLocation,
+               defaultConfig: P.JSON.Type }
 
 ----------
 -- Auth --
 ----------
 
-let Group     = < UserBased: Text | Custom: Text >
-let Action    = < View: {} | Custom: Text >
-let Privilege = < Preprocess: {} | LoginLogout: {} | Target: { targetIds: List Text, action: Action, inherit: Bool } >
+let Group            = < UserBased: Text | Custom: Text >
+let Action           = < View: {} | Custom: Text >
+let TargetPrivilege  = { targetIds: List Text, action: Action }
+let TargetRule       = < Allow: TargetPrivilege | Deny: TargetPrivilege >
+let Privilege        = < Debug: {} | Preprocess: {} | LoginLogout: {} | Target: TargetPrivilege >
 
-let User2Group      = { user: Text, group: Group }
-let Group2Privilege = { group: Group, privilege: Privilege }
+let User2Group       = { user: Text, group: Group }
+let Group2Privilege  = { group: Group, privilege: Privilege }
+let Group2TargetRule = { group: Group, rule: TargetRule }
 
 let AppAuth = {
     , rootUser:  Text
@@ -35,6 +37,7 @@ let AppAuth = {
     , users2passwordHashes: P.Map.Type Text Text
     , users2groups:         List User2Group
     , groups2privileges:    List Group2Privilege
+    , groups2targetRules:   List Group2TargetRule
 }
 
 let Auth = {
@@ -77,8 +80,8 @@ let DockerDepl = {
     , appDir               : Text
     , targetDir            : Text
     , auth                 : Optional Auth
-    , modules              : List Module
-    , faviconIcoFrom       : Optional ModuleId
+    , modules              : P.Map.Type Text Module
+    , faviconIcoFrom       : Optional ModuleLocation
     , notFoundTemplate     : Module
     , unauthorizedTemplate : Module
 }
@@ -94,12 +97,13 @@ let DockerNginxDepl = {
 
 -- External depl with docker and rclone
 let DockerSyncDepl = {
-    , depl               : DockerDepl
-    , host               : Text
-    , preferHTTPS        : Bool
-    , forceHTTPS         : Bool
-    , rcloneRemote       : RCloneRemote
-    , db                 : Optional ServerDb
+    , depl                : DockerDepl
+    , host                : Text
+    , preferHTTPS         : Bool
+    , forceHTTPS          : Bool
+    , activateCompression : Bool
+    , rcloneRemote        : RCloneRemote
+    , db                  : Optional ServerDb
 }
 
 
@@ -113,7 +117,7 @@ let ConfigJsonFile = {
     , path_preprocess: Text
     , url_root: Text
     , auth: Optional AppAuth
-    , modules_default_config: P.Map.Type Text P.JSON.Type
+    , modules: P.Map.Type Text Module
 }
 
 
@@ -128,13 +132,17 @@ let ConfigJsonFile = {
 -- process from Dhall to JSON. However, such a cmd-line argument is not
 -- available yet, so we stick with this workaround for now.
 
-let GroupT             = P.JSON.Tagged Group
-let ActionT            = P.JSON.Tagged Action
-let PrivilegeTUntagged = < Preprocess: {} | LoginLogout: {} | Target: { targetIds: List Text, action: ActionT, inherit: Bool } >
+let GroupT              = P.JSON.Tagged Group
+let ActionT             = P.JSON.Tagged Action
+let TargetPrivilegeT    = { targetIds: List Text, action: ActionT }
+let TargetRuleTUntagged = < Allow: TargetPrivilegeT | Deny: TargetPrivilegeT >
+let TargetRuleT         = P.JSON.Tagged TargetRuleTUntagged
+let PrivilegeTUntagged  = < Debug: {} | Preprocess: {} | LoginLogout: {} | Target: TargetPrivilegeT >
 let PrivilegeT         = P.JSON.Tagged PrivilegeTUntagged
 
 let User2GroupT        = { user: Text, group: GroupT }
 let Group2PrivilegeT   = { group: GroupT, privilege: PrivilegeT }
+let Group2TargetRuleT  = { group: GroupT, rule: TargetRuleT }
 
 let AppAuthT = {
     , rootUser:  Text
@@ -144,6 +152,7 @@ let AppAuthT = {
     , users2passwordHashes: P.Map.Type Text Text
     , users2groups:         List User2GroupT
     , groups2privileges:    List Group2PrivilegeT
+    , groups2targetRules:   List Group2TargetRuleT
 }
 
 let AuthT = {
@@ -157,7 +166,7 @@ let ConfigJsonFileT = {
     , path_preprocess: Text
     , url_root: Text
     , auth: Optional AppAuthT
-    , modules_default_config: P.Map.Type Text P.JSON.Type
+    , modules: P.Map.Type Text Module
 }
 
 let tagGroup = \(g: Group) -> P.JSON.tagNested "contents" "tag" Group g
@@ -166,12 +175,27 @@ let tagGroup = \(g: Group) -> P.JSON.tagNested "contents" "tag" Group g
 let tagAction = \(a: Action) -> P.JSON.tagNested "contents" "tag" Action a
     : ActionT
 
+let tagTargetPrivilege = \(tp: TargetPrivilege) ->
+    tp // {
+        , action = tagAction tp.action
+    }: TargetPrivilegeT
+
+let tagTargetRule = \(tr: TargetRule) ->
+    P.JSON.tagNested "contents" "tag" TargetRuleTUntagged
+    (merge {
+        , Allow = \(tp: TargetPrivilege) -> TargetRuleTUntagged.Allow (tagTargetPrivilege tp)
+        , Deny  = \(tp: TargetPrivilege) -> TargetRuleTUntagged.Deny (tagTargetPrivilege tp)
+    } tr)
+    : TargetRuleT
+
 let tagPrivilege = \(p: Privilege) ->
     P.JSON.tagNested "contents" "tag" PrivilegeTUntagged
     (merge {
+        , Debug = \(t: {}) -> PrivilegeTUntagged.Debug {=}
         , Preprocess = \(t: {}) -> PrivilegeTUntagged.Preprocess {=}
         , LoginLogout = \(t: {}) -> PrivilegeTUntagged.LoginLogout {=}
-        , Target = \(t: {targetIds: List Text, action: Action, inherit: Bool}) -> PrivilegeTUntagged.Target { targetIds = t.targetIds, action = tagAction t.action, inherit = t.inherit }
+        , Target = \(tp: TargetPrivilege) ->
+            PrivilegeTUntagged.Target { targetIds = tp.targetIds, action = tagAction tp.action }
     } p)
     : PrivilegeT
 
@@ -186,6 +210,12 @@ let tagGroup2Privilege = \(g2p: Group2Privilege) ->
         , privilege = tagPrivilege g2p.privilege
     }: Group2PrivilegeT
 
+let tagGroup2TargetRule = \(g2tr: Group2TargetRule) ->
+    g2tr // {
+        , group = tagGroup g2tr.group
+        , rule = tagTargetRule g2tr.rule
+    }: Group2TargetRuleT
+
 let tagConfigJsonFile =
     \(c: ConfigJsonFile) ->
     c // {
@@ -194,13 +224,14 @@ let tagConfigJsonFile =
                 a // {
                     , users2groups      = P.List.map User2Group User2GroupT tagUser2Group a.users2groups
                     , groups2privileges = P.List.map Group2Privilege Group2PrivilegeT tagGroup2Privilege a.groups2privileges
+                    , groups2targetRules = P.List.map Group2TargetRule Group2TargetRuleT tagGroup2TargetRule a.groups2targetRules
                 })
             c.auth)
     }: ConfigJsonFileT
 
 in
 
-{ FlatConfig, ModuleId, Module, AppAuth, Auth, DockerDb, ServerDb, RCloneRemote, DockerDepl,
+{ FlatConfig, ModuleLocation, Module, AppAuth, Auth, DockerDb, ServerDb, RCloneRemote, DockerDepl,
   DockerNginxDepl, DockerSyncDepl,
   ConfigJsonFile, ConfigJsonFileT, tagConfigJsonFile,
-  Group, Action, Privilege, User2Group, Group2Privilege }
+  Group, Action, TargetPrivilege, TargetRule, Privilege, User2Group, Group2Privilege, Group2TargetRule }

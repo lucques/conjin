@@ -8,13 +8,17 @@ import os
 import stat
 import textwrap
 from pprint import pprint
-import shutil
+from packaging import version, specifiers
 
 
 # Globals
 script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 tools_path = script_dir / 'tools.dhall'
 
+
+###################
+# DockerNginxDepl #
+###################
 
 def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
     '''
@@ -27,20 +31,30 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
         
     config_path = Path(config_path).absolute()
 
-    # Read config file
-    config_json = subprocess.check_output(f'dhall-to-json --file "{config_path}"', shell=True, text=True)
-    config = json.loads(config_json)
+    ####################
+    # Read config file #
+    ####################
+
+    config = phase_read_config(config_path)
 
 
     #########
     # Paths #
     #########
 
-    target_dir = Path(config['depl']['targetDir']).absolute()
     conjin_dir = Path(config['depl']['conjinDir']).absolute()
+    app_dir    = Path(config['depl']['appDir']).absolute()
+    target_dir = Path(config['depl']['targetDir']).absolute()
 
     linkchecker_vol_dir = Path(config['linkcheckerVolDir']).absolute()
     preprocess_vol_dir  = Path(config['preprocessVolDir']).absolute()
+
+
+    #####################################
+    # Check that conjin version matches #
+    #####################################
+
+    phase_check_conjin_version(conjin_dir, app_dir)
 
 
     ##############################
@@ -55,14 +69,14 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
         target_dir / 'htdocs',
     ]
 
-    for module in config['depl']['modules']:
+    for module in config['depl']['modules'].values():
         if module['compileScss']:
             target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(module))
 
     if 'db' in config:
         target_dirs.append(Path(config['db']['volDir']))
 
-    build_dirs(target_dirs)
+    phase_build_dirs(target_dirs)
 
     # Make `preprocess` dir writable for all users
     preprocess_vol_dir.chmod(preprocess_vol_dir.stat().st_mode | stat.S_IWGRP | stat.S_IWOTH)
@@ -72,7 +86,7 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
     # Build config files generated from Dhall #
     ###########################################
 
-    target_config_files = {
+    target_config_files_docker = {
         'docker-compose-app-yml': {
             'path':   target_dir / 'docker-compose-app.yml',
             'format': 'yaml'
@@ -81,20 +95,33 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
             'path':  target_dir / 'docker-compose-linkchecker.yml',
             'format': 'yaml'
         },
+    }
+
+    target_config_files = {
+        **target_config_files_docker,
         'config-json': {
             'path': target_dir / 'htdocs/config.json',
             'format': 'json'
         }
     }
 
-    build_dhall_config_files(target_config_files, config_path, 'makeDockerNginxConfigFiles')
+    phase_build_dhall_config_files(target_config_files, config_path, 'makeDockerNginxConfigFiles')
+
+    
+    #######################
+    # Build Docker images #
+    #######################
+
+    phase_build_docker_images(target_config_files_docker, config['depl']['dockerProjName'])
 
 
     ############################
     # Build `htdocs/.htaccess` #
     ############################
 
-    build_htaccess(target_dir, conjin_dir, False) # HTTPS is not supported for DockerNginxDepl
+    # HTTPS is not supported for DockerNginxDeploy
+    # Compression is already handled by the nginx image
+    phase_build_htaccess(target_dir, conjin_dir, force_https=False, activate_compression=False)
     
 
     #########################
@@ -157,7 +184,7 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
             config['nginxVirtualHost'],
             False) # HTTPS is not supported for DockerNginxDepl
 
-    build_bin_scripts(target_bin_scripts)
+    phase_build_bin_scripts(target_bin_scripts)
 
 
     ####################
@@ -165,8 +192,12 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
     ####################
 
     if install_symlinks_in_local_bin:
-        install_symlinks_in_local_bin_function(target_bin_scripts, config['depl']['name'])
+        phase_install_symlinks_in_local_bin_function(target_bin_scripts, config['depl']['name'])
 
+
+##################
+# DockerSyncDepl #
+##################
 
 def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
     '''
@@ -179,17 +210,27 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
     
     config_path = Path(config_path).absolute()
 
-    # Read config file
-    config_json = subprocess.check_output(f'dhall-to-json --file "{config_path}"', shell=True, text=True)
-    config = json.loads(config_json)
+    ####################
+    # Read config file #
+    ####################
+
+    config = phase_read_config(config_path)
 
 
     #########
     # Paths #
     #########
 
-    target_dir = Path(config['depl']['targetDir']).absolute()
     conjin_dir = Path(config['depl']['conjinDir']).absolute()
+    app_dir    = Path(config['depl']['appDir']).absolute()
+    target_dir = Path(config['depl']['targetDir']).absolute()
+
+
+    #####################################
+    # Check that conjin version matches #
+    #####################################
+
+    phase_check_conjin_version(conjin_dir, app_dir)
 
 
     ##############################
@@ -203,36 +244,47 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
         target_dir / 'htdocs' / 'preprocess'
     ]
 
-    for module in config['depl']['modules']:
+    for module in config['depl']['modules'].values():
         if module['compileScss']:
             target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(module))
 
-    build_dirs(target_dirs)
+    phase_build_dirs(target_dirs)
 
 
     ###########################################
     # Build config files generated from Dhall #
     ###########################################
 
-    target_config_files = {
+    target_config_files_docker = {
         'docker-compose-sync-yml': {
             'path': target_dir / 'docker-compose-sync.yml',
             'format': 'yaml'
-        },
+        }
+    }
+
+    target_config_files = {
+        **target_config_files_docker,
         'config-json': {
             'path': target_dir / 'htdocs/config.json',
             'format': 'json'
         }
     }
 
-    build_dhall_config_files(target_config_files, config_path, 'makeDockerSyncConfigFiles')
+    phase_build_dhall_config_files(target_config_files, config_path, 'makeDockerSyncConfigFiles')
+
+
+    #######################
+    # Build Docker images #
+    #######################
+
+    phase_build_docker_images(target_config_files_docker, config['depl']['dockerProjName'])
 
 
     ############################
     # Build `htdocs/.htaccess` #
     ############################
 
-    build_htaccess(target_dir, conjin_dir, config['forceHTTPS'])
+    phase_build_htaccess(target_dir, conjin_dir, force_https=config['forceHTTPS'], activate_compression=config['activateCompression'])
     
 
     #########################
@@ -271,21 +323,54 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
             config['host'],
             config['preferHTTPS'])
 
-    build_bin_scripts(target_bin_scripts)
+    phase_build_bin_scripts(target_bin_scripts)
+
 
     ####################
     # Install in ~/bin #
     ####################
 
     if install_symlinks_in_local_bin:
-        install_symlinks_in_local_bin_function(target_bin_scripts, config['depl']['dockerProjName'])
+        phase_install_symlinks_in_local_bin_function(target_bin_scripts, config['depl']['dockerProjName'])
 
 
-def build_dirs(target_dirs):
+####################
+# Helper functions #
+####################
+
+def phase_read_config(config_path):
+    print('Reading config file...')
+
+    config_json = subprocess.check_output(f'dhall-to-json --file "{config_path}"', shell=True, text=True)
+    return json.loads(config_json)
+
+
+def phase_check_conjin_version(conjin_dir, app_dir):
+    print('Checking conjin version...')
+
+    conjin_metadata_file = conjin_dir / 'metadata.json'
+    app_metadata_file    = app_dir    / 'metadata.json'
+
+    conjin_metadata = json.loads(conjin_metadata_file.read_text())
+    app_metadata    = json.loads(app_metadata_file.read_text())
+
+    conjin_version_given = version.parse(conjin_metadata['version'])
+    conjin_version_spec  = specifiers.SpecifierSet(app_metadata['conjinVersion'])
+
+    if conjin_version_given not in conjin_version_spec:
+        raise Exception(f'Conjin version {conjin_version_spec} required, but only {conjin_version_given} is available.')
+
+
+def phase_build_dirs(target_dirs):
+    print('Building dirs...')
+
     for path in target_dirs:
         path.mkdir(parents=True, exist_ok=True)
 
-def build_dhall_config_files(target_config_files, config_path, tools_function):
+
+def phase_build_dhall_config_files(target_config_files, config_path, tools_function):
+    print('Building config files...')
+
     for key,file in target_config_files.items():
         command = 'dhall-to-' + file['format']
         input = f'(({tools_path}).{tools_function} ({config_path})).{key}'
@@ -293,15 +378,29 @@ def build_dhall_config_files(target_config_files, config_path, tools_function):
 
         file['path'].write_text(content)
 
-def build_htaccess(target_dir, conjin_dir, force_https):
-    content  = (conjin_dir / 'src/htaccess_header').read_text()
+
+def phase_build_docker_images(target_config_files, docker_proj_name):
+    print('Building Docker images...')
+
+    for file in target_config_files.values():
+        subprocess.run(f'docker compose --file "{file["path"]}" --project-name "{docker_proj_name}" build', shell=True)
+
+
+def phase_build_htaccess(target_dir, conjin_dir, force_https, activate_compression):
+    print('Building .htaccess file...')
+
+    content  = (conjin_dir / 'src/htaccess_header').read_text() + '\n\n'
     
     if force_https:
-        content += (conjin_dir / 'src/htaccess_force_https').read_text()
+        content += (conjin_dir / 'src/htaccess_force_https').read_text() + '\n\n'
+
+    if activate_compression:
+        content += (conjin_dir / 'src/htaccess_activate_compression').read_text() + '\n\n'
 
     content += (conjin_dir / 'src/htaccess_footer').read_text()
 
     (target_dir / 'htdocs/.htaccess').write_text(content)
+
 
 def make_preprocess_target_bin_script_with_auth(target_dir: str, host: str, prefer_https: bool, user: str, password_retrieval_cmd: str):
     return {
@@ -312,7 +411,7 @@ def make_preprocess_target_bin_script_with_auth(target_dir: str, host: str, pref
 
             # Read Password and send it to the server
             password=`{password_retrieval_cmd}` &&
-            curl --cookie "user={user}; password=$password" {'https' if prefer_https else 'http'}://"{host}"/preprocess/
+            curl --cookie "user={user}; password=$password" {'https' if prefer_https else 'http'}://{host}/preprocess/
             ''')
     }
 
@@ -323,18 +422,24 @@ def make_preprocess_target_bin_script(target_dir: str, host: str, prefer_https: 
             #! /bin/bash
             # This script was auto-generated.
 
-            curl {'https' if prefer_https else 'http'}://"{host}"/preprocess/
+            curl {'https' if prefer_https else 'http'}://{host}/preprocess/
             ''')
     }
 
-def build_bin_scripts(target_bin_scripts):
+
+def phase_build_bin_scripts(target_bin_scripts):
+    print('Building bin scripts...')
+
     for file in target_bin_scripts.values():
         file['path'].write_text(file['content'])
         # Make file executable
         st = os.stat(file['path'])
         os.chmod(file['path'], st.st_mode | stat.S_IEXEC)
 
-def install_symlinks_in_local_bin_function(bin_scripts, depl_name):
+
+def phase_install_symlinks_in_local_bin_function(bin_scripts, depl_name):
+    print('Installing symlinks in ~/bin...')
+
     local_bin_dir = Path.home() / 'bin'
     local_bin_dir.mkdir(parents=True, exist_ok=True)
 
@@ -347,14 +452,14 @@ def install_symlinks_in_local_bin_function(bin_scripts, depl_name):
 
 
 def get_template_css_dir(module):
-    if module['id']['isShared'] and module['id']['isExternal']:
-        return 'modules-shared-ext-css/' + module['id']['name']
-    elif module['id']['isShared'] and not module['id']['isExternal']:
-        return 'modules-shared-css/' + module['id']['name']
-    elif not module['id']['isShared'] and module['id']['isExternal']:
-        return 'modules-ext-css/' + module['id']['name']
+    if module['location']['isShared'] and module['location']['isExternal']:
+        return 'modules-shared-ext-css/' + module['location']['dirName']
+    elif module['location']['isShared'] and not module['location']['isExternal']:
+        return 'modules-shared-css/' + module['location']['dirName']
+    elif not module['location']['isShared'] and module['location']['isExternal']:
+        return 'modules-ext-css/' + module['location']['dirName']
     else:
-        return 'modules-css/' + module['id']['name']
+        return 'modules-css/' + module['location']['dirName']
 
 
 ########

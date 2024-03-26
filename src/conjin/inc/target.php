@@ -2,12 +2,12 @@
     // Immutable
     class Target {
         public function __construct(
-            public readonly array          $ids,                  // array<string>
-            public readonly array          $all_titles,           // array<string>
-            public readonly Module         $template,
-            public readonly array          $activated_modules,    // dict<string, Module>       
-            public readonly array          $actions_2_grouplist,  // dict<action_serialized, list<group_serialized>>
-            public readonly array          $id_2_child            // dict<string, Target>
+            public readonly array  $ids,                  // array<string>
+            public readonly array  $all_titles,           // array<string>
+            public readonly Module $template,
+            public readonly array  $activated_modules,    // dict<string, Module>       
+            public readonly array  $actions_2_grouplist,  // dict<action_serialized, list<group_serialized>>
+            public readonly array  $id_2_child            // dict<string, Target>
         ) {}
         
         public function has_activated_module(string $name): bool {
@@ -20,6 +20,10 @@
         
         public function get_css_slug(): string {
             return implode('_', $this->ids);
+        }
+
+        public function get_last_title(): string {
+            return $this->all_titles[count($this->all_titles) - 1];
         }
 
         public function navigate_to_ids(array $relative_path): array {

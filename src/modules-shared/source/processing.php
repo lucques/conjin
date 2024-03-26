@@ -72,4 +72,22 @@
     function source_end() {
         echo '</code></pre>';
     }
+
+    function source_inline(string $code, ?bool $line_numbers = true, $class = '', $style = '') {
+        if ($line_numbers === null) {
+            echo '<pre' . ($class != '' ? ' class="' . $class . '"' : '') . '><code>' . $code . '</code></pre>';
+        }
+        else {
+            echo '<pre class="' . ($line_numbers ? '' : 'no-') . 'line-numbers' . ($class != '' ? ' ' . $class : '') . '"><code>' . $code . '</code></pre>';
+        }
+    }
+
+    // Read source
+    function source_read_start() {
+        ob_start();
+    }
+
+    function source_read_end_get() {
+        return ob_get_clean();
+    }
 ?>

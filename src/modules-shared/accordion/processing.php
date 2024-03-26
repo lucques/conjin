@@ -22,13 +22,13 @@
     // Core //
     //////////
 
-    function acc_start($variant = '', $only_one_open = false, $class = '') {
+    function acc_start($variant = '', $only_one_open = false, $class = '', $style = '') {
         $GLOBALS['acc_cur_id'] += 1;
         $GLOBALS['acc_cur_only_one_open'] = $only_one_open;
         $GLOBALS['acc_cur_counter'] = 1;
         $html_accordion_id = 'accordion-' . $GLOBALS['acc_cur_id'];
 ?>
-    <div id="<?= $html_accordion_id ?>" class="accordion<? if ($variant != '') { echo ' accordion-' . acc_get_variant($variant); } if ($class != '') { echo ' ' . $class; } ?>">
+    <div id="<?= $html_accordion_id ?>" class="accordion<? if ($variant != '') { echo ' accordion-' . acc_get_variant($variant); } if ($class != '') { echo ' ' . $class; } ?>" <?= $style != '' ? 'style="' . $style . '"' : '' ?>>
 <?
     }
 
@@ -110,8 +110,8 @@
     // Headings //
     //////////////
 
-    function acc_heading($level, $title) {
-        echo '<span class="acc-h' . $level . '">' . $title . '</span>';
+    function acc_heading($level, $title, $class = '') {
+        echo '<span class="acc-h' . $level . ($class !== '' ? ' ' . $class : '') . '">' . $title . '</span>';
     }
 
     

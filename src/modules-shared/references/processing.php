@@ -13,28 +13,26 @@
     // Images //
     ////////////
 
-    function ref_img(array $target_ids,
-                     string $relative_path,
+    function ref_img(string $path,
                      string $alt = '',
                      ?int $width = null,
                      ?int $height = null,
                      string $class = '',
                      string $style = ''): void
     {
-        $img_file_path = path_collect($target_ids) . '/' . $relative_path;
-        assert(file_exists($img_file_path), "File path for image `$img_file_path` does not exist");
-        $img_file_path = realpath($img_file_path);
+        assert(file_exists($path), "File path for image `$path` does not exist");
+        $path = realpath($path);
         
         // Read meta information
-        $meta_file_path = ref_aux_change_file_extension($img_file_path, 'json');
+        $meta_file_path = ref_aux_change_file_extension($path, 'json');
         assert(file_exists($meta_file_path), "File path for meta information `$meta_file_path` does not exist");
         $meta_json = json_decode(load_file($meta_file_path), associative: true);
 
         // Add ref and get ref number
         $number = ref_add($meta_json);
 ?>
-<div class="ref-img-container">
-    <? html_img(path_to_url($img_file_path), $alt, width: $width, height: $height, class: $class, style: $style, id: 'ref-loc-' . $number); ?>
+<div class="ref-img-container<?= $class != '' ? ' ' . $class : '' ?>">
+    <? html_img(to_url($path), $alt, width: $width, height: $height, style: $style, id: 'ref-loc-' . $number); ?>
     <div class="ref-img-number"><a href="#ref-note-<?= $number ?>"><?= $number ?></a></div>
 </div>
 <?
@@ -45,14 +43,31 @@
         return count($GLOBALS['ref_notes']);
     }
 
+    function ref_print_section() {
+        if (count($GLOBALS['ref_notes']) == 0) {
+            return;
+        }
+?>
+<section>
+<em>Quellen:</em>
+<? ref_print_list(); ?>
+</section>
+<?
+    }
+
     function ref_print_list() {
+        if (count($GLOBALS['ref_notes']) == 0) {
+            return;
+        }
 ?>
 <ol class="ref-notes">
 <?
         foreach ($GLOBALS['ref_notes'] as $index => $ref) {
             $number = $index + 1;
+            $license = isset($ref['license']) ? ',&nbsp;<a href="' . ref_aux_license_to_link($ref['license']) . '">' . $ref['license'] . '</a>' : '';
+            $via = isset($ref['via']) ? ', via ' . $ref['via'] : '';
 ?>
-    <li><a href="#ref-loc-<?= $number ?>" class="ref-note-backlink">↑</a> <a id="ref-note-<?= $number ?>" href="<?= $ref['url'] ?>"><?= $ref['author'] ?></a></li>
+    <li><a href="#ref-loc-<?= $number ?>" class="ref-note-backlink">↑</a> <a id="ref-note-<?= $number ?>" href="<?= $ref['url'] ?>"><?= $ref['author'] ?></a><?= $license . $via ?></li>
 <?
         }
 ?>
@@ -63,5 +78,35 @@
     function ref_aux_change_file_extension(string $path, string $new_extension) {
         $path_info = pathinfo($path);
         return $path_info['dirname'] . '/' . $path_info['filename'] . '.' . $new_extension;
+    }
+
+    function ref_aux_license_to_link(string $license) {
+        if ($license == 'PD') {
+            return 'https://en.wikipedia.org/wiki/Public_domain';
+        }
+        if ($license == 'CC0') {
+            return 'https://creativecommons.org/publicdomain/zero/1.0/';
+        }
+        else if ($license == 'CC BY 4.0') {
+            return 'https://creativecommons.org/licenses/by/4.0/';
+        }
+        else if ($license == 'CC BY-SA 4.0') {
+            return 'https://creativecommons.org/licenses/by-sa/4.0/';
+        }
+        else if ($license == 'CC BY-NC 4.0') {
+            return 'https://creativecommons.org/licenses/by-nc/4.0/';
+        }
+        else if ($license == 'CC BY-NC-SA 4.0') {
+            return 'https://creativecommons.org/licenses/by-nc-sa/4.0/';
+        }
+        else if ($license == 'CC BY-ND 4.0') {
+            return 'https://creativecommons.org/licenses/by-nd/4.0/';
+        }
+        else if ($license == 'CC BY-NC-ND 4.0') {
+            return 'https://creativecommons.org/licenses/by-nc-nd/4.0/';
+        }
+        else {
+            assert(false, "Unknown license `$license`");
+        }
     }
 ?>

@@ -2,8 +2,8 @@
     $GLOBALS['load_mech_temp_script_path'] = null;
     $GLOBALS['load_mech_script_path_def_names_2_defs'] = [];
 
-    function load_defs_from_target_ids(array $target_ids): array {
-        $script_path = path_collect($target_ids) . '/index.php';
+    function load_defs_from_target_ids(array $target_ids, string $file_name = 'index.php'): array {
+        $script_path = path_collect($target_ids) . '/' . $file_name;
         return load_defs_from_script($script_path);
     }
 

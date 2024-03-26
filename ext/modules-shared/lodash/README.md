@@ -1,0 +1,4 @@
+- Project info
+    - Lodash 1.8.3
+    - https://jquery.com/
+    - License: MIT

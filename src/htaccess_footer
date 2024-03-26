@@ -19,6 +19,7 @@ RewriteRule ^config.json$                                       - [F,L]
 
 # Misc
 RewriteRule ^preprocess/$                                       conjin/index.php?req=preprocess [L]
+RewriteRule ^debug/$                                            conjin/index.php?req=debug [QSA,L]
 RewriteRule ^login/$                                            conjin/index.php?req=login [QSA,L]
 RewriteRule ^logout/$                                           conjin/index.php?req=logout [QSA,L]
 
