@@ -258,12 +258,28 @@ let makeTemplateSassCompilation =
 let makeDockerNginxDeplConfig =
     \(config: T.DockerNginxDepl) ->
 
+    -- Add db module for docker db if it is used
+    let modules = merge {
+        , None = config.depl.modules
+        , Some = \(db: T.DockerDb) -> config.depl.modules # [{mapKey = "db", mapValue = 
+            {
+                location = {dirName = "db", isShared = True, isExternal = False},
+                compileScss = False,
+                scssModuleDeps = empty T.ModuleLocation,
+                defaultConfig = P.JSON.object [
+                                    , { mapKey = "host"     , mapValue = P.JSON.string "db" }
+                                    , { mapKey = "user"     , mapValue = P.JSON.string db.user }
+                                    , { mapKey = "password" , mapValue = P.JSON.string db.userPassword }
+                                ]
+            }}]
+    } config.db
+
     let appVols = makeAppVols
                     config.depl.targetDir
                     config.depl.appDir
                     config.depl.conjinDir
                     config.depl.faviconIcoFrom
-                    config.depl.modules
+                    modules
                     False
 
     -- Define Services
@@ -319,6 +335,22 @@ let makeDockerNginxDeplConfig =
 
 let makeDockerSyncDeplConfig =
     \(config: T.DockerSyncDepl) ->
+
+    -- Add db module for server db if it is used
+    let modules = merge {
+        , None = config.depl.modules
+        , Some = \(db: T.ServerDb) -> config.depl.modules # [{mapKey = "db", mapValue =
+        {
+            location = {dirName = "db", isShared = True, isExternal = False},
+            compileScss = False,
+            scssModuleDeps = empty T.ModuleLocation,
+            defaultConfig = P.JSON.object [
+                                , { mapKey = "host"     , mapValue = P.JSON.string "localhost" }
+                                , { mapKey = "user"     , mapValue = P.JSON.string db.user }
+                                , { mapKey = "password" , mapValue = P.JSON.string db.password }
+                            ]
+        }}]
+    } config.db
 
     let appVols = makeAppVols
                     config.depl.targetDir
@@ -437,213 +469,10 @@ let makeDockerSyncConfigFiles =
             }
             : T.ConfigJsonFileT
     }
-    
-
--------------
--- Helpers --
--------------
-
-let assignUser2PasswordHash = 
-    \(user: Text) ->
-    \(passwordHash: Text) -> {
-        , mapKey   = user
-        , mapValue = passwordHash
-    }
-: Entry Text Text
-
-let addUserToGroup = 
-    \(user: Text) ->
-    \(group: Text) -> {
-        , user
-        , group = (T.Group.Custom group)
-    }
-: T.User2Group
-
-let grantPreprocPrivToUser =
-    \(user: Text) -> {
-        group = T.Group.UserBased user,
-        privilege = T.Privilege.Preprocess {=}
-    }
-: T.Group2Privilege
-
-let grantDebugPrivToUser =
-    \(user: Text) -> {
-        group = T.Group.UserBased user,
-        privilege = T.Privilege.Debug {=}
-    }
-: T.Group2Privilege
-
-let allowViewActionForGroup = 
-    \(targetIds: List Text) ->
-    \(group: Text) -> {
-        group = T.Group.Custom group,
-        rule = T.TargetRule.Allow ({
-            , targetIds
-            , action = T.Action.View {=}
-        })
-    }
-: T.Group2TargetRule
-
-let allowViewActionForUser = 
-    \(targetIds: List Text) ->
-    \(user: Text) -> {
-        group = T.Group.UserBased user,
-        rule = T.TargetRule.Allow ({
-            , targetIds
-            , action = T.Action.View {=}
-        })
-    }
-: T.Group2TargetRule
-
-let allowCustomActionForGroup = 
-    \(targetIds: List Text) ->
-    \(group: Text) ->
-    \(action: Text) -> {
-        group = T.Group.Custom group,
-        rule = T.TargetRule.Allow ({
-            , targetIds
-            , action = T.Action.Custom action
-        })
-    }
-: T.Group2TargetRule
-
-let allowCustomActionForUser = 
-    \(targetIds: List Text) ->
-    \(user: Text) ->
-    \(action: Text) -> {
-        group = T.Group.UserBased user,
-        rule = T.TargetRule.Allow ({
-            , targetIds
-            , action = T.Action.Custom action
-        })
-    }
-: T.Group2TargetRule
-
-let denyViewActionToGroup = 
-    \(targetIds: List Text) ->
-    \(group: Text) -> {
-        group = T.Group.Custom group,
-        rule = T.TargetRule.Deny ({
-            , targetIds
-            , action = T.Action.View {=}
-        })
-    }
-: T.Group2TargetRule
-
-let denyViewActionToUser =
-    \(targetIds: List Text) ->
-    \(user: Text) -> {
-        group = T.Group.UserBased user,
-        rule = T.TargetRule.Deny ({
-            , targetIds
-            , action = T.Action.View {=}
-        })
-    }
-: T.Group2TargetRule
-
-let denyCustomActionToGroup =
-    \(targetIds: List Text) ->
-    \(group: Text) ->
-    \(action: Text) -> {
-        group = T.Group.Custom group,
-        rule = T.TargetRule.Deny ({
-            , targetIds
-            , action = T.Action.Custom action
-        })
-    }
-: T.Group2TargetRule
-
-let denyCustomActionToUser =
-    \(targetIds: List Text) ->
-    \(user: Text) ->
-    \(action: Text) -> {
-        group = T.Group.UserBased user,
-        rule = T.TargetRule.Deny ({
-            , targetIds
-            , action = T.Action.Custom action
-        })
-    }
-: T.Group2TargetRule
-
-let makeModule = 
-    \(dirName: Text) ->
-    \(isShared: Bool) ->
-    \(isExternal: Bool) -> {
-        location = {dirName, isShared, isExternal},
-        compileScss = False,
-        scssModuleDeps = empty T.ModuleLocation,
-        defaultConfig = P.JSON.null,
-    }
-: T.Module
-
-let makeModules = 
-    \(isShared: Bool) ->
-    \(isExternal: Bool) ->
-    \(names: List Text) ->
-    map Text T.Module (\(n: Text) -> {
-        location = {dirName = n, isShared, isExternal},
-        compileScss = False,
-        scssModuleDeps = empty T.ModuleLocation,
-        defaultConfig = P.JSON.null,
-    })
-    names
-: List T.Module
-
-let makeDbModuleForServerDb =
-    \(db: T.ServerDb) ->
-    {
-        location = {dirName = "db", isShared = True, isExternal = False},
-        compileScss = False,
-        scssModuleDeps = empty T.ModuleLocation,
-        defaultConfig = P.JSON.object [
-                            , { mapKey = "host"     , mapValue = P.JSON.string "localhost" }
-                            , { mapKey = "user"     , mapValue = P.JSON.string db.user }
-                            , { mapKey = "password" , mapValue = P.JSON.string db.password }
-                        ]
-    }
-: T.Module
-
-let makeDbModuleForDockerDb = 
-    \(db: T.DockerDb) ->
-    {
-        location = {dirName = "db", isShared = True, isExternal = False},
-        compileScss = False,
-        scssModuleDeps = empty T.ModuleLocation,
-        defaultConfig = P.JSON.object [
-                            , { mapKey = "host"     , mapValue = P.JSON.string "db" }
-                            , { mapKey = "user"     , mapValue = P.JSON.string db.user }
-                            , { mapKey = "password" , mapValue = P.JSON.string db.userPassword }
-                        ]
-    }
-: T.Module
-
-let moduleListToMap =
-    \(modules: List T.Module) ->
-    map T.Module (Entry Text T.Module) (\(m: T.Module) -> { mapKey = m.location.dirName, mapValue = m }) modules
-: P.Map.Type Text T.Module
 
 in {
+    , types = T
+
     , makeDockerNginxConfigFiles
     , makeDockerSyncConfigFiles
-
-    , assignUser2PasswordHash
-    , addUserToGroup
-    , grantPreprocPrivToUser
-    , grantDebugPrivToUser
-    
-    , allowViewActionForGroup
-    , allowViewActionForUser
-    , allowCustomActionForGroup
-    , allowCustomActionForUser
-
-    , denyViewActionToGroup
-    , denyViewActionToUser
-    , denyCustomActionToGroup
-    , denyCustomActionToUser
-
-    , makeModule
-    , makeModules
-    , makeDbModuleForServerDb
-    , makeDbModuleForDockerDb
-    , moduleListToMap
 }

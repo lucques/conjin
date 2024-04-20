@@ -14,6 +14,7 @@ let Module = { location: ModuleLocation,
                scssModuleDeps: List ModuleLocation,
                defaultConfig: P.JSON.Type }
 
+
 ----------
 -- Auth --
 ----------
@@ -33,7 +34,7 @@ let AppAuth = {
     , guestUser: Text
     , loginWithoutUserName: Bool
     , loginTemplate: Module
--- Generate hashes like this: `php -r 'print(password_hash("the_password", PASSWORD_DEFAULT));'`
+    -- Generate hashes like this: `php -r 'print(password_hash("the_password", PASSWORD_DEFAULT));'`
     , users2passwordHashes: P.Map.Type Text Text
     , users2groups:         List User2Group
     , groups2privileges:    List Group2Privilege
@@ -56,7 +57,7 @@ let DockerDb = {
     , user                : Text
     , userPassword        : Text
     , rootPassword        : Text
-    , volDir              : Optional Text  -- if `None`, then no db storage 
+    , volDir              : Optional Text  -- if `None`, then no db storage
     , initFilesDir        : Optional Text  -- if `None`, then no init files
 }
 
