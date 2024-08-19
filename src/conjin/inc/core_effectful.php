@@ -127,8 +127,11 @@
 
         $GLOBALS['config'] = new ConfigTree($config);
 
-        $GLOBALS['core_path_root']       = realpath(get_global_config('path_root'));
+        $GLOBALS['core_path_base']       = realpath(get_global_config('path_base'));
         $GLOBALS['core_path_preprocess'] = realpath(get_global_config('path_preprocess'));
+
+        assert($GLOBALS['core_path_base'] !== false, 'Path base does not exist.');
+        assert($GLOBALS['core_path_preprocess'] !== false, 'Path to preprocess dir does not exist.');
     }
 
     function get_global_config(...$path): mixed {
@@ -198,7 +201,7 @@
 
     // Paths are always understood as absolute paths.
     function path($suffix = '') {
-        return $GLOBALS['core_path_root'] . '/' . $suffix;
+        return $GLOBALS['core_path_base'] . '/' . $suffix;
     }
 
     function path_preprocess($suffix = '') {
@@ -231,7 +234,7 @@
     //////////
 
     function url($suffix = '') {
-        return get_global_config('url_root') . $suffix;
+        return get_global_config('url_base') . $suffix;
     }
 
     function url_collect($target_ids = [], $anchor_ids = []) {

@@ -41,15 +41,16 @@
     }
 
     // Start a long entry
-    function classlog_long(int $year, int $month, int $day, string $title, ?int $timeslot = null, ?string $id = null) {
+    function classlog_long(string $date_iso, string $title, ?int $timeslot = null, ?string $id = null) {
         assert($GLOBALS['timetable_cur_classlog'] != null, 'There is no classlog.');
+        assert_iso_date($date_iso);
 
         // End last log
         if ($GLOBALS['timetable_cur_entry_long_date'] != null) {
             classlog_aux_end_last_log();
         }
 
-        $GLOBALS['timetable_cur_entry_long_date']     = new DateTimeImmutable("$year-$month-$day");
+        $GLOBALS['timetable_cur_entry_long_date']     = iso_to_date($date_iso);
         $GLOBALS['timetable_cur_entry_long_id']       = $id ?? kebabize($title);
         $GLOBALS['timetable_cur_entry_long_title']    = $title;
         $GLOBALS['timetable_cur_entry_long_timeslot'] = $timeslot;
@@ -58,13 +59,14 @@
         ob_start();
     }
 
-    function classlog_short(int $year, int $month, int $day, string $title, ?int $timeslot = null, ?string $id = null, ?string $content = null) {
+    function classlog_short(string $date_iso, string $title, ?int $timeslot = null, ?string $id = null, ?string $content = null) {
         assert($GLOBALS['timetable_cur_classlog'] != null, 'There is no classlog.');
+        assert_iso_date($date_iso);
 
-        $date = new DateTimeImmutable("$year-$month-$day");
+        $date = iso_to_date($date_iso);
         $log = [
             'type'  => 'log-short',
-            'id'    => 'log' . date_to_iso($date) . '-' . ($id ?? kebabize($title)),
+            'id'    => 'log-' . $date_iso . '-' . ($id ?? kebabize($title)),
             'title' => $title
         ];
 

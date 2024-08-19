@@ -129,7 +129,7 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
 
     # HTTPS is not supported for DockerNginxDeploy
     # Compression is already handled by the nginx image
-    phase_build_htaccess(target_dir, conjin_dir, force_https=False, activate_compression=False)
+    phase_build_htaccess(target_dir, conjin_dir, '/', force_https=False, activate_compression=False)
     
 
     #######################
@@ -197,6 +197,7 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
     target_bin_scripts['preprocess'] = make_preprocess_target_bin_script(
         target_dir,
         config['nginxVirtualHost'],
+        '/',
         False, # HTTPS is not supported for DockerNginxDepl
         config['depl']['desktopIntegration']['preprocessScriptUser'],
         config['depl']['desktopIntegration']['preprocessScriptPasswordLookupCmd'])
@@ -308,7 +309,7 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
     # Build `htdocs/.htaccess` #
     ############################
 
-    phase_build_htaccess(target_dir, conjin_dir, force_https=config['forceHTTPS'], activate_compression=config['activateCompression'])
+    phase_build_htaccess(target_dir, conjin_dir, config['urlBase'], force_https=config['forceHTTPS'], activate_compression=config['activateCompression'])
     
 
     #######################
@@ -343,6 +344,7 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
     target_bin_scripts['preprocess'] = make_preprocess_target_bin_script(
         target_dir,
         config['host'],
+        config['urlBase'],
         config['preferHTTPS'],
         config['depl']['desktopIntegration']['preprocessScriptUser'],
         config['depl']['desktopIntegration']['preprocessScriptPasswordLookupCmd'])
@@ -445,10 +447,14 @@ def phase_build_user_json_file_and_register_passwords(target_dir, users2password
     (target_dir / 'htdocs/users.json').write_text(users_2_hases_json)
 
 
-def phase_build_htaccess(target_dir, conjin_dir, force_https, activate_compression):
+def phase_build_htaccess(target_dir, conjin_dir, url_base, force_https, activate_compression):
     print('Building .htaccess file...')
 
-    content  = (conjin_dir / 'src/htaccess_header').read_text() + '\n\n'
+    content = textwrap.dedent(f'''\
+        RewriteEngine on
+        RewriteBase {url_base}
+
+        ''')
     
     if force_https:
         content += (conjin_dir / 'src/htaccess_force_https').read_text() + '\n\n'
@@ -456,7 +462,7 @@ def phase_build_htaccess(target_dir, conjin_dir, force_https, activate_compressi
     if activate_compression:
         content += (conjin_dir / 'src/htaccess_activate_compression').read_text() + '\n\n'
 
-    content += (conjin_dir / 'src/htaccess_footer').read_text()
+    content += (conjin_dir / 'src/htaccess_main').read_text()
 
     (target_dir / 'htdocs/.htaccess').write_text(content)
 
@@ -469,7 +475,7 @@ def phase_build_docker_images(target_config_files, docker_proj_name):
         subprocess.run(f'docker compose --file "{file["path"]}" --project-name "{docker_proj_name}" build', shell=True)
 
 
-def make_preprocess_target_bin_script(target_dir: str, host: str, prefer_https: bool, user: str, password_retrieval_cmd: str):
+def make_preprocess_target_bin_script(target_dir: str, host: str, url_base: str, prefer_https: bool, user: str, password_retrieval_cmd: str):
     return {
         'path': target_dir / 'bin' / 'preprocess',
         'content': textwrap.dedent(f'''\
@@ -478,7 +484,7 @@ def make_preprocess_target_bin_script(target_dir: str, host: str, prefer_https: 
 
             # Read Password and send it to the server
             password=`{password_retrieval_cmd}` &&
-            curl --cookie "user={user}; password=$password" {'https' if prefer_https else 'http'}://{host}/preprocess/
+            curl --cookie "user={user}; password=$password" {'https' if prefer_https else 'http'}://{host}{url_base}preprocess/
             ''')
     }
 

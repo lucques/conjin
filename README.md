@@ -52,7 +52,7 @@ See [./doc/main.md](./doc/main.md).
 
 
 ## Version + Changelog
-- **Versioning**: The current version is found in [./VERSION](./VERSION). See more here: [./doc/versioning.md](./doc/versioning.md).
+- **Versioning**: The current version is found in [./metadata.json](./metadata.json). See more here: [./doc/versioning.md](./doc/versioning.md).
 - **Changelog**: The changelog is found here: [./doc/changelog.md](./doc/changelog.md).
 
 

@@ -447,9 +447,9 @@ let makeDockerNginxConfigFiles =
             : Compose.ComposeConfig
         , config-json
             = T.tagConfigJsonFile {
-                path_root = "..",
+                path_base = "..",
                 path_preprocess = "../../preprocess",
-                url_root = "/",
+                url_base = "/",
                 authentication = stripPasswordsOffAuthentication config.depl.authentication,
                 authorization = config.depl.authorization,
                 modules = config.depl.modules,
@@ -465,9 +465,9 @@ let makeDockerSyncConfigFiles =
             : Compose.ComposeConfig
         , config-json
             = T.tagConfigJsonFile {
-                path_root = "..",
-                path_preprocess = "../preprocess",
-                url_root = "/",
+                path_base = config.pathBase,
+                path_preprocess = config.pathBase ++ "/preprocess",
+                url_base = config.urlBase,
                 authentication = stripPasswordsOffAuthentication config.depl.authentication,
                 authorization = config.depl.authorization,
                 modules = config.depl.modules,

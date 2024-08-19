@@ -1,5 +1,8 @@
 # Changelog
 
+## [2.0.1] - 2024-08-20
+- Updated server config mechanism
+
 ## [2.0.0] - 2024-08-19
 - Major overhaul of everything, reorganized templating mechanism and much more
 

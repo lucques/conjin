@@ -113,6 +113,8 @@ let DockerNginxDepl = {
 let DockerSyncDepl = {
     , depl                : DockerDepl
     , host                : Text
+    , pathBase            : Text   -- e.g. `/htdocs/my-app` base/root diretory in the filesystem
+    , urlBase             : Text   -- e.g. `/my-app/`       corresponds to URLs with prefix `https://my-domain.org/my-app/`
     , preferHTTPS         : Bool
     , forceHTTPS          : Bool
     , activateCompression : Bool
@@ -127,9 +129,9 @@ let DockerSyncDepl = {
 
 -- Format of the output `config.json` file
 let ConfigJsonFile = {
-    , path_root: Text
+    , path_base: Text
     , path_preprocess: Text
-    , url_root: Text
+    , url_base: Text
     , authentication: AuthenticationWithoutPasswords
     , authorization: Authorization
     , modules: P.Map.Type Text ModuleValue
@@ -198,6 +200,8 @@ let DockerNginxDeplT = {
 let DockerSyncDeplT = {
     , depl: DockerDeplT
     , host: Text
+    , pathBase: Text
+    , urlBase: Text
     , preferHTTPS: Bool
     , forceHTTPS: Bool
     , activateCompression: Bool
@@ -206,9 +210,9 @@ let DockerSyncDeplT = {
 }
 
 let ConfigJsonFileT = {
-    , path_root: Text
+    , path_base: Text
     , path_preprocess: Text
-    , url_root: Text
+    , url_base: Text
     , authentication: AuthenticationWithoutPasswords
     , authorization: AuthorizationT
     , modules: P.Map.Type Text ModuleValue

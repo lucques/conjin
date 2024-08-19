@@ -1,5 +1,5 @@
 let P       = https://raw.githubusercontent.com/dhall-lang/dhall-lang/fd057db9b3f89de44cdc77d9669e958b04ed416a/Prelude/package.dhall           -- 2023-03
-let Compose = https://raw.githubusercontent.com/lucques/dhall-docker-compose/9e93bdd7f87cdd1a020f8536f1bf30d93e21e5ab/compose/v3/package.dhall -- 2023-08
+let Compose = https://raw.githubusercontent.com/lucques/dhall-docker-compose/f077072175ee1501e12efc9fd37963ae043596ab/compose/v3/package.dhall -- 2024-08
 
 let T       = ./types.dhall
 
@@ -281,9 +281,11 @@ let makeDefaultDockerSyncDepl =
     \(authentication: T.Authentication) ->
     \(authorization: T.Authorization) ->
     \(db: Optional T.ServerDb) ->
-    \(modules: List T.ModuleValue) ->
     \(mainTemplate: T.Module) ->
+    \(modules: List T.ModuleValue) ->
     \(host: Text) ->
+    \(pathBase: Text) ->
+    \(urlBase: Text) ->
     \(rcloneRemote: T.RCloneRemote) ->
     {
         depl = {
@@ -298,6 +300,8 @@ let makeDefaultDockerSyncDepl =
             , desktopIntegration   = makeDefaultDesktopIntegration name
         }
         , host
+        , pathBase
+        , urlBase
         , preferHTTPS = True
         , forceHTTPS = True
         , activateCompression = True
