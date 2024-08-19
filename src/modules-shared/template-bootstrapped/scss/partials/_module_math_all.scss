@@ -1,0 +1,13 @@
+.table-of-values {
+  th {
+    @extend .bg-dark;
+    @extend .bg-opacity-25;
+    font-style: italic;
+  }
+  td, th {
+    border: 2px solid black;
+  }
+  tr.decoration td, td.decoration {
+    border-width:0;
+  }
+}

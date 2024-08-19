@@ -6,7 +6,6 @@
 
 
 # Usage: JS
-
 When activating this module, a JS file is added to the page and also the loading of WASM files is already configured. Example usage:
 
 ```html

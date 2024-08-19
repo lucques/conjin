@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-
-cd "$(dirname "$(readlink -f "$0")")/"
-
-mkdir -p ./res
-curl https://github.com/plotly/plotly.js/raw/v2.25.0/dist/plotly.min.js --output ./res/plotly.min.js

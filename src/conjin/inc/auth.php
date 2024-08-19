@@ -6,44 +6,30 @@
     // Gets called during app initialization.
     // After return, `$GLOBALS['user']` is set, based on session etc.
     function auth_init() {
-        if (!isset_global_config('auth')) {
-            // There is no security enabled, so users can be assumed arbitrarily,
-            // otherwise become "root"
-            if (isset($_GET['user'])) {
-                $GLOBALS['user'] = $_GET['user'];
+        // Auth by cookie
+        if (isset($_COOKIE['password'])) {
+
+            // Assume the user or become "guest"
+            $user = auth_aux_try_login($_COOKIE['password']);
+
+            if ($user !== null) {
+                $GLOBALS['user'] = $user;
             }
             else {
-                $GLOBALS['user'] = 'root';
+                $GLOBALS['user'] = get_global_config('authorization', 'guestUser');
             }
         }
+        // Auth by login session
         else {
-            // If auth is enabled...
+            session_start();
 
-            if (isset($_COOKIE['password'])) {
-                // Auth by cookie
-
-                // Assume the user or become "guest"
-                $user = auth_aux_try_login($_COOKIE['password']);
-
-                if ($user !== null) {
-                    $GLOBALS['user'] = $user;
-                }
-                else {
-                    $GLOBALS['user'] = get_global_config('auth', 'guestUser');
-                }
+            // Resume user or become "guest"
+            if (isset($_SESSION['user'])) {
+                $GLOBALS['user'] = $_SESSION['user'];
             }
             else {
-                // Auth by login session
-                session_start();
-
-                // Resume user or become "guest"
-                if (isset($_SESSION['user'])) {
-                    $GLOBALS['user'] = $_SESSION['user'];
-                }
-                else {
-                    $_SESSION['user'] = get_global_config('auth', 'guestUser'); // Save in session
-                    $GLOBALS['user']  = get_global_config('auth', 'guestUser');
-                }
+                $_SESSION['user'] = get_global_config('authorization', 'guestUser'); // Save in session
+                $GLOBALS['user']  = get_global_config('authorization', 'guestUser');
             }
         }
     }
@@ -86,20 +72,8 @@
                 $_SESSION['logout_successful'] = false;
             }
 
-            $template = new Module(
-                get_global_config('auth', 'loginTemplate', 'location', 'dirName'),
-                get_global_config('auth', 'loginTemplate', 'location', 'isShared'),
-                get_global_config('auth', 'loginTemplate', 'location', 'isExternal'),
-                get_global_config('auth', 'loginTemplate', 'defaultConfig'));
-
-            $template->render_component_generic(
-                'login',
-                core_load_obj('root_target'),
-                [
-                    'password_incorrect' => $password_incorrect,
-                    'logout_successful'  => $logout_successful
-                ]);
-
+            process_login(core_load_obj('syslet_login'), $logout_successful, $password_incorrect);
+            
             exit();
         }
     }
@@ -107,8 +81,8 @@
     // Precondition: User is eligible to logout.
     function auth_handle_logout_and_exit() {
         $_SESSION['logout_successful'] = true;
-        $_SESSION['user']              = get_global_config('auth', 'guestUser');
-        $GLOBALS['user']               = get_global_config('auth', 'guestUser');
+        $_SESSION['user']              = get_global_config('authorization', 'guestUser');
+        $GLOBALS['user']               = get_global_config('authorization', 'guestUser');
         
         redirect_and_exit(url() . 'login/');
     }
@@ -128,13 +102,9 @@
     ///////////////////////////////////
     // Session Management: Functions //
     ///////////////////////////////////
-    
-    function auth_is_enabled() {
-        return isset_global_config('auth');
-    }
 
     function auth_is_logged_in() {
-        return $GLOBALS['user'] != get_global_config('auth', 'guestUser');
+        return $GLOBALS['user'] != get_global_config('authorization', 'guestUser');
     }
 
     function auth_get_user() {
@@ -144,7 +114,7 @@
     // Return the user or `null`
     function auth_aux_try_login($password): ?string {
         // Try all the passwords and assign user
-        foreach (get_global_config('auth', 'users2passwordHashes') as $user => $hash) {
+        foreach (get_global_config('authentication', 'users2passwordHashes') as $user => $hash) {
             if (password_verify($password, $hash)) {
                 return $user;
             }
@@ -154,9 +124,9 @@
     }
 
 
-    //////////////////////////////////////
-    // Privileges: BEFORE preprocessing // 
-    //////////////////////////////////////
+    /////////////////////////////////////////
+    // Authorization: BEFORE preprocessing // 
+    /////////////////////////////////////////
 
     const AUTH_VIEW_ACTION = ['tag' => 'View', 'contents' => []];
 
@@ -175,56 +145,48 @@
     // It is therefore inefficient and should only be used *before*
     // preprocessing has taken place.
     //
-    // Furthermore, only `groups2privileges` is considered, not `groups2targetRules`.
+    // Furthermore, only `actors2privileges` is considered, not `actors2targetRules`.
     //
     // $user:      string
     // $privilege: array in the `config.json` format,
     //             e.g. ['tag' => 'Preprocess', 'contents' => []]
     function auth_aux_is_user_privileged_without_rules(string $user, array $privilege): bool {
-        // If auth is disabled, anyone is privileged
-        if (!isset_global_config('auth')) {
-            return true;
-        }
 
         // Root user has any privilege
-        if ($user == get_global_config('auth', 'rootUser')) {
+        if ($user == get_global_config('authorization', 'rootUser')) {
             return true;
         }
 
-        // Go through all groups that have the `$privilege`
-        foreach (get_global_config('auth', 'groups2privileges') as $g2p) {
-            if ($g2p['privilege'] != $privilege) { continue; } // Join condition
+        // Go through all actors that have the `$privilege`
+        foreach (get_global_config('authorization', 'actors2privileges') as $a2p) {
+            if ($a2p['privilege'] != $privilege) { continue; } // Join condition
 
-            $cur_group = $g2p['group'];
+            $cur_actor = $a2p['actor'];
 
-            // Check whether current group is user-based on `$user`
-            if ($cur_group['tag']      == 'UserBased' &&
-                $cur_group['contents'] == $user) {
+            // Is current actor the user
+            // 1. `$user` or
+            // 2. "guest" (anything guest may do, anyone may do)?
+            if ($cur_actor['tag'] == 'User' &&
+                in_array($cur_actor['contents'], [$user, get_global_config('authorization', 'guestUser')])) {
                 return true;
             }
 
-            // Anything that "guest" can do, any user can do
-            // Check whether current group is user-based on "guest"
-            if ($cur_group['tag']      == 'UserBased' &&
-                $cur_group['contents'] == get_global_config('auth', 'guestUser')) {
-                return true;
-            }
+            // Is current actor a group that contains `$user`?
+            if ($cur_actor['tag'] == 'Group') {
+                $cur_group = $cur_actor['contents'];
+                foreach (get_global_config('authorization', 'users2groups') as $u2g) {
+                    if ($u2g['group'] != $cur_group) { continue; } // Join condition
 
-            // Go through users that were explicitly added to the group
-            foreach (get_global_config('auth', 'users2groups') as $u2g) {
-                if ($u2g['group'] != $cur_group) { continue; } // Join condition
+                    // Check whether `$user` is member of `$cur_group`
+                    if ($u2g['user'] == $user) {
+                        return true;
+                    }
 
-                $cur_user = $u2g['user'];
-
-                // Check whether `$user` is member of `$cur_group`
-                if ($cur_user == $user) {
-                    return true;
-                }
-
-                // Anything that "guest" can do, any user can do
-                // Check whether "guest" is member of `$cur_group`
-                if ($cur_user == $user) {
-                    return true;
+                    // Anything that "guest" can do, any user can do
+                    // Check whether "guest" is member of `$cur_group`
+                    if ($u2g['user'] == get_global_config('authorization', 'guestUser')) {
+                        return true;
+                    }
                 }
             }
         }
@@ -232,27 +194,24 @@
         return false;
     }
 
-    // This function builds up an assoc array with the serialized groups as keys
-    // that point to the list of users assigned to each group.
+    // This function builds up an assoc array with the groups as keys that point
+    // to the list of users assigned to each group.
     //
     // The result of this function should be cached during preprocessing.
     //
-    // Return: dict<group_ser, list<string>>
+    // Return: dict<string, list<string>>
     function auth_generate_groups_2_userlist(): array {
         $groups_2_userlist = [];
 
-        foreach (get_global_config('auth', 'users2groups') as $u2g) {
-            $cur_group_ser = auth_aux_serialize_group($u2g['group']);
-            $cur_user      = $u2g['user'];
-        
-            aux_array_set_add($groups_2_userlist, $cur_group_ser, $cur_user);
+        foreach (get_global_config('authorization', 'users2groups') as $u2g) {       
+            aux_array_set_add($groups_2_userlist, $u2g['group'], $u2g['user']);
         }
 
         return $groups_2_userlist;
     }
 
     // This function builds up an assoc array with the serialized actions as
-    // keys that point to the list of groups that are granted access to these
+    // keys that point to the list of actors that are granted access to these
     // actions.
     //
     // Two sources are used to build up the privileges; 1. gets overriden by 2.
@@ -262,126 +221,149 @@
     //
     // The result of this function should be cached during preprocessing.
     //
-    // Return: dict<action_ser, list<group_ser>>
-    function auth_generate_actions_2_grouplist_for_target(array $target_ids): array {
-        $actions_2_grouplist = [];
+    // Return: dict<action_ser, list<actor_ser>>
+    function auth_generate_actions_ser_2_actorlist_ser_for_target(array $target_ids): array {
+        $actions_ser_2_actorlist_ser = [];
 
         // 1. Rule-based privileges: Go through all parent targets
         for ($i = 0; $i < count($target_ids)+1; $i++) {
             $cur_target_ids = array_slice($target_ids, 0, $i);
 
-            foreach (get_global_config('auth', 'groups2targetRules') as $g2r) {
-                $cur_rule = $g2r['rule'];
+            foreach (get_global_config('authorization', 'actors2targetRules') as $a2r) {
+                $cur_rule = $a2r['rule'];
 
                 if ($cur_rule['contents']['targetIds'] == $cur_target_ids) {
-                    $cur_action_ser = auth_aux_ser_action($cur_rule['contents']['action']);
-                    $cur_group_ser  = auth_aux_serialize_group($g2r['group']);
+                    $cur_action_ser = auth_aux_serialize_action($cur_rule['contents']['action']);
+                    $cur_actor_ser  = auth_aux_serialize_actor($a2r['actor']);
 
                     if ($cur_rule['tag'] == 'Allow') {
                         // Add
-                        aux_array_set_add($actions_2_grouplist, $cur_action_ser, $cur_group_ser);
+                        aux_array_set_add($actions_ser_2_actorlist_ser, $cur_action_ser, $cur_actor_ser);
                     }
                     else {
                         // Remove
-                        aux_array_set_remove($actions_2_grouplist, $cur_action_ser, $cur_group_ser);
+                        aux_array_set_remove($actions_ser_2_actorlist_ser, $cur_action_ser, $cur_actor_ser);
                     }
                 }
             }
         }
 
         // 2. Single privileges
-        foreach (get_global_config('auth', 'groups2privileges') as $g2p) {
-            $cur_privilege = $g2p['privilege'];
+        foreach (get_global_config('authorization', 'actors2privileges') as $a2p) {
+            $cur_privilege = $a2p['privilege'];
 
             if ($cur_privilege['tag'] == 'Target' &&
                 $cur_privilege['contents']['targetIds'] == $target_ids) {
 
-                $cur_action_ser = auth_aux_ser_action($cur_privilege['contents']['action']);
-                $cur_group_ser  = auth_aux_serialize_group($g2p['group']);
+                $cur_action_ser = auth_aux_serialize_action($cur_privilege['contents']['action']);
+                $cur_actor_ser  = auth_aux_serialize_actor($a2p['actor']);
 
                 // Add
-                aux_array_set_add($actions_2_grouplist, $cur_action_ser, $cur_group_ser);
+                aux_array_set_add($actions_ser_2_actorlist_ser, $cur_action_ser, $cur_actor_ser);
             }
         }
 
-        return $actions_2_grouplist;
+        return $actions_ser_2_actorlist_ser;
     }
 
 
-    /////////////////////////////////////
-    // Privileges: AFTER preprocessing // 
-    /////////////////////////////////////
+    ////////////////////////////////////////
+    // Authorization: AFTER preprocessing // 
+    ////////////////////////////////////////
 
     function auth_is_cur_user_privileged_for_view(Target $target): bool {
-        $privileged_groups = $target->actions_2_grouplist[auth_aux_ser_action(AUTH_VIEW_ACTION)];
-        return auth_is_cur_user_among_privileged_groups($privileged_groups);
+        $privileged_actors = $target->actions_ser_2_actorlist_ser[auth_aux_serialize_action(AUTH_VIEW_ACTION)];
+        return auth_is_cur_user_among_authorized_actors($privileged_actors);
     }
 
     function auth_is_cur_user_privileged_for_custom_action(Target $target, string $custom_action): bool {
         $action = ['tag' => 'Custom', 'contents' => $custom_action];
-        $privileged_groups = $target->actions_2_grouplist[auth_aux_ser_action($action)];
-        return auth_is_cur_user_among_privileged_groups($privileged_groups);
+        $privileged_actors = $target->actions_ser_2_actorlist_ser[auth_aux_serialize_action($action)];
+        return auth_is_cur_user_among_authorized_actors($privileged_actors);
     }
 
-    function auth_is_cur_user_among_privileged_groups(array $privileged_groups): bool {
-        // If auth is disabled, anyone is privileged
-        if (!isset_global_config('auth')) {
-            return true;
-        }
+    // $authorized_groups: list<string>
+    // $authorized_users:  list<string>
+    function auth_is_cur_user_among_authorized_groups_users(array $groups, array $users): bool {
+        $authorized_actors_ser = array_merge(
+            array_map(function ($group) {
+                return auth_aux_serialize_actor([
+                    'tag'      => 'Group',
+                    'contents' => $group
+                ]);
+            }, $groups),
+            array_map(function ($user) {
+                return auth_aux_serialize_actor([
+                    'tag'      => 'User',
+                    'contents' => $user
+                ]);
+            }, $users)
+        );
 
-        return auth_aux_is_user_privileged(
-            user:                 auth_get_user(),
-            guestUser:            get_global_config('auth', 'guestUser'),
-            rootUser:             get_global_config('auth', 'rootUser'),
-            groups_2_userlist:    core_load_obj('groups_2_userlist'),
-            privileged_grouplist: $privileged_groups
+        return auth_is_cur_user_among_authorized_actors($authorized_actors_ser);
+    }
+
+    // $authorized_actors_ser: list<actor_ser>
+    function auth_is_cur_user_among_authorized_actors(array $authorized_actors_ser): bool {
+        return auth_aux_is_user_authorized(
+            user:                  auth_get_user(),
+            guestUser:             get_global_config('authorization', 'guestUser'),
+            rootUser:              get_global_config('authorization', 'rootUser'),
+            groups_2_userlist:     core_load_obj('groups_2_userlist'),
+            authorized_actors_ser: $authorized_actors_ser
         );
     }
 
-    // This function checks whether `$user` is part of `$privileged_grouplist`.
-    // It is also privileged if:
-    // - `$guestUser` is privileged
+    // This function checks whether `$user` is part of `$authorized_actorlist`.
+    // It is also authorized if:
+    // - `$guestUser` is authorized
     // - `$user` is `$rootUser`
     // It relies on data structures created during preprocessing.
     //
     // It can therefore only be used *after* preprocessing has taken place.
     //
-    // $user:                 string
-    // $guestUser:            string
-    // $rootUser:             string
-    // $groups_2_userlist:    dict<group_ser, list<string>>
-    // $privileged_grouplist: list<group_ser>
-    function auth_aux_is_user_privileged(string $user, string $guestUser, string $rootUser, array $groups_2_userlist, array $privileged_grouplist): bool {
-        // Root user has any privilege
+    // $user:                  string
+    // $guestUser:             string
+    // $rootUser:              string
+    // $groups_2_userlist:     dict<string, list<string>>
+    // $authorized_actors_ser: list<actor_ser>
+    function auth_aux_is_user_authorized(string $user, string $guestUser, string $rootUser, array $groups_2_userlist, array $authorized_actors_ser): bool {
+        // Root user is always authorized
         if ($user == $rootUser) {
             return true;
         }
 
-        $group_user_ser  = auth_aux_serialize_group(['tag' => 'UserBased', 'contents' => $user]);
-        $group_guest_ser = auth_aux_serialize_group(['tag' => 'UserBased', 'contents' => $guestUser]);
+        // Go through all authorized actors
+        foreach ($authorized_actors_ser as $cur_actor_ser) {
+            // If current actor is a user...
+            if (auth_aux_is_ser_actor_user($cur_actor_ser)) {
+                $cur_user = auth_aux_ser_actor_to_user($cur_actor_ser);
 
-        // Go through all groups that have the privilege for `$action`
-        foreach ($privileged_grouplist as $cur_group_ser) {
-            // Check whether current group is user-based on `$user`
-            if ($cur_group_ser == $group_user_ser) {
-                return true;
-            }
+                // Check whether current actor is `$user`
+                if ($cur_user == $user) {
+                    return true;
+                }
 
-            // Anything that "guest" can do, any user can do
-            // Check whether current group is user-based on "guest"
-            if ($cur_group_ser == $group_guest_ser) {
-                return true;
+                // Anything that "guest" can do, any user can do
+                // Check whether current actor is `$guestUser`
+                if ($cur_user == $guestUser) {
+                    return true;
+                }
             }
-        
-            // Check whether `$user` is member of `$cur_group`
-            if (in_array($user, $groups_2_userlist[$cur_group_ser] ?? [])) {
-                return true;
-            }
-                
-            // Anything that "guest" can do, any user can do
-            // Check whether "guest" is member of `$cur_group`
-            if (in_array($guestUser, $groups_2_userlist[$cur_group_ser] ?? [])) {
-                return true;
+            // If current actor is a group...
+            else {
+                $cur_group = auth_aux_ser_actor_to_group($cur_actor_ser);
+
+                // Check whether `$user` is member of `$cur_group`
+                if (in_array($user, $groups_2_userlist[$cur_group] ?? [])) {
+                    return true;
+                }
+                    
+                // Anything that "guest" can do, any user can do
+                // Check whether "guest" is member of `$cur_group`
+                if (in_array($guestUser, $groups_2_userlist[$cur_group] ?? [])) {
+                    return true;
+                }
             }
         }
 
@@ -414,11 +396,27 @@
     // Helpers //
     /////////////
 
-    function auth_aux_serialize_group($group) {
+    function auth_aux_serialize_actor($group) {
         return $group['tag'] . ' ' . $group['contents'];
     }
 
-    function auth_aux_ser_action($action) {
+    function auth_aux_is_ser_actor_user($actor_ser) {
+        return substr($actor_ser, 0, 4) == 'User';
+    }
+
+    function auth_aux_is_ser_actor_group($actor_ser) {
+        return substr($actor_ser, 0, 5) == 'Group';
+    }
+
+    function auth_aux_ser_actor_to_user($actor_ser) {
+        return substr($actor_ser, 5);
+    }
+
+    function auth_aux_ser_actor_to_group($actor_ser) {
+        return substr($actor_ser, 6);
+    }
+
+    function auth_aux_serialize_action($action) {
         if ($action['tag'] == 'View') {
             return $action['tag'];
         }
@@ -427,7 +425,7 @@
         }
     }
 
-    function auth_aux_merge_actions_2_grouplists(array $a, array $b): array {
+    function auth_aux_merge_actions_ser_2_actorlist_sers(array $a, array $b): array {
         $merged = $a;
     
         foreach ($b as $key => $values) {

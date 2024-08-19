@@ -1,6 +1,5 @@
 <?
-    $init_preprocessing = function(Module $module, PreprocessContext $ctx) {
-        $ctx->activate_module('js-standard-lib');
-        $ctx->activate_module('sql-js');
+    $init_preprocessing = function(Module $m, PreprocessContext $c) {
+        $c->activate_module('sql-js');
     };
 ?>

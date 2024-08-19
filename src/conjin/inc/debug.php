@@ -1,4 +1,14 @@
 <?
+    function debug_aux_print_json($obj) {
+        $json = json_encode($obj);
+        if ($json === false) {
+            echo 'Error during `json_encode`: ' . json_last_error_msg();
+        }
+        else {
+            echo $json;
+        }
+    }
+
     if (!isset($_GET['what'])) {
         echo "Please specify what to debug via ?what=...\n";
         exit();
@@ -14,22 +24,18 @@
 
     if ($what == 'config-json') {
         header('Content-Type: application/json');
-        echo json_encode($GLOBALS['config']);
+        debug_aux_print_json($GLOBALS['config']);
     }
-    elseif ($what == 'preprocess-obj' && $_GET['name'] == 'root_target') {
-        header('Content-Type: application/json');
-        echo json_encode(core_load_obj($_GET['name']));
-    }
-    elseif ($what == 'preprocess-obj' && $_GET['name'] == 'groups_2_userlist') {
-        header('Content-Type: application/json');
-        echo json_encode(core_load_obj($_GET['name']));
-    }
-    elseif ($what == 'preprocess-obj' && $_GET['name'] == 'nav') {
-        // Load classes -- hacky, but ok for debugging purposes
-        include('../modules-shared/nav/datatypes.php');
+    elseif ($what == 'preprocess-obj' && in_array($_GET['name'], ['target_root', 'syslet_login', 'syslet_not_found', 'groups_2_userlist', 'nav'])) {
+
+        // Special treatment for 'nav'
+        if ($_GET['name'] == 'nav') {
+            // Load classes -- hacky, but ok for debugging purposes
+            include('../modules-shared/template-interbook/datatypes.php');
+        }
 
         header('Content-Type: application/json');
-        echo json_encode(core_load_obj($_GET['name']));
+        debug_aux_print_json(core_load_obj($_GET['name']));
     }
     elseif ($what == 'mime-types') {
         define('APACHE_MIME_TYPES_URL','http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types');

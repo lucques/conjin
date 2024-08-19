@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-cd "$(dirname "$(readlink -f "$0")")/"
-
-mkdir -p ./res
-curl https://raw.githubusercontent.com/malihu/malihu-custom-scrollbar-plugin/3.1.5/jquery.mCustomScrollbar.concat.min.js --output ./res/jquery.mCustomScrollbar.concat.min.js
-curl https://raw.githubusercontent.com/malihu/malihu-custom-scrollbar-plugin/3.1.5/jquery.mCustomScrollbar.min.css --output ./res/jquery.mCustomScrollbar.min.css

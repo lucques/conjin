@@ -1,99 +1,22 @@
 <?
-    // Preprocessing works by the `preprocess` function.
-    // - The content files (`index.php`) get recursively traversed
-    // - For each such preprocessing pass there is a `PreprocessContext` obj
-    //   that gets modified on the way.
-    // - Each `PreprocessContext` obj also holds the `Preprocessor` objs
-    // - These get applied after passing through the `index.php` and they
-    //   fold recursively, i.e. results by sub targets are folded into the
-    //   result of the parent target.
-    // - Eventually the `PreprocessContext` obj carries all the information to
-    //   build a `Target` obj.
-
-    // The `PreprocessContext` obj goes through the following phases.
-    enum PreprocessingPhase {
-        case CONSTRUCTED;            // `PreprocessContext` obj has been constructed
-        case PASSED_THROUGH;         // Pass through `index.php` performed
-        case FINISHED_PREPROCESSORS; // All `Preprocessor` objs have finished
-    }
-
-    class PreprocessContext {
-
-        // Current status
-        public PreprocessingPhase $phase = PreprocessingPhase::CONSTRUCTED;
-
-
-        ///////////////////////////////
-        // Fixed during construction //
-        ///////////////////////////////
-
-        public readonly array $target_ids;           // array<string>
-        public readonly array $parent_titles;        // array<string>
-        public readonly array $actions_2_grouplist;  // dict<action_serialized, list<group_serialized>>
-
-
-        ////////////////////////////////////////////
-        // Constructed before/during PASS-THROUGH //
-        ////////////////////////////////////////////
-        
-        public ?Module $template;
-
-        public $name_2_preprocessor;
-
-        public array $activated_modules;                 // dict<string, Module>
-
+    abstract class PreprocessContext {
 
         /////////////////////////////
         // Set during PASS-THROUGH //
         /////////////////////////////
+       
+        public array   $activated_modules;                  // dict<string, Module>
+        public ?string $template;                           // key of `activated_modules`
         
-        public ?string $title;
-        public array $children_ids;                      // array<string>
-
         
-        //////////////////
-        // Constructors //
-        //////////////////
+        /////////////////
+        // Constructor //
+        /////////////////
 
-        public static function create_root() {
-            return new PreprocessContext(
-                target_ids:    [],
-                parent_titles: [],
-            );
-        }
-
-        public function create_child_ctx($child_id) {
-            assert($this->phase == PreprocessingPhase::PASSED_THROUGH);
-
-            return new PreprocessContext(
-                target_ids:    array_merge($this->target_ids, [$child_id]),
-                parent_titles: array_merge($this->parent_titles, [$this->title]),
-            );
-        }
-
-        private function __construct(
-            array $target_ids,
-            array $parent_titles)
-        {
-            // Fixed during construction
-
-            $this->target_ids          = $target_ids;
-            $this->parent_titles       = $parent_titles;
-            $this->actions_2_grouplist = auth_generate_actions_2_grouplist_for_target($target_ids);
-
-            // Constructed before/during PASS-THROUGH
-
-            $this->template            = null;
-
-            $this->name_2_preprocessor = [];
-
-            $this->activated_modules   = []; // To be initialized
-
-
+        protected function __construct() {
             // Set during PASS-THROUGH
-            
-            $this->title = null;
-            $this->children_ids = [];
+            $this->activated_modules   = [];
+            $this->template            = null;
         }
 
 
@@ -101,37 +24,16 @@
         // Used during PASS-THROUGH //
         //////////////////////////////
 
-        public function get_last_target_id() {
-            return $this->target_ids[count($this->target_ids) - 1];
-        }
-
-        public function has_preprocessor($name) {
-            return isset($this->name_2_preprocessor[$name]);
-        }
-
-        public function get_preprocessor($name) {
-            return $this->name_2_preprocessor[$name];
-        }
-
-        public function add_subpage($id) {
-            $this->children_ids[] = $id;
-        }
+        // Modules
 
         // @param $config: Nested assoc array (for convencience not wrapped with `ConfigTree`)
-        public function activate_template(string $name, array $config = null): void
-        {
-            $this->activate_module($name);
-            $this->template = $this->activated_modules[$name];
-        }
-        
-        public function activate_module(string $name, array $config = null): void
-        {
-            $m = Module::construct($name, $config);
+        public function activate_module(string $name, ?array $config = null): void {
+            $m = Module::construct_with_defaults($name, $config);
 
             if (!isset($this->activated_modules[$name]))
             {
                 // 1. Determine dependencies and (re)activate recursively
-                $m->init_preprocessing($this);
+                $this->init_preprocessing($m);
                 
                 // 2. Only add `$module` *after* its dependencies. This way, the modules of the dependency DAG are topologically sorted.
                 $this->activated_modules[$name] = $m;
@@ -142,76 +44,239 @@
                 $this->activated_modules[$name] = $m;
             }
         }
-
-        public function add_preprocessor($name, Preprocessor $p) {
-            $this->name_2_preprocessor[$name] = $p;
-        }
         
         // @param $config_root: Nested assoc array (for convencience not wrapped as `ConfigTree`)
-        public function update_module_config(string $name, array $config_root) {
+        public function update_module_config(string $name, ?array $config_root) {
             assert(isset($this->activated_modules[$name]), "Module `$name` not activated");
             $module = $this->activated_modules[$name];
 
-            $updated_config = aux_update_config($module->config->root, $config_root);
-            $updated_module = new Module($module->dir_name, $module->is_shared, $module->is_external, $updated_config);
-
+            $module_updated = $module->update_config($config_root);
+            
             // Re-activate
-            $this->activated_modules[$name] = $updated_module;
+            $this->activated_modules[$name] = $module_updated;
+        }
+
+
+        // Template
+
+        public function get_template(): Module {
+            assert($this->template !== null, "Template not activated");
+
+            return $this->activated_modules[$this->template];
+        }
+
+        // @param $config: Nested assoc array (for convencience not wrapped with `ConfigTree`)
+        public function activate_template(string $name, ?array $config = null): void {
+            $this->activate_module($name, $config);
+            $this->template = $name; // Set pointer
         }
 
         // @param $config_root: Nested assoc array (for convencience not wrapped as `ConfigTree`)
         public function update_template_config(array $config_root) {
-            assert(isset($this->template), "Template not activated");
+            assert($this->template !== null, "Template not activated");
 
-            $updated_config   = aux_update_config($this->template->config->root, $config_root);
-            $updated_template = new Module($this->template->dir_name, $this->template->is_shared, $this->template->is_external, $updated_config);
-
-            // Re-set
-            $this->template = $updated_template;
+            $this->update_module_config($this->template, $config_root);
         }
 
-        public function path($suffix) {
-            return path_collect($this->target_ids) . '/' . $suffix;
+
+        // Preprocessing Macros
+
+        public function run_macro(string $module_name, string $macro_name, ...$args) {
+            $m = new ModuleLocation($module_name);
+            $m->run_preprocess_macro($this, $macro_name, $args);
+        }
+
+
+        // Internal
+
+        protected abstract function init_preprocessing(Module $m);
+    }
+
+
+    class SysletPreprocessContext extends PreprocessContext {
+             
+        public function __construct() {
+            parent::__construct();
+        }
+
+        protected function init_preprocessing(Module $m) {
+            $m->init_preprocessing_syslet($this);
+        }
+    }
+
+
+    // The TargetPreprocessContext` obj is passive and just used by
+    // `preprocess_target` and the various `preprocess` functions of the
+    // targets for holding state. It goes through the following phases.
+    enum TargetPreprocessingPhase: string {
+        case CONSTRUCTED            = 'constructed';            // TargetPreprocessContext` obj has been constructed
+        case PASSED_THROUGH         = 'passed_through';         // Pass through `index.php` performed
+        case RECURSED               = 'recursed';               // Recursed preprocessing of child targets
+        case FINISHED_PREPROCESSORS = 'finished_preprocessors'; // All `Preprocessor` objs have finished
+        case DONE                   = 'done';                       
+    }
+
+    class TargetPreprocessContext extends PreprocessContext {
+
+        // Current status
+        private TargetPreprocessingPhase $phase = TargetPreprocessingPhase::CONSTRUCTED;
+
+
+        ///////////////////////////////
+        // Fixed during construction //
+        ///////////////////////////////
+
+        public readonly array $target_ids;                  // list<string>
+        public readonly bool  $has_content;
+        public readonly array $actions_ser_2_actorlist_ser; // dict<action_serialized, list<actor_serialized>>
+
+                
+        /////////////////////////////
+        // Set during PASS-THROUGH //
+        /////////////////////////////
+
+        public $name_2_preprocessor;                        // dict<string, Preprocessor>
+                
+        public array $children_ids;                         // array<string>
+
+        
+        //////////////////
+        // Constructors //
+        //////////////////
+
+        public static function create_root() {
+            return new TargetPreprocessContext(
+                target_ids: [],
+            );
+        }
+
+        public function create_child_ctx($child_id) {
+            assert($this->phase == TargetPreprocessingPhase::PASSED_THROUGH);
+
+            return new TargetPreprocessContext(
+                target_ids: array_merge($this->target_ids, [$child_id]),
+            );
+        }
+
+        private function __construct(array $target_ids) {
+            parent::__construct();
+
+            // Fixed during construction
+            $this->target_ids                  = $target_ids;
+            $this->has_content                 = isset(load_defs_from_script(path_collect($target_ids) . '/index.php')['process']);
+            $this->actions_ser_2_actorlist_ser = auth_generate_actions_ser_2_actorlist_ser_for_target($target_ids);
+
+            // Set during PASS-THROUGH
+            $this->name_2_preprocessor = [];
+
+            $this->children_ids        = [];
+        }
+
+
+        //////////////////////////////
+        // Used during PASS-THROUGH //
+        //////////////////////////////
+
+        // Preprocessors
+
+        public function has_preprocessor($name) {
+            return isset($this->name_2_preprocessor[$name]);
+        }
+
+        public function get_preprocessor($name) {
+            return $this->name_2_preprocessor[$name];
+        }
+       
+        public function add_preprocessor($name, Preprocessor $p) {
+            assert(!isset($this->name_2_preprocessor[$name]), "Preprocessor `$name` already exists");
+
+            $this->name_2_preprocessor[$name] = $p;
+        }
+
+
+        // Sub-pages
+
+        public function add_subpage($id) {
+            assert(!in_array($id, $this->children_ids), "Subpage `$id` already added");
+
+            $this->children_ids[] = $id;
+        }
+
+
+        ///////////////////////////////////////////////
+        // Used by `preprocess_all_rec` for tracking //
+        ///////////////////////////////////////////////
+
+        public function assert_phase(TargetPreprocessingPhase $expected) {
+            assert($this->phase === $expected, 'Expected phase ' . $expected->value . ', got ' . $this->phase->value);
+        }
+
+        public function change_phase(TargetPreprocessingPhase $from, TargetPreprocessingPhase $to) {
+            $this->assert_phase($from);
+            $this->phase = $to;
+        }
+
+
+        // Internal
+
+        protected function init_preprocessing(Module $m) {
+            $m->init_preprocessing_target($this);
         }
     }
 
     class Preprocessor {
-        public function __construct(protected readonly PreprocessContext $ctx) {}
+        public function __construct(protected readonly TargetPreprocessContext $ctx) {}
 
         public function finish(array $id_2_child_ctx): void {
             // By default, do nothing
         }
     }
 
-    // Main function
-    function preprocess_all(): Target {
-        $ctx = PreprocessContext::create_root();
-        return preprocess($ctx);
+
+    ////////////////////
+    // Main functions //
+    ////////////////////
+
+    function preprocess_syslet(string $which): Syslet {
+        $c = new SysletPreprocessContext();
+
+        // Preprocess!
+        $script_path = path('system/' . $which . '.php');
+        load_def_from_script_and_call($script_path, 'preprocess', $c);
+
+        // Template must have been set
+        assert($c->template !== null, 'Template not set for sytem target `' . $which . '`');
+        
+        return new Syslet(
+            $c->activated_modules,
+            $c->template
+        );
     }
 
-    // Input:  $ctx is in CONSTRUCTED phase
-    // Output: $ctx is in FINISHED_PREPROCESSORS phase
-    function preprocess(PreprocessContext $ctx): Target {
+    function preprocess_target_root(): Target {
+        $c = TargetPreprocessContext::create_root();
+        return preprocess_target_rec($c);
+    }
 
-        assert($ctx->phase == PreprocessingPhase::CONSTRUCTED);
+    // Input:  $c is in CONSTRUCTED phase
+    // Output: $c is in DONE phase
+    function preprocess_target_rec(TargetPreprocessContext $c): Target {
+
+        $c->assert_phase(TargetPreprocessingPhase::CONSTRUCTED);
 
 
         //////////////////
         // Pass-through //
         //////////////////
-
-        $script_path = path_collect($ctx->target_ids) . '/index.php';
-        $defs = load_defs_from_script($script_path);
-        assert(isset($defs['preprocess']), "Missing `\$preprocess` function in `$script_path`");
-
+      
         // Preprocess!
-        $defs['preprocess']($ctx);
+        $script_path = path_collect($c->target_ids) . '/index.php';
+        load_def_from_script_and_call($script_path, 'preprocess', $c);
 
-        // Check consistency of the context's state
-        assert($ctx->title    != null, 'Title not set for '    . path_collect($ctx->target_ids));
-        assert($ctx->template != null, 'Template not set for ' . path_collect($ctx->target_ids));
+        // Template must have been set
+        assert($c->template !== null, 'Template not set for ' . path_collect($c->target_ids));
 
-        $ctx->phase = PreprocessingPhase::PASSED_THROUGH;
+        $c->change_phase(TargetPreprocessingPhase::CONSTRUCTED, TargetPreprocessingPhase::PASSED_THROUGH);
         
 
         /////////////////////////////////
@@ -220,10 +285,13 @@
 
         $id_2_child_ctx = [];
         $id_2_child_target = [];
-        foreach ($ctx->children_ids as $child_id) {
-            $id_2_child_ctx[$child_id]    = $ctx->create_child_ctx($child_id);
-            $id_2_child_target[$child_id] = preprocess($id_2_child_ctx[$child_id]);
+        foreach ($c->children_ids as $child_id) {
+            $id_2_child_ctx[$child_id]    = $c->create_child_ctx($child_id);
+            $id_2_child_target[$child_id] = preprocess_target_rec($id_2_child_ctx[$child_id]);
         }
+
+        $c->change_phase(TargetPreprocessingPhase::PASSED_THROUGH, TargetPreprocessingPhase::RECURSED);
+
 
         
         //////////////////////////
@@ -231,24 +299,38 @@
         //////////////////////////
         
         // Fold and finish preprocessors
-        foreach ($ctx->name_2_preprocessor as $preprocessor) {
+        foreach ($c->name_2_preprocessor as $preprocessor) {
             $preprocessor->finish($id_2_child_ctx);
         }
 
-        $ctx->phase = PreprocessingPhase::FINISHED_PREPROCESSORS;
+        $c->change_phase(TargetPreprocessingPhase::RECURSED, TargetPreprocessingPhase::FINISHED_PREPROCESSORS);
         
 
-        //////////////////////////
-        // Produce `target` obj //
-        //////////////////////////
+        ////////////////////////////////////////////////////////////
+        // Produce `Target` obj and fill `parent` obj of children //
+        ////////////////////////////////////////////////////////////
 
-        return new Target(
-            $ctx->target_ids,
-            array_merge($ctx->parent_titles, [$ctx->title]),
-            $ctx->template,
-            $ctx->activated_modules,
-            $ctx->actions_2_grouplist,
+        $new_target = new Target(
+            $c->activated_modules,
+            $c->template,
+            count($c->target_ids) > 0 ? $c->target_ids[count($c->target_ids)-1] : null,
+            $c->has_content,
+            $c->actions_ser_2_actorlist_ser,
             $id_2_child_target
         );
+
+        foreach ($c->children_ids as $child_id) {
+            // Establish circular edge back to parent
+            $id_2_child_target[$child_id]->set_parent($new_target);
+        }
+
+        $c->change_phase(TargetPreprocessingPhase::FINISHED_PREPROCESSORS, TargetPreprocessingPhase::DONE);
+
+
+        ////////////
+        // Return //
+        ////////////
+
+        return $new_target;
     }
 ?>

@@ -24,7 +24,7 @@
             }
             // Otherwise, not found.
             else {
-                send_response_and_exit(404); // Not Found
+                send_not_found_response_and_exit(); // Not Found
             }
         }
     }

@@ -2,23 +2,12 @@
 // Hooks //
 ///////////
 
-// Global variables
-
-mathJaxAfterRenderingHooks = [];
-
-
-// Use these public interfaces to place your hooks
-
-function addMathJaxAfterRenderingHook(func) {
-    mathJaxAfterRenderingHooks.push(func);
-}
-
 
 /////////////////
 // Main config //
 /////////////////
 
-MathJax = {
+window.MathJax = {
     startup: {
         ready() {
 
@@ -41,7 +30,7 @@ MathJax = {
                 // Create a usual array, but with optional inter-column spacing specified,
                 // and optional vertical placement (as with the array environment).
                 TightArray(parser, begin) {
-                    const spacing = parser.GetBrackets('\\begin{' + begin.getName() + '}');
+                    const spacing = parser.GetBrackets('\\begin{' + begin.getName() + '}') || '0em';
                     const align = parser.GetBrackets('\\begin{' + begin.getName() + '}');
                     const item = BaseMethods.Array(parser, begin, null, null, null, spacing);
                     return ParseUtil.setArrayAlign(item, align);
@@ -66,9 +55,11 @@ MathJax = {
 
             // --- After rendering ("MathJax is initialized, and the initial typeset is queued") ---
 
-            // Call user-defined ready functions
-            for (const func of mathJaxAfterRenderingHooks) {
-                MathJax.startup.promise.then(func);
+            // Call user-defined functions (hooks)
+            if (typeof mathJaxAfterRenderingHooks !== 'undefined') {
+                for (const func of mathJaxAfterRenderingHooks) {
+                    MathJax.startup.promise.then(func);
+                }
             }
         }
     },
@@ -78,9 +69,9 @@ MathJax = {
         inlineMath: [['$', '$']],
         displayMath: [['$$','$$']],
         packages: {'[+]': [
-                        'color',
-                        'unicode',
-                        'my-tightarray',  // Tell TeX to use our package
+            'color',
+            'unicode',
+            'my-tightarray',  // Tell TeX to use our package
         ]},
     }
 };

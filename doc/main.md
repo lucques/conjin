@@ -2,7 +2,8 @@
 
 Documentation is spread out over multiple files.
 
-- [Design decisions](./design_decisions.md): Problem description, motivation, advantages and disadvantages of chosen technologies
+- [Design decisions](./design_decisions.md): Problem description, motivation, advantages, disadvantages of chosen technologies
+- [Dependencies](./dependencies.md)
 - [Deployment](./deployment.md)
     - [Deployment using Docker + Nginx](./deployment_docker_nginx.md): Deploy by running your own server
     - [Deployment using Docker + sync](./deployment_docker_sync.md): Deploy by syncing to an external server
@@ -10,8 +11,9 @@ Documentation is spread out over multiple files.
     - [Conjin repo](./file_structure_conjin.md): File file structure of *this* repo
     - [Content repo](./file_structure_content.md): The file structure of the content repo
     - [`/htdocs` dir](./file_structure_htdocs.md): The file structure of the `htdocs` dir as established via Docker
-- [Preprocessing](./preprocessing.md)
-- [Processing](./processing.md)
+- Preprocessing + Processing:
+    - [Preprocess](./preprocess.md)
+    - [Process](./process.md)
 - [Modules](./modules.md)
 - Authentication + Authorization:
     - [Authentication](./auth_authentication.md): Login, logout etc.
@@ -23,49 +25,42 @@ Documentation is spread out over multiple files.
 
 
 ## Definitions
-- **Target**
-    - External view: A webpage that can be accessed via URL and that contains content
-    - Internal view: An `index.php` within the `content` dir tree
-    - Each target is represented by a `Target` obj
-- **Preprocessing** vs. **Processing**
-    - Both phases are declared in the same `index.php` via the `$preprocess` and `$process` functions.
-    - Preprocessing:
-        - Main idea: Collect all "meta information" (target title etc.) to build a navigation etc.
-        - Must be triggered explicitly
-        - The whole target tree gets traversed and folded
-        - Should be used also for time-intensive tasks like server-side rendering etc.
-        - Not needed when just changing some content of a target
-    - Processing:
-        - Triggered on every target request
+- **Processable**: Either a target or a syslet
+    - Contains a list of activated modules, each with a configuration
+    - Is the result of a preprocessing step
+    - **Target**
+        - External view: A content node that can be accessed via URL and that contains content
+        - Internal view: An `index.php` within the `content` dir tree
+        - Targets are organized in a tree structure, where each node...
+            - is represented by a `Target` obj 
+            - has a target id (only a list of target id's therefore specifies the path to a specific target)
+    - **Syslet**
+        - External view: A webpage that fulfills a pre-defined system function such as "login", "not found" etc.
+        - Internal view: A file `login.php`, `not_found.php` etc. within the `system` dir
+- **Preprocessing phase**
+    - Main idea: Collect all "meta information" (target title, config etc.) to build a navigation etc.
+    - Gets triggered explicitly, which results in a target tree and the syslets
+    - Should be used also for time-intensive tasks like server-side rendering etc.
+    - Not needed when just changing some content of a target
+- **Processing phase**
+    - Triggered by the typical HTTP request
+    - Inits modules, template and renders the target / syslet.
 - **Module**: See [Modules](./modules.md)
-- **User**, **Group**, **Privilege**, **Action**: See [Authorization](./auth_authorization.md)
-- **Path**: Internal file system, root points to `htdocs` folder path
+- **User**, **Group**, **Actor**, **Privilege**, **Target Action**, **Custom Target Action**: See [Authorization](./auth_authorization.md)
+- **Path**: Internal file system; root points to `htdocs` folder path
 - **URL**: Root points to `https://www.example.com/`
 
 
 ## Conventions
-- **Mode**
-    - A mode is a flag that can be set by the user when requesting a target, typically by adding the `?print=1` param to the URL.
-    - Modes are always introduced by modules as they are not a built-in concept.
-    - Examples: `print_mode` and `solution_mode`.
 - **ID**
     - **Semantic id**:
         - Target ids, anchor ids, resource file names etc.
-        - Lower case, separated by `-`
+        - Lower case, separate parts by `-` (kebab case)
     - **Technical id**, like `id` and `class` attribute in DOM:
-        - Separate by `_` when semantic ids are involved, to avoid clashing with `-`
-- **Module package**
-    - We do not declare all modules in every `index.php` file but use the
-        - dependency mechanism
-        - inheritance mechanism
-    - ... to package the modules together.
-    - Here is the conventions:
-        - **Template module**: Modules of the name `template-<name>`
-        - **Role module**: Modules of the name `role-<name>`
-            - This is a module whose only purpose is to group together modules for a specific kind of page, called a role.
-            - E.g., the `role-content` module groups together all modules that are needed to render an information/content page.
-            - E.g., the `role-exercise` module groups together all modules that are needed to render an exercise page. 
-        - We keep the modules which are strictly associated with a template as dependencies of that template.
-            - E.g., the `nav` module is a dependency of the `template-book` module. This is obvious since `nav` is a dependency indeed.
-            - E.g., the `mathjax` module is a dependency of the main template module. This is done since `mathjax` is used on most pages so we include it here.
-        - This convention is not perfect (for future extension) but works for now, until it may change in the future. 
+        - Separate parts by `_` when semantic ids are involved, to avoid clashing with `-`
+        - This may result in a weird combination like `first-order_second-order`, but that's fine
+- **Mode**
+    - A mode is a flag that can be set by the user when requesting a target, typically by adding the `?print=1` param to the URL.
+    - Modes are always introduced by modules as they are not a built-in concept.
+    - Examples: `print-mode` and `sol-mode`.
+- **Module**: See [Modules](./modules.md)

@@ -1,0 +1,19 @@
+.accordion {
+    
+    @extend .p;
+
+    .accordion-body {
+        @extend .box-medium;
+    }
+
+    // Analogous defs of `.accordion-item` and `.block-item` 
+    .accordion-block { @extend .accordion-item;   }
+    .block-header    { @extend .accordion-header; }
+    .block-title     { @extend .accordion-button; }
+
+    // Remove double-border
+    .accordion-button.collapsed { border-width: 0; }
+    
+    // Remove toggle button
+    .block-title::after { display:none; }
+}

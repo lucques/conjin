@@ -18,125 +18,133 @@ let keyValue = P.Map.keyValue
 
 let assignUser2PasswordHash = 
     \(user: Text) ->
-    \(passwordHash: Text) -> {
+    \(hash: Text) -> {
         , mapKey   = user
-        , mapValue = passwordHash
+        , mapValue = T.Password.Hash hash
     }
-: Entry Text Text
+: Entry Text T.Password
+
+let assignUser2Password = 
+    \(user: Text) ->
+    \(password: Text) -> {
+        , mapKey   = user
+        , mapValue = T.Password.Plain password
+    }
+: Entry Text T.Password
 
 let addUserToGroup = 
     \(user: Text) ->
     \(group: Text) -> {
         , user
-        , group = (T.Group.Custom group)
+        , group
     }
 : T.User2Group
 
 let grantPreprocPrivToUser =
     \(user: Text) -> {
-        group = T.Group.UserBased user,
+        actor = T.Actor.User user,
         privilege = T.Privilege.Preprocess {=}
     }
-: T.Group2Privilege
+: T.Actor2Privilege
 
 let grantDebugPrivToUser =
     \(user: Text) -> {
-        group = T.Group.UserBased user,
+        actor = T.Actor.User user,
         privilege = T.Privilege.Debug {=}
     }
-: T.Group2Privilege
+: T.Actor2Privilege
 
 let allowViewActionForGroup = 
     \(targetIds: List Text) ->
     \(group: Text) -> {
-        group = T.Group.Custom group,
+        actor = T.Actor.Group group,
         rule = T.TargetRule.Allow ({
             , targetIds
             , action = T.Action.View {=}
         })
     }
-: T.Group2TargetRule
+: T.Actor2TargetRule
 
 let allowViewActionForUser = 
     \(targetIds: List Text) ->
     \(user: Text) -> {
-        group = T.Group.UserBased user,
+        actor = T.Actor.User user,
         rule = T.TargetRule.Allow ({
             , targetIds
             , action = T.Action.View {=}
         })
     }
-: T.Group2TargetRule
+: T.Actor2TargetRule
 
 let allowCustomActionForGroup = 
     \(targetIds: List Text) ->
     \(group: Text) ->
     \(action: Text) -> {
-        group = T.Group.Custom group,
+        actor = T.Actor.Group group,
         rule = T.TargetRule.Allow ({
             , targetIds
             , action = T.Action.Custom action
         })
     }
-: T.Group2TargetRule
+: T.Actor2TargetRule
 
 let allowCustomActionForUser = 
     \(targetIds: List Text) ->
     \(user: Text) ->
     \(action: Text) -> {
-        group = T.Group.UserBased user,
+        actor = T.Actor.User user,
         rule = T.TargetRule.Allow ({
             , targetIds
             , action = T.Action.Custom action
         })
     }
-: T.Group2TargetRule
+: T.Actor2TargetRule
 
 let denyViewActionToGroup = 
     \(targetIds: List Text) ->
     \(group: Text) -> {
-        group = T.Group.Custom group,
+        actor = T.Actor.Group group,
         rule = T.TargetRule.Deny ({
             , targetIds
             , action = T.Action.View {=}
         })
     }
-: T.Group2TargetRule
+: T.Actor2TargetRule
 
 let denyViewActionToUser =
     \(targetIds: List Text) ->
     \(user: Text) -> {
-        group = T.Group.UserBased user,
+        actor = T.Actor.User user,
         rule = T.TargetRule.Deny ({
             , targetIds
             , action = T.Action.View {=}
         })
     }
-: T.Group2TargetRule
+: T.Actor2TargetRule
 
 let denyCustomActionToGroup =
     \(targetIds: List Text) ->
     \(group: Text) ->
     \(action: Text) -> {
-        group = T.Group.Custom group,
+        actor = T.Actor.Group group,
         rule = T.TargetRule.Deny ({
             , targetIds
             , action = T.Action.Custom action
         })
     }
-: T.Group2TargetRule
+: T.Actor2TargetRule
 
 let denyCustomActionToUser =
     \(targetIds: List Text) ->
     \(user: Text) ->
     \(action: Text) -> {
-        group = T.Group.UserBased user,
+        actor = T.Actor.User user,
         rule = T.TargetRule.Deny ({
             , targetIds
             , action = T.Action.Custom action
         })
     }
-: T.Group2TargetRule
+: T.Actor2TargetRule
 
 
 -------------
@@ -148,29 +156,60 @@ let makeModule =
     \(isShared: Bool) ->
     \(isExternal: Bool) -> {
         location = {dirName, isShared, isExternal},
+        config = P.JSON.null,
         compileScss = False,
         scssModuleDeps = empty T.ModuleLocation,
-        defaultConfig = P.JSON.null,
     }
-: T.Module
+: T.ModuleValue
 
 let makeModules = 
     \(isShared: Bool) ->
     \(isExternal: Bool) ->
     \(names: List Text) ->
-    map Text T.Module (\(n: Text) -> {
+    map Text T.ModuleValue (\(n: Text) -> {
         location = {dirName = n, isShared, isExternal},
+        config = P.JSON.null,
         compileScss = False,
         scssModuleDeps = empty T.ModuleLocation,
-        defaultConfig = P.JSON.null,
     })
     names
-: List T.Module
+: List T.ModuleValue
 
 let moduleListToMap =
-    \(modules: List T.Module) ->
-    map T.Module (Entry Text T.Module) (\(m: T.Module) -> { mapKey = m.location.dirName, mapValue = m }) modules
-: P.Map.Type Text T.Module
+    \(modules: List T.ModuleValue) ->
+    map T.ModuleValue (Entry Text T.ModuleValue) (\(m: T.ModuleValue) -> { mapKey = m.location.dirName, mapValue = m }) modules
+: P.Map.Type Text T.ModuleValue
+
+let makeDbModuleFromDockerDb =
+    \(db: T.DockerDb) -> {
+    , location = { dirName = "db", isShared = True, isExternal = False }
+    , config =
+        P.JSON.object [
+            , { mapKey = "host"    , mapValue = P.JSON.string "db" }
+            , { mapKey = "user"    , mapValue = P.JSON.string db.user }
+            , { mapKey = "password", mapValue = P.JSON.string db.userPassword }
+        ]
+    , compileScss = False
+    , scssModuleDeps = P.List.empty T.ModuleLocation
+    }
+: T.ModuleValue
+
+let makeDbModuleFromServerDb =
+    \(db: T.ServerDb) -> {
+    , location = { dirName = "db", isShared = True, isExternal = False }
+    , config =
+        P.JSON.object [
+            , { mapKey = "host"    , mapValue = P.JSON.string db.host }
+            , { mapKey = "user"    , mapValue = P.JSON.string db.user }
+            , { mapKey = "password", mapValue = P.JSON.string db.password }
+        ]
+    , compileScss = False
+    , scssModuleDeps = P.List.empty T.ModuleLocation
+    }
+: T.ModuleValue
+
+let moduleValueToModule =
+    \(m: T.ModuleValue) -> { name = m.location.dirName, config = m.config }
 
 
 -------------------------
@@ -193,15 +232,25 @@ let makeDefaultDockerDb =
     }
 : T.DockerDb
 
+let makeDefaultDesktopIntegration = 
+    \(name: Text) -> {
+        , installSymlinksInLocalBin         = True
+        , preprocessScriptUser              = "preprocess"
+        , preprocessScriptPasswordLookupCmd = "secret-tool lookup password " ++ name ++ "-preprocess"
+        , preprocessScriptPasswordRegisterCmd   = Some ("secret-tool store --label='Password for " ++ name ++ " preprocess script' password " ++ name ++ "-preprocess")
+    }
+: T.DesktopIntegration
+
 let makeDefaultDockerNginxDepl = 
     \(name: Text) ->
     \(conjinDir: Text) ->
     \(appDir: Text) ->
     \(deplDir: Text) ->
-    \(auth: T.AppAuth) ->
+    \(authentication: T.Authentication) ->
+    \(authorization: T.Authorization) ->
     \(db: Optional T.DockerDb) ->
     \(mainTemplate: T.Module) ->
-    \(modules: List T.Module) ->
+    \(modules: List T.ModuleValue) ->
     {
         depl = {
             , name
@@ -209,20 +258,18 @@ let makeDefaultDockerNginxDepl =
             , conjinDir
             , appDir
             , targetDir            = makeDefaultTargetDir deplDir
-            , auth                 = Some {
-                , app = auth
-                , preprocessScriptUser        = "preprocess"
-                , preprocessScriptPasswordCmd = "secret-tool lookup password " ++ name ++ "-preprocess"
-            }
+            , authentication
+            , authorization
             , modules              = moduleListToMap modules
-            , faviconIcoFrom       = Some mainTemplate.location
-            , notFoundTemplate     = mainTemplate
-            , unauthorizedTemplate = mainTemplate
+            , desktopIntegration   = makeDefaultDesktopIntegration name
         }
       , nginxVirtualHost  = name ++ ".localhost"
       , linkcheckerVolDir = makeDefaultDockerVolDir deplDir ++ "/linkchecker"
       , preprocessVolDir  = makeDefaultDockerVolDir deplDir ++ "/preprocess"
       , db
+      , linkcheckerUser                   = "linkchecker"
+      , linkcheckerPasswordLookupCmd      = "secret-tool lookup password " ++ name ++ "-linkchecker"
+      , linkcheckerPasswordRegisterCmd    = Some ("secret-tool store --label='Password for " ++ name ++ " linkchecker' password " ++ name ++ "-linkchecker")
     }
 : T.DockerNginxDepl
 
@@ -231,10 +278,11 @@ let makeDefaultDockerSyncDepl =
     \(conjinDir: Text) ->
     \(appDir: Text) ->
     \(deplDir: Text) ->
-    \(auth: T.AppAuth) ->
+    \(authentication: T.Authentication) ->
+    \(authorization: T.Authorization) ->
     \(db: Optional T.ServerDb) ->
+    \(modules: List T.ModuleValue) ->
     \(mainTemplate: T.Module) ->
-    \(modules: List T.Module) ->
     \(host: Text) ->
     \(rcloneRemote: T.RCloneRemote) ->
     {
@@ -244,15 +292,10 @@ let makeDefaultDockerSyncDepl =
             , conjinDir
             , appDir
             , targetDir            = makeDefaultTargetDir deplDir
-            , auth                 = Some {
-                , app                         = auth
-                , preprocessScriptUser        = "preprocess"
-                , preprocessScriptPasswordCmd = "secret-tool lookup password " ++ name ++ "-preprocess"
-            }
+            , authentication
+            , authorization
             , modules              = moduleListToMap modules
-            , faviconIcoFrom       = Some mainTemplate.location
-            , notFoundTemplate     = mainTemplate
-            , unauthorizedTemplate = mainTemplate
+            , desktopIntegration   = makeDefaultDesktopIntegration name
         }
         , host
         , preferHTTPS = True
@@ -268,6 +311,7 @@ in {
     , types = T
 
     , assignUser2PasswordHash
+    , assignUser2Password
     , addUserToGroup
     , grantPreprocPrivToUser
     , grantDebugPrivToUser
@@ -285,6 +329,9 @@ in {
     , makeModule
     , makeModules
     , moduleListToMap
+    , makeDbModuleFromDockerDb
+    , makeDbModuleFromServerDb
+    , moduleValueToModule
 
     , makeDefaultDockerDb
     , makeDefaultDockerSyncDepl

@@ -1,0 +1,50 @@
+@import "/modules-shared/template-bootstrapped/scss/screen";
+@import "/modules-shared/template-navigable/scss/partials/screen_main_layout";
+@import "/modules-shared/template-navigable/scss/partials/screen_module_nav";
+
+
+////////////////////////////
+// Global Layout & Design //
+////////////////////////////
+
+$background-color: $gray-800;
+$main-background-color: white;
+
+$main-min-width: 300px;
+$main-max-width: 960px;
+
+body {
+  background-color:$background-color;
+}
+
+#content > main {
+  @extend .box-large;
+
+  @extend .rounded;
+  margin: 30px auto 30px auto;
+
+  background-color: $main-background-color;
+
+  min-width: 300px;
+  max-width: $main-max-width;
+}
+
+
+/////////////
+// Content //
+/////////////
+
+// No styles defined here yet. Anyway, leave the main part of this to the underlying `theme-bootstrap-extended` since most of this syling should be universal.
+
+
+///////////////////
+// Miscellaneous //
+///////////////////
+
+// Hide anchors
+a.anchor {
+  display: block; 
+  position: relative;
+  top: 0px;
+  visibility: hidden;
+}

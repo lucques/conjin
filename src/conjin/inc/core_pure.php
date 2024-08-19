@@ -3,6 +3,7 @@
     // Config //
     ////////////
 
+
     // Stateless wrapper for a nested assoc array
     class ConfigTree {
         function __construct(public readonly array $root) {}
@@ -11,19 +12,6 @@
             $config = $this->root;
             foreach ($path as $key) {
                 $config = $config[$key];
-            }
-            return $config;
-        }
-    
-        function get_or_default(array $path, $default) {
-            $config = $this->root;
-            foreach ($path as $key) {
-                if (isset($config[$key])) {
-                    $config = $config[$key];
-                }
-                else {
-                    return $default;
-                }
             }
             return $config;
         }
@@ -38,34 +26,37 @@
             }
             return true;
         }
-    }
-
-    // Recursively update config `$a` with config `$b`
-    // Both are nested assoc arrays, i.e. config trees. 
-    function aux_update_config($a, $b) {
-        // If any of `$a` or `$b` are non-assoc-arrays, return `$b`
-        if (!is_array($a)
-             || !is_array($b)
-             || array_is_list($a)
-             || array_is_list($b)) {
-            return $b;
-        }
-
-        foreach ($a as $key => $value) {
-            if (isset($b[$key])) {
-                $a[$key] = aux_update_config($value, $b[$key]);
+        
+        function get_or_default(array $path, $default) {
+            if ($this->isset(...$path)) {
+                return $this->get(...$path);
+            }
+            else {
+                return $default;
             }
         }
-
-        foreach ($b as $key => $value) {
-            if (!isset($a[$key])) {
-                $a[$key] = $value;
-            }
-        }
-
-        return $a;
     }
+    
 
+    //////////////////
+    // Semantic IDs //
+    //////////////////
+
+    // Take a title and return a semantic id, i.e. in kebab case
+    function kebabize($title): string {
+        $slug = strtolower($title);
+
+        // Umlauts and sharp s
+        $slug = str_replace('ä', 'ae', $slug);
+        $slug = str_replace('ö', 'oe', $slug);
+        $slug = str_replace('ü', 'ue', $slug);
+        $slug = str_replace('ß', 'ss', $slug);
+
+        $slug = preg_replace('/[^a-z0-9]/', '-', $slug);
+        $slug = preg_replace('/-+/', '-', $slug);
+        $slug = trim($slug, '-');
+        return $slug;
+    }
 
 
     //////////
@@ -74,7 +65,7 @@
 
     // Get full anchor based on anchor ids, without # prefix
     function anchor_collect($anchor_ids) {
-        return implode('-', $anchor_ids);
+        return implode('_', $anchor_ids);
     }
 
     // This function removes all the internal query params from `$base_queries`
@@ -140,6 +131,28 @@
     }
 
 
+    ///////////////////
+    // Date and time //
+    ///////////////////
+
+    // By "date" we mean a date without time
+    function date_to_iso(DateTimeInterface $date): string {
+        return $date->format('Y-m-d');
+    }
+
+    function assert_iso_date(string $date_iso) {
+        assert(DateTimeImmutable::createFromFormat('Y-m-d', $date_iso) !== false, 'Invalid date format');
+    }
+
+    function iso_to_date(string $date_iso): ?DateTimeImmutable {
+        $date = DateTimeImmutable::createFromFormat('Y-m-d', $date_iso);
+        if ($date === false) {
+            return null;
+        }
+        return $date;
+    }
+
+
     //////////////////////
     // Helper functions //
     //////////////////////
@@ -167,5 +180,32 @@
         if (empty($assocArray[$key])) {
             unset($assocArray[$key]);
         }
+    }
+
+    // Recursively update config `$a` with config `$b`
+    // Both are nested assoc arrays (nesting depth 0 corresponds to ground
+    // types like `int` )
+    function aux_nested_update($a, $b) {
+        // Base case:  If any of `$a` or `$b` are non-assoc-arrays, return `$b`
+        if (!is_array($a) ||
+            !is_array($b) ||
+            (array_is_list($a) && count($a) > 0) ||
+            (array_is_list($b) && count($b) > 0)) {
+            return $b;
+        }
+
+        // Recursive case
+        foreach ($a as $key => $value) {
+            if (isset($b[$key])) {
+                $a[$key] = aux_nested_update($value, $b[$key]);
+            }
+        }
+        foreach ($b as $key => $value) {
+            if (!isset($a[$key])) {
+                $a[$key] = $value;
+            }
+        }
+
+        return $a;
     }
 ?>

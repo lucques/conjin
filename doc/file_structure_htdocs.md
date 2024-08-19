@@ -5,6 +5,7 @@ The following file structure is realized via Docker volumes. It is both present 
 - htdocs
                         (all from app's `src` dir)
     - content    
+    - system
     - favicon.ico
     - modules           
     - modules-ext

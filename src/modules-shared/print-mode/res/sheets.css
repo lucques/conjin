@@ -1,0 +1,10 @@
+@page  {
+  margin-top: 15mm;
+  margin-right: 12mm;
+  margin-bottom: 15mm;
+  margin-left: 12mm;
+}
+
+.sheet {
+  page-break-after: always;
+}

@@ -1,6 +1,6 @@
 <?
-    $init_preprocessing = function(Module $module, PreprocessContext $ctx) {
-        $ctx->activate_module('doc_extensions');
-        $ctx->activate_module('mathjax');
+    $init_preprocessing = function(Module $m, PreprocessContext $c) {
+        $c->activate_module('doc-extensions');
+        $c->activate_module('mathjax');
     };
 ?>

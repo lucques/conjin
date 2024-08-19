@@ -21,11 +21,8 @@ To deploy, the following four phases are needed.
         - Preprocess
         - Render SCSS files
 3. Run.
-    - Run one of the generated bin scripts.
-        - `./target/bin/sync`
-            - Compile SCSS
-            - Sync with remote server
-            - After short delay: Call `./target/bin/preprocess`
-        - `./target/bin/preprocess`: See below
-4. Preprocess.
-    - This is a PHP script on the server and gets called via `https://host/preprocess/` or alternatively via `./target/bin/preprocess`
+    - `./target/bin/sync`
+        - Compile SCSS
+        - Sync with remote server
+        - After short delay: Call `./target/bin/preprocess`
+    - `./target/bin/preprocess`: Alternatively this can be run by launching `https://host/preprocess/`.

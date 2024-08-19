@@ -1,0 +1,135 @@
+/////////////////////////////////
+// Customize & Import Boostrap //
+/////////////////////////////////
+
+// Since we change some colors, we have to manually set up Bootstrap.
+// See also https://getbootstrap.com/docs/5.3/customize/sass/#maps-and-loops.
+// Instead of simple Option A (single-line),
+//   `@import "bootstrap_scss/bootstrap";`
+// we choose the fine-grained Option B.
+
+// 0. Include CSS grid (https://getbootstrap.com/docs/5.1/layout/css-grid/)
+$enable-cssgrid: true;
+
+// 1. Include functions first (so you can manipulate colors, SVGs, calc, etc)
+@import "/modules-shared-ext/bootstrap/scss/functions";
+
+// 2. Include any default variable overrides here
+@import "./constants/vars_screen";
+
+// 3. Include remainder of required Bootstrap stylesheets (including any separate color mode stylesheets)
+@import "/modules-shared-ext/bootstrap/scss/variables";
+@import "/modules-shared-ext/bootstrap/scss/variables-dark";
+
+// 4. Include any default map overrides here
+
+// Each theme color needs to be defined here.
+
+@import "./constants/maps_screen";
+
+@each $name, $color-map in $color-extensions {
+  $theme-colors: map-merge($theme-colors, ($name: map-get($color-map, "main")));
+}
+
+// 5. Include remainder of required parts
+@import "/modules-shared-ext/bootstrap/scss/maps";
+@import "/modules-shared-ext/bootstrap/scss/mixins";
+
+// 5.1
+// The following vars are introduced by the `maps` partial, therefore updating
+// them must happen here.
+@each $name, $color-map in $color-extensions {
+  $theme-colors-text: map-merge($theme-colors-text, ($name: map-get($color-map, "text")));
+  $theme-colors-bg-subtle: map-merge($theme-colors-bg-subtle, ($name: map-get($color-map, "bg-subtle")));
+  $theme-colors-border-subtle: map-merge($theme-colors-border-subtle, ($name: map-get($color-map, "border-subtle")));
+  $table-variants: map-merge($table-variants, ($name: map-get($color-map, "bg-subtle")));
+}
+
+@import "/modules-shared-ext/bootstrap/scss/root";
+@import "/modules-shared-ext/bootstrap/scss/utilities";
+
+// 6. Optionally include any other parts as needed
+
+@import "/modules-shared-ext/bootstrap/scss/reboot";
+@import "/modules-shared-ext/bootstrap/scss/type";
+@import "/modules-shared-ext/bootstrap/scss/helpers";
+@import "/modules-shared-ext/bootstrap/scss/images";
+@import "/modules-shared-ext/bootstrap/scss/containers";
+@import "/modules-shared-ext/bootstrap/scss/grid";
+@import "/modules-shared-ext/bootstrap/scss/tables";
+@import "/modules-shared-ext/bootstrap/scss/forms";
+@import "/modules-shared-ext/bootstrap/scss/buttons";
+@import "/modules-shared-ext/bootstrap/scss/transitions";
+@import "/modules-shared-ext/bootstrap/scss/dropdown";
+@import "/modules-shared-ext/bootstrap/scss/button-group";
+@import "/modules-shared-ext/bootstrap/scss/nav";
+@import "/modules-shared-ext/bootstrap/scss/navbar";
+@import "/modules-shared-ext/bootstrap/scss/card";
+@import "/modules-shared-ext/bootstrap/scss/accordion";
+@import "/modules-shared-ext/bootstrap/scss/breadcrumb";
+@import "/modules-shared-ext/bootstrap/scss/pagination";
+@import "/modules-shared-ext/bootstrap/scss/badge";
+@import "/modules-shared-ext/bootstrap/scss/alert";
+@import "/modules-shared-ext/bootstrap/scss/progress";
+@import "/modules-shared-ext/bootstrap/scss/list-group";
+@import "/modules-shared-ext/bootstrap/scss/close";
+@import "/modules-shared-ext/bootstrap/scss/toasts";
+@import "/modules-shared-ext/bootstrap/scss/modal";
+@import "/modules-shared-ext/bootstrap/scss/tooltip";
+@import "/modules-shared-ext/bootstrap/scss/popover";
+@import "/modules-shared-ext/bootstrap/scss/carousel";
+@import "/modules-shared-ext/bootstrap/scss/spinners";
+@import "/modules-shared-ext/bootstrap/scss/offcanvas";
+@import "/modules-shared-ext/bootstrap/scss/placeholders";
+
+// 7. Optionally include utilities API last to generate classes based on the Sass map in `_utilities.scss`
+@import "/modules-shared-ext/bootstrap/scss/utilities/api";
+
+
+////////////
+// Import //
+////////////
+
+@import "./partials/common";
+@import "./partials/acc_screen";
+@import "./partials/module_math_all";
+@import "./partials/module_mathjax-extensions_all";
+@import "./partials/module_references_all";
+@import "./partials/module_timetable_all";
+
+
+
+////////////////////////////
+// Margins and Typography //
+////////////////////////////
+
+$margin_p:       $spacer;
+$margin_float:   1.5*$margin_p;
+$margin_section: 2.5*$margin_p;
+
+// Common elements
+@include basic-defs($margin_p, $margin_float, $margin_section);
+
+// Headings
+h1 { font-size: 2.0rem;  margin-top: 2.0*$margin_p;  margin-bottom: 0.8*$margin_p; }
+h2 { font-size: 1.6rem;  margin-top: 2.0*$margin_p;  margin-bottom: 0.8*$margin_p; }
+h3 { font-size: 1.4rem;  margin-top: 1.5*$margin_p;  margin-bottom: 0.8*$margin_p; }
+h4 { font-size: 1.2rem;  margin-top: 1.5*$margin_p;  margin-bottom: 0.7*$margin_p; }
+h5 { font-size: 1.1rem;  margin-top: 1.4*$margin_p;  margin-bottom: 0.6*$margin_p; }
+h6 { font-size: 1.0rem;  margin-top: 1.4*$margin_p;  margin-bottom: 0.5*$margin_p; }
+
+h4     { font-weight: bold; }
+h5, h6 { font-weight: $font_weight_bold; }
+
+
+///////////////////
+// Miscellaneous //
+///////////////////
+
+// Anchors
+a.anchor {
+  display: block; 
+  position: relative;
+  top: 0px;
+  visibility: hidden;
+}

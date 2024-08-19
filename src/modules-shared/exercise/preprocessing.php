@@ -1,5 +1,5 @@
 <?
-    $init_preprocessing = function(Module $module, PreprocessContext $ctx) {
-        $ctx->activate_module('accordion');
+    $init_preprocessing = function(Module $m, PreprocessContext $c) {
+        $c->activate_module('template-bootstrapped');      
     };
 ?>

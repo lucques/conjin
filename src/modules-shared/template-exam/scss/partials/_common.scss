@@ -1,0 +1,87 @@
+////////////////////////////
+// Global Layout & Design //
+////////////////////////////
+
+#content {
+    font-family:serif;
+    font-size: 10pt;
+}
+
+#eheader {
+    display:flex;
+    justify-content: space-between;
+    column-gap: 0.8cm;
+}
+
+#etitle {
+    margin-top: 0.5cm;
+    text-align: center;
+}
+
+#etitle h1 {
+    font-size: 16pt;
+}
+
+.exercise {
+    .header {
+        display:grid;
+        grid-template-columns: 2;
+        grid-template-rows: 1;
+        margin-bottom: 0.5cm;
+
+        .title {
+            grid-column-start: 1;
+            grid-row-start: 1;
+
+            .enum {
+                font-weight: bold;
+                text-decoration: underline;
+            }
+
+            .desc {
+                font-style: italic;
+            }
+        }
+    
+        .points {
+            grid-column-start: 2;
+            grid-row-start: 1;
+
+            text-align: right;
+        }
+    }
+
+    .body {
+        // Reset default order
+        ol       { list-style: lower-alpha-bracket; }
+        ol ol    { list-style: lower-roman-parens; }
+        ol ol ol { list-style: decimal-circled; }
+    }
+}
+
+pre {
+    font-size: 8.5pt !important;
+}
+
+.table-of-values {
+    text-align: center;
+    border:1px solid black;
+    display:inline-table;
+    border-collapse: collapse;
+
+    th, td {
+        border:1px solid black;
+        padding:1mm;
+        width: 50px;
+    }
+}
+
+.grades-table {
+    font-size: 8pt;
+}
+
+.clearfix::after {
+    content: "";
+    clear: both;
+    display: table;
+}

@@ -9,7 +9,6 @@ function sql_js_inline_resultsToHTML(results, title = '', truncated = false)
     for (const result of results)
     {
         content += `
-            <div style="inline-block">
             <table class="table table-bordered border-dark table-striped">
             <thead>
         `;
@@ -47,14 +46,13 @@ function sql_js_inline_resultsToHTML(results, title = '', truncated = false)
         if (truncated) {
             content += `
                 <tr>
-                    ${'<td class="text-center" colspan="">...</td>'.repeat(result.columns.length)}
+                    ${'<td class="text-center">...</td>'.repeat(result.columns.length)}
                 </tr>
             `;
         }
         content += `
             </tbody>
             </table>
-            </div>
         `;
     }
 

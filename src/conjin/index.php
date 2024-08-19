@@ -11,7 +11,7 @@
         case Preprocess = 'preprocess';
         case Login      = 'login';
         case Logout     = 'logout';
-        case Process    = 'process';
+        case Show       = 'show';
         case Res        = 'res';
     }
 
@@ -66,11 +66,14 @@
         // Libraries
         require('inc/preprocess_mech.php');
 
-        // Preprocessing preprares two objects:
+        // Preprocessing prepares objects:
         // 1. For auth:    `groups_2_userlist`
-        // 2. Target tree: `root_target`
-        core_save_obj('groups_2_userlist', auth_generate_groups_2_userlist());
-        core_save_obj('root_target',       preprocess_all());
+        // 2. Targets:     `target_root`
+        // 3. Syslets:     `syslet_*`
+        core_save_obj('groups_2_userlist',   auth_generate_groups_2_userlist());
+        core_save_obj('target_root',         preprocess_target_root());
+        core_save_obj('syslet_login',        preprocess_syslet('login'));
+        core_save_obj('syslet_not_found',    preprocess_syslet('not_found'));
 
         // Render response
         send_response_and_exit(message: 'Preprocessing done.');
@@ -78,10 +81,12 @@
     else {
 
         // Make sure preprocessing has taken place
-        if (!core_obj_exists('root_target')) {
+        if (!core_obj_exists('target_root')) {
             send_response_and_exit(status_code: 500, message: "Preprocessing not done.");
         }
 
+        // Lbraries
+        require('inc/process_mech.php');
 
         if ($req == Req::Login) {
 
@@ -113,29 +118,33 @@
             }
             
         }
-        elseif ($req == $req::Process) {
+        elseif ($req == Req::Show) {
     
-            /////////////
-            // Process //
-            /////////////
+            //////////
+            // Show //
+            //////////
     
             // Libraries
             require('inc/cache.php'); // Deals with browser cache (304 Not Modified)
-            require('inc/process_mech.php');
     
             // Interpret request
             $GET_target = $_GET['target'] ?? ''; // Coalesce to empty string
             $requested_target_ids = target_query_to_target_ids($GET_target);
             
             if ($requested_target_ids === null) {
-                send_response_and_exit(404); // Not Found
+                send_not_found_response_and_exit(); // Not Found
             }
     
-            $target = core_load_obj('root_target')->find_child($requested_target_ids);
+            $target = core_load_obj('target_root')->find_child($requested_target_ids);
     
             // If target does not exist, send "not found"
             if ($target == null) {
-                send_response_and_exit(404); // Not Found
+                send_not_found_response_and_exit(); // Not Found
+            }
+            
+            // If target has no content, send "not found"
+            if (!$target->has_content) {
+                send_not_found_response_and_exit(); // Not Found
             }
     
             // If user is not privileged to view target, either redirect to
@@ -170,7 +179,7 @@
     
             // Check up front that `res` query is not empty
             if (!isset($_GET['res'])) {
-                send_response_and_exit(404); // Not Found
+                send_not_found_response_and_exit(); // Not Found
             }
     
             // 1. Interpret `target` part of the request
@@ -178,14 +187,14 @@
             $requested_target_ids = target_query_to_target_ids($GET_target);
     
             if ($requested_target_ids === null) {
-                send_response_and_exit(404); // Not Found
+                send_not_found_response_and_exit(); // Not Found
             }
     
-            $target = core_load_obj('root_target')->find_child($requested_target_ids);
+            $target = core_load_obj('target_root')->find_child($requested_target_ids);
                 
             // If target does not exist, send "not found"
             if ($target == null) {
-                send_response_and_exit(404); // Not Found
+                send_not_found_response_and_exit(); // Not Found
             }
     
             // 2. Interpret `res` part of the request
@@ -194,7 +203,7 @@
     
             // If resource does not exist, send "not found"
             if ($real_path === false) {
-                send_response_and_exit(404); // Not Found
+                send_not_found_response_and_exit(); // Not Found
             }
     
             // If user is not privileged to view target, either redirect to

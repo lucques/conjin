@@ -1,0 +1,207 @@
+////////////
+// Stacks //
+////////////
+
+// Definition of `.stack`
+.stack > :first-child,
+.stack   .first-child { // Sometimes the first child has to be identified manually
+  margin-top: 0 !important;
+}
+
+.stack > :last-child,
+.stack   .last-child { // Sometimes the last child has to be identified manually
+  margin-bottom: 0 !important;
+}
+
+// Common stacks
+section,
+td,
+.card-body,
+.list-group-item,
+.inline-grid > div,
+.col,
+.col-1,
+.col-2,
+.col-3,
+.col-4,
+.col-5,
+.col-6,
+.col-7,
+.col-8,
+.col-9,
+.col-10,
+.col-11,
+.d-grid > *, // A grid item is a stack
+.d-flex > *, // A flex item is a stack
+.box-large,  // A box is a stack
+.box-medium,
+.box-small
+{
+  @extend .stack;
+}
+
+
+//////////////////////////
+// Typography & Margins //
+//////////////////////////
+
+@mixin basic-defs($margin_p, $margin_float, $margin_section) {
+  
+  .p     { margin-top: $margin_p;     margin-bottom: $margin_p;     }
+  .pp    { margin-top: $margin_p*1.5; margin-bottom: $margin_p*1.5; }
+  .ppp   { margin-top: $margin_p*2;   margin-bottom: $margin_p*2;   }
+  .pppp  { margin-top: $margin_p*2.5; margin-bottom: $margin_p*2.5; }
+  .ppppp { margin-top: $margin_p*3;   margin-bottom: $margin_p*3;   }
+
+  p, ul, ol, pre, figure, .table { @extend .p; }
+
+  .float-start, .float-end { margin-bottom: $margin_float; }
+  .float-start { margin-right: $margin_float; }
+  .float-end   { margin-left:  $margin_float; }
+
+  section { margin-top: $margin_section; margin-bottom: $margin_section; }
+
+
+  // Boxes
+  .box-large {
+    padding: 2.8*$margin_p 2.2*$margin_p;
+  }
+
+  .box-medium {
+    padding: 1*$margin_p 1.25*$margin_p;
+  }
+
+  .box-small {
+    padding: 0.5*$margin_p 1*$margin_p;
+  }
+}
+
+// Typography 
+dfn { font-weight: $font_weight_bold; }
+.fs-7 { font-size: 0.75rem !important; }
+
+
+///////////////////
+// Ordered lists //
+///////////////////
+
+// Additional counter styles
+@counter-style decimal-circled {
+  system: fixed 0;
+  symbols: '\24EA' '\2460' '\2461' '\2462' '\2463' '\2464' '\2465' '\2466' '\2467' '\2468' '\2469' '\246A' '\246B' '\246C' '\246D' '\246E' '\246F' '\2470' '\2471' '\2472' '\2473' '\3251' '\3252' '\3253' '\3254' '\3255' '\3256' '\3257' '\3258' '\3259' '\325a' '\325b' '\325c' '\325d' '\325e' '\325f' '\32b1' '\32b2' '\32b3' '\32b4' '\32b5' '\32b6' '\32b7' '\32b8' '\32b9' '\32ba' '\32bb' '\32bc' '\32bd' '\32be' '\32bf';
+  /* symbols: '⓪' '①' '②' '③' '④' '⑤' '⑥' '⑦' '⑧' '⑨' '⑩' '⑪' '⑫' '⑬' '⑭' '⑮' '⑯' '⑰' '⑱' '⑲' '⑳' '㉑' '㉒' '㉓' '㉔' '㉕' '㉖' '㉗' '㉘' '㉙' '㉚' '㉛' '㉜' '㉝' '㉞' '㉟' '㊱' '㊲' '㊳' '㊴' '㊵' '㊶' '㊷' '㊸' '㊹' '㊺' '㊻' '㊼' '㊽' '㊾' '㊿'; */
+  suffix: ' ';
+}
+
+@counter-style lower-alpha-circled {
+  system: fixed;
+  symbols: '\24D0' '\24D1' '\24D2' '\24D3' '\24D4' '\24D5' '\24D6' '\24D7' '\24D8' '\24D9' '\24DA' '\24DB' '\24DC' '\24DD' '\24DE' '\24DF' '\24E0' '\24E1' '\24E2' '\24E3' '\24E4' '\24E5' '\24E6' '\24E7' '\24E8' '\24E9';
+  /* symbols: 'ⓐ' 'ⓑ' 'ⓒ' 'ⓓ' 'ⓔ' 'ⓕ' 'ⓖ' 'ⓗ' 'ⓘ' 'ⓙ' 'ⓚ' 'ⓛ' 'ⓜ' 'ⓝ' 'ⓞ' 'ⓟ' 'ⓠ' 'ⓡ' 'ⓢ' 'ⓣ' 'ⓤ' 'ⓥ' 'ⓦ' 'ⓧ' 'ⓨ' 'ⓩ'; */
+  suffix: ' ';
+}
+
+@counter-style upper-alpha-circled {
+  system: fixed;
+  symbols: '\24B6' '\24B7' '\24B8' '\24B9' '\24BA' '\24BB' '\24BC' '\24BD' '\24BE' '\24BF' '\24C0' '\24C1' '\24C2' '\24C3' '\24C4' '\24C5' '\24C6' '\24C7' '\24C8' '\24C9' '\24CA' '\24CB' '\24CC' '\24CD' '\24CE' '\24CF';
+  /* symbols: 'Ⓐ' 'Ⓑ' 'Ⓒ' 'Ⓓ' 'Ⓔ' 'Ⓕ' 'Ⓖ' 'Ⓗ' 'Ⓘ' 'Ⓙ' 'Ⓚ' 'Ⓛ' 'Ⓜ' 'Ⓝ' 'Ⓞ' 'Ⓟ' 'Ⓠ' 'Ⓡ' 'Ⓢ' 'Ⓣ' 'Ⓤ' 'Ⓥ' 'Ⓦ' 'Ⓧ' 'Ⓨ' 'Ⓩ'; */
+  suffix: ' ';
+}
+
+@counter-style lower-alpha-bracket {
+  system: alphabetic;
+  symbols: a b c d e f g h i j k l m n o p q r s t u v w x y z;
+  suffix: ')  ';
+}
+
+@counter-style upper-alpha-bracket {
+  system: alphabetic;
+  symbols: A B C D E F G H I J K L M N O P Q R S T U V W X Y Z;
+  suffix: ')  ';
+}
+
+@counter-style decimal-bracket {
+  system: numeric;
+  suffix: ')  ';
+}
+
+@counter-style lower-roman-bracket {
+  system: additive;
+  symbols: i v x l c d m;
+  additive-symbols: 1000 m, 900 cm, 500 d, 400 cd, 100 c, 90 xc, 50 l, 40 xl, 10 x, 9 ix, 5 v, 4 iv, 1 i;
+  suffix: ') ';
+}
+
+@counter-style lower-alpha-parens {
+  system: alphabetic;
+  symbols: a b c d e f g h i j k l m n o p q r s t u v w x y z;
+  prefix: '(';
+  suffix: ')  ';
+}
+
+@counter-style upper-alpha-parens {
+  system: alphabetic;
+  symbols: A B C D E F G H I J K L M N O P Q R S T U V W X Y Z;
+  prefix: '(';
+  suffix: ')  ';
+}
+
+@counter-style decimal-parens {
+  system: numeric;
+  prefix: '(';
+  suffix: ')  ';
+}
+
+@counter-style lower-roman-parens {
+  system: additive;
+  symbols: i v x l c d m;
+  additive-symbols: 1000 m, 900 cm, 500 d, 400 cd, 100 c, 90 xc, 50 l, 40 xl, 10 x, 9 ix, 5 v, 4 iv, 1 i;
+  prefix: '(';
+  suffix: ')  ';
+}
+
+// Default order
+ol       { list-style: decimal; }
+ol ol    { list-style: lower-alpha-circled; }
+ol ol ol { list-style: lower-roman-parens; }
+
+
+////////////////////
+// Lists, general //
+////////////////////
+
+// Special case: Directly nested lists do not have margin
+ol > li > ol,
+ul > li > ul,
+ol > li > ul,
+ul > li > ol {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+
+///////////////////////////////////////////////
+// Lists, Bootstrap style (i.e. with border) //
+///////////////////////////////////////////////
+
+// Two decorations are available:
+ol.list-group {
+  // Bold markers
+  &.bold-list-markers {
+    .list-group-item::before, &.first-child-p .list-group-item > p:first-child::before {
+      font-weight: $font_weight_bold;
+    }
+  }
+
+  // Move list marker into the first `p` child
+  &.first-child-p {
+    .list-group-item > p:first-child::before {
+      content: counters(section, ".") ". ";
+      counter-increment: section;
+    }
+  
+    .list-group-item::before {
+      content: none;
+      counter-increment: none;
+    }
+  }
+}

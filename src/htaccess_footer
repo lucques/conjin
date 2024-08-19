@@ -14,8 +14,10 @@ RewriteRule ^content/(.+).php$                                  - [F,L]
 RewriteRule ^modules/(.+).php$                                  - [F,L]
 RewriteRule ^modules-shared/(.+).php$                           - [F,L]
 RewriteRule ^modules-ext/(.+).php$                              - [F,L]
-RewriteRule ^modules-shared-ext/(.+).php                        - [F,L]
+RewriteRule ^modules-shared-ext/(.+).php$                       - [F,L]
 RewriteRule ^config.json$                                       - [F,L]
+RewriteRule ^users.json$                                        - [F,L]
+
 
 # Misc
 RewriteRule ^preprocess/$                                       conjin/index.php?req=preprocess [L]
@@ -24,8 +26,9 @@ RewriteRule ^login/$                                            conjin/index.php
 RewriteRule ^logout/$                                           conjin/index.php?req=logout [QSA,L]
 
 # Content Explanation: QSA = query string appL; further GET attributes are kept
-RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)$                           conjin/index.php?req=process&target=$1 [QSA,L]
+RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)$                           conjin/index.php?req=show&target=$1 [QSA,L]
 RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)res/(.+)$                   conjin/index.php?req=res&target=$1&res=$2 [L]
 
 # Mime types
 AddType application/octet-stream fls
+AddType application/wasm wasm

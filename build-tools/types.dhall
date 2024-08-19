@@ -6,45 +6,44 @@ let Compose = https://raw.githubusercontent.com/lucques/dhall-docker-compose/b43
 -- Modules --
 -------------
 
-let FlatConfig = P.Map.Type Text Text
-
 let ModuleLocation = { dirName: Text, isShared: Bool, isExternal: Bool }
-let Module = { location: ModuleLocation,
-               compileScss: Bool,
-               scssModuleDeps: List ModuleLocation,
-               defaultConfig: P.JSON.Type }
+let ModuleValue    = { location: ModuleLocation,
+                       config: P.JSON.Type,
+                       compileScss: Bool,
+                       scssModuleDeps: List ModuleLocation }
 
+let Module = { name: Text, config: P.JSON.Type }
 
 ----------
 -- Auth --
 ----------
 
-let Group            = < UserBased: Text | Custom: Text >
+let Password         = < Hash: Text | Plain: Text >
+let Actor            = < User: Text | Group: Text >
 let Action           = < View: {} | Custom: Text >
 let TargetPrivilege  = { targetIds: List Text, action: Action }
 let TargetRule       = < Allow: TargetPrivilege | Deny: TargetPrivilege >
 let Privilege        = < Debug: {} | Preprocess: {} | LoginLogout: {} | Target: TargetPrivilege >
 
-let User2Group       = { user: Text, group: Group }
-let Group2Privilege  = { group: Group, privilege: Privilege }
-let Group2TargetRule = { group: Group, rule: TargetRule }
+let User2Group       = { user: Text, group: Text }
+let Actor2Privilege  = { actor: Actor, privilege: Privilege }
+let Actor2TargetRule = { actor: Actor, rule: TargetRule }
 
-let AppAuth = {
-    , rootUser:  Text
-    , guestUser: Text
+let Authentication = {
     , loginWithoutUserName: Bool
-    , loginTemplate: Module
-    -- Generate hashes like this: `php -r 'print(password_hash("the_password", PASSWORD_DEFAULT));'`
-    , users2passwordHashes: P.Map.Type Text Text
-    , users2groups:         List User2Group
-    , groups2privileges:    List Group2Privilege
-    , groups2targetRules:   List Group2TargetRule
+    , users2passwords:      P.Map.Type Text Password
 }
 
-let Auth = {
-    , app                         : AppAuth
-    , preprocessScriptUser        : Text
-    , preprocessScriptPasswordCmd : Text
+let AuthenticationWithoutPasswords = {
+    , loginWithoutUserName: Bool
+}
+
+let Authorization = {
+    , rootUser:             Text
+    , guestUser:            Text
+    , users2groups:         List User2Group
+    , actors2privileges:    List Actor2Privilege
+    , actors2targetRules:   List Actor2TargetRule
 }
 
 
@@ -54,15 +53,16 @@ let Auth = {
 
 -- Connection to a database started locally by Docker
 let DockerDb = { 
-    , user                : Text
-    , userPassword        : Text
-    , rootPassword        : Text
-    , volDir              : Optional Text  -- if `None`, then no db storage
-    , initFilesDir        : Optional Text  -- if `None`, then no init files
+    , user                 : Text
+    , userPassword         : Text
+    , rootPassword         : Text
+    , volDir               : Optional Text  -- if `None`, then no db storage
+    , initFilesDir         : Optional Text  -- if `None`, then no init files
 }
 
 -- Connection to a database on the server
 let ServerDb = {
+    , host                 : Text
     , user                 : Text
     , password             : Text
 }
@@ -73,6 +73,17 @@ let RCloneRemote = {
     , configPath           : Text
 }
 
+ -- If `*PasswordInitCmd` is `Some`, then the password must have been configured
+ -- in plaintext. That password is then fed into StdIn of that command which
+ -- should register the password.
+ 
+let DesktopIntegration = {
+    , installSymlinksInLocalBin           : Bool
+    , preprocessScriptUser                : Text
+    , preprocessScriptPasswordLookupCmd   : Text
+    , preprocessScriptPasswordRegisterCmd : Optional Text
+}
+
 -- General Docker deployment (base config for other deployments)
 let DockerDepl = {
     , name                 : Text
@@ -80,20 +91,22 @@ let DockerDepl = {
     , conjinDir            : Text
     , appDir               : Text
     , targetDir            : Text
-    , auth                 : Optional Auth
-    , modules              : P.Map.Type Text Module
-    , faviconIcoFrom       : Optional ModuleLocation
-    , notFoundTemplate     : Module
-    , unauthorizedTemplate : Module
+    , authentication       : Authentication
+    , authorization        : Authorization
+    , modules              : P.Map.Type Text ModuleValue
+    , desktopIntegration   : DesktopIntegration
 }
 
 -- Local depl with Docker and nginx
 let DockerNginxDepl = {
-    , depl                 : DockerDepl
-    , nginxVirtualHost     : Text
-    , linkcheckerVolDir    : Text
-    , preprocessVolDir     : Text
-    , db                   : Optional DockerDb
+    , depl                           : DockerDepl
+    , nginxVirtualHost               : Text
+    , linkcheckerVolDir              : Text
+    , preprocessVolDir               : Text
+    , db                             : Optional DockerDb
+    , linkcheckerUser                : Text
+    , linkcheckerPasswordLookupCmd   : Text
+    , linkcheckerPasswordRegisterCmd : Optional Text
 }
 
 -- External depl with docker and rclone
@@ -117,8 +130,9 @@ let ConfigJsonFile = {
     , path_root: Text
     , path_preprocess: Text
     , url_root: Text
-    , auth: Optional AppAuth
-    , modules: P.Map.Type Text Module
+    , authentication: AuthenticationWithoutPasswords
+    , authorization: Authorization
+    , modules: P.Map.Type Text ModuleValue
 }
 
 
@@ -133,45 +147,78 @@ let ConfigJsonFile = {
 -- process from Dhall to JSON. However, such a cmd-line argument is not
 -- available yet, so we stick with this workaround for now.
 
-let GroupT              = P.JSON.Tagged Group
+let PasswordT           = P.JSON.Tagged Password
+let ActorT              = P.JSON.Tagged Actor
 let ActionT             = P.JSON.Tagged Action
 let TargetPrivilegeT    = { targetIds: List Text, action: ActionT }
 let TargetRuleTUntagged = < Allow: TargetPrivilegeT | Deny: TargetPrivilegeT >
 let TargetRuleT         = P.JSON.Tagged TargetRuleTUntagged
 let PrivilegeTUntagged  = < Debug: {} | Preprocess: {} | LoginLogout: {} | Target: TargetPrivilegeT >
-let PrivilegeT         = P.JSON.Tagged PrivilegeTUntagged
+let PrivilegeT          = P.JSON.Tagged PrivilegeTUntagged
 
-let User2GroupT        = { user: Text, group: GroupT }
-let Group2PrivilegeT   = { group: GroupT, privilege: PrivilegeT }
-let Group2TargetRuleT  = { group: GroupT, rule: TargetRuleT }
+let Actor2PrivilegeT    = { actor: ActorT, privilege: PrivilegeT }
+let Actor2TargetRuleT   = { actor: ActorT, rule: TargetRuleT }
 
-let AppAuthT = {
-    , rootUser:  Text
-    , guestUser: Text
+let AuthenticationT = {
     , loginWithoutUserName: Bool
-    , loginTemplate: Module
-    , users2passwordHashes: P.Map.Type Text Text
-    , users2groups:         List User2GroupT
-    , groups2privileges:    List Group2PrivilegeT
-    , groups2targetRules:   List Group2TargetRuleT
+    , users2passwords:      P.Map.Type Text PasswordT
 }
 
-let AuthT = {
-    , app                         : AppAuthT
-    , preprocessScriptUser        : Text
-    , preprocessScriptPasswordCmd : Text
+let AuthorizationT = {
+    , rootUser:  Text
+    , guestUser: Text
+    , users2groups:         List User2Group
+    , actors2privileges:    List Actor2PrivilegeT
+    , actors2targetRules:   List Actor2TargetRuleT
+}
+
+let DockerDeplT = {
+    , name: Text
+    , dockerProjName: Text
+    , conjinDir: Text
+    , appDir: Text
+    , targetDir: Text
+    , authentication: AuthenticationT
+    , authorization: AuthorizationT
+    , modules: P.Map.Type Text ModuleValue
+    , desktopIntegration: DesktopIntegration
+}
+
+let DockerNginxDeplT = {
+    , depl: DockerDeplT
+    , nginxVirtualHost: Text
+    , linkcheckerVolDir: Text
+    , preprocessVolDir: Text
+    , db: Optional DockerDb
+    , linkcheckerUser: Text
+    , linkcheckerPasswordLookupCmd: Text
+    , linkcheckerPasswordRegisterCmd: Optional Text
+}
+
+let DockerSyncDeplT = {
+    , depl: DockerDeplT
+    , host: Text
+    , preferHTTPS: Bool
+    , forceHTTPS: Bool
+    , activateCompression: Bool
+    , rcloneRemote: RCloneRemote
+    , db: Optional ServerDb
 }
 
 let ConfigJsonFileT = {
     , path_root: Text
     , path_preprocess: Text
     , url_root: Text
-    , auth: Optional AppAuthT
-    , modules: P.Map.Type Text Module
+    , authentication: AuthenticationWithoutPasswords
+    , authorization: AuthorizationT
+    , modules: P.Map.Type Text ModuleValue
 }
 
-let tagGroup = \(g: Group) -> P.JSON.tagNested "contents" "tag" Group g
-    : GroupT
+let tagPassword = \(p: Password) -> P.JSON.tagNested "contents" "tag" Password p
+    : PasswordT
+
+let tagActor = \(g: Actor) -> P.JSON.tagNested "contents" "tag" Actor g
+    : ActorT
 
 let tagAction = \(a: Action) -> P.JSON.tagNested "contents" "tag" Action a
     : ActionT
@@ -200,39 +247,55 @@ let tagPrivilege = \(p: Privilege) ->
     } p)
     : PrivilegeT
 
-let tagUser2Group = \(u2g: User2Group) ->
-    u2g // {
-        , group = tagGroup u2g.group
-    }: User2GroupT
+let tagActor2Privilege = \(a2p: Actor2Privilege) ->
+    a2p // {
+        , actor = tagActor a2p.actor
+        , privilege = tagPrivilege a2p.privilege
+    }: Actor2PrivilegeT
 
-let tagGroup2Privilege = \(g2p: Group2Privilege) ->
-    g2p // {
-        , group = tagGroup g2p.group
-        , privilege = tagPrivilege g2p.privilege
-    }: Group2PrivilegeT
+let tagActor2TargetRule = \(a2tr: Actor2TargetRule) ->
+    a2tr // {
+        , actor = tagActor a2tr.actor
+        , rule = tagTargetRule a2tr.rule
+    }: Actor2TargetRuleT
 
-let tagGroup2TargetRule = \(g2tr: Group2TargetRule) ->
-    g2tr // {
-        , group = tagGroup g2tr.group
-        , rule = tagTargetRule g2tr.rule
-    }: Group2TargetRuleT
+let tagAuthentication = \(a: Authentication) ->
+    a // {
+        , users2passwords = P.Map.map Text Password PasswordT tagPassword a.users2passwords
+    }: AuthenticationT
+
+let tagAuthorization = \(a: Authorization) ->
+    a // {
+        , actors2privileges  = P.List.map Actor2Privilege Actor2PrivilegeT tagActor2Privilege a.actors2privileges
+        , actors2targetRules = P.List.map Actor2TargetRule Actor2TargetRuleT tagActor2TargetRule a.actors2targetRules
+    }: AuthorizationT
+
+let tagDockerDepl = \(d: DockerDepl) ->
+    d // {
+        , authentication = tagAuthentication d.authentication
+        , authorization = tagAuthorization d.authorization
+    }: DockerDeplT
+
+let tagDockerNginxDepl = \(d: DockerNginxDepl) ->
+    d // {
+        , depl = tagDockerDepl d.depl
+    }: DockerNginxDeplT
+
+let tagDockerSyncDepl = \(d: DockerSyncDepl) ->
+    d // {
+        , depl = tagDockerDepl d.depl
+    }: DockerSyncDeplT
 
 let tagConfigJsonFile =
     \(c: ConfigJsonFile) ->
     c // {
-        auth = (P.Optional.map AppAuth AppAuthT
-            (\(a: AppAuth) ->
-                a // {
-                    , users2groups      = P.List.map User2Group User2GroupT tagUser2Group a.users2groups
-                    , groups2privileges = P.List.map Group2Privilege Group2PrivilegeT tagGroup2Privilege a.groups2privileges
-                    , groups2targetRules = P.List.map Group2TargetRule Group2TargetRuleT tagGroup2TargetRule a.groups2targetRules
-                })
-            c.auth)
+        authorization = tagAuthorization c.authorization
     }: ConfigJsonFileT
 
 in
 
-{ FlatConfig, ModuleLocation, Module, AppAuth, Auth, DockerDb, ServerDb, RCloneRemote, DockerDepl,
+{ ModuleLocation, ModuleValue, Module, Authentication, AuthenticationWithoutPasswords, Authorization, DockerDb, ServerDb, RCloneRemote, DockerDepl, DesktopIntegration,
   DockerNginxDepl, DockerSyncDepl,
-  ConfigJsonFile, ConfigJsonFileT, tagConfigJsonFile,
-  Group, Action, TargetPrivilege, TargetRule, Privilege, User2Group, Group2Privilege, Group2TargetRule }
+  ConfigJsonFile, ConfigJsonFileT,
+  Password, Actor, Action, TargetPrivilege, TargetRule, Privilege, User2Group, Actor2Privilege, Actor2TargetRule,
+  tagDockerNginxDepl, tagDockerSyncDepl, tagConfigJsonFile, }

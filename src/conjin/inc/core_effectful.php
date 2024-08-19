@@ -62,6 +62,8 @@
     }
 
     function send_response_and_exit($status_code = 200, $message = null) {
+        assert($status_code != 404, 'Use different function for 404');
+
         // Throw away any buffered output
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -75,9 +77,6 @@
             }
             elseif ($status_code == 400) {
                 echo "Fehlerhafte Anfrage\n";
-            }
-            elseif ($status_code == 404) {
-                echo "Seite nicht gefunden.\n";
             }
             elseif ($status_code == 403) {
                 echo "Zugriff verweigert.\n";
@@ -93,20 +92,40 @@
         exit();
     }
 
+    function send_not_found_response_and_exit() {
+        // Throw away any buffered output
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        http_response_code(404);
+
+        $GET_target = $_GET['target'] ?? ''; // Coalesce to empty string
+        $requested_target_ids = target_query_to_target_ids($GET_target);
+        
+        process_not_found(core_load_obj('syslet_not_found'), $requested_target_ids);
+
+        exit();
+    }
+
     function redirect_and_exit($url) {
         http_response_code(303);
         header('Location: ' . $url);
         exit();
     }
 
-    
 
-    ////////////
-    // Config //
-    ////////////
+    ///////////////////
+    // Global Config //
+    ///////////////////
 
     function global_config_init(): void {
-        $GLOBALS['config'] = new ConfigTree(json_decode(load_file('../config.json'), associative: true));
+        // Merge `users2passwordHashes` into global config
+        $config               = json_decode(load_file('../config.json'), associative: true);
+        $users2passwordHashes = json_decode(load_file('../users.json'),  associative: true);
+        $config['authentication']['users2passwordHashes'] = $users2passwordHashes;
+
+        $GLOBALS['config'] = new ConfigTree($config);
 
         $GLOBALS['core_path_root']       = realpath(get_global_config('path_root'));
         $GLOBALS['core_path_preprocess'] = realpath(get_global_config('path_preprocess'));
@@ -166,7 +185,7 @@
 
     function load_file($path) {
         if (!file_exists($path)) {
-            fail('Error: Preprocessing not finished.');
+            fail('Error: File does not exist.');
         }
         
         return file_get_contents($path);

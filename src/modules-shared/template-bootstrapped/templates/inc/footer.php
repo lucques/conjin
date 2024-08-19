@@ -1,0 +1,8 @@
+<?
+    $render = function() {
+?>
+    </body>
+</html>
+<?
+    };
+?>

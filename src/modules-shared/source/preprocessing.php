@@ -1,6 +1,6 @@
 <?
-    $init_preprocessing = function(Module $module, PreprocessContext $ctx) {
-        $ctx->activate_module('doc_extensions');
-        $ctx->activate_module('prism');
+    $init_preprocessing = function(Module $m, PreprocessContext $c) {
+        $c->activate_module('prism');           // Nice code highlighting
+        $c->activate_module('doc-extensions');  // Add body classes to configure prism
     };
 ?>

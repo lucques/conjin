@@ -13,6 +13,7 @@ from packaging import version, specifiers
 
 # Globals
 script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
+types_path = script_dir / 'types.dhall'
 tools_path = script_dir / 'tools-internal.dhall'
 
 
@@ -35,7 +36,7 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
     # Read config file #
     ####################
 
-    config = phase_read_config(config_path)
+    config = phase_read_config(config_path, 'tagDockerNginxDepl')
 
 
     #########
@@ -71,7 +72,7 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
 
     for module in config['depl']['modules'].values():
         if module['compileScss']:
-            target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(module))
+            target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(module['location']))
 
     if 'db' in config:
         target_dirs.append(Path(config['db']['volDir']))
@@ -107,12 +108,19 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
 
     phase_build_dhall_config_files(target_config_files, config_path, 'makeDockerNginxConfigFiles')
 
-    
-    #######################
-    # Build Docker images #
-    #######################
 
-    phase_build_docker_images(target_config_files_docker, config['depl']['dockerProjName'])
+    ##################################################
+    # Build `users.json` file and register passwords #
+    ##################################################
+
+    phase_build_user_json_file_and_register_passwords(
+        target_dir,
+        config['depl']['authentication']['users2passwords'],
+        config['depl']['desktopIntegration']['preprocessScriptUser'],
+        config['depl']['desktopIntegration']['preprocessScriptPasswordRegisterCmd'],
+        config['linkcheckerUser'],
+        config['linkcheckerPasswordRegisterCmd']
+    )
 
 
     ############################
@@ -124,6 +132,13 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
     phase_build_htaccess(target_dir, conjin_dir, force_https=False, activate_compression=False)
     
 
+    #######################
+    # Build Docker images #
+    #######################
+
+    phase_build_docker_images(target_config_files_docker, config['depl']['dockerProjName'])
+
+
     #########################
     # Build `bin/*` scripts #
     #########################
@@ -133,7 +148,6 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
             'path': target_dir / 'bin' / 'up',
             'content': textwrap.dedent(f'''\
                 #! /bin/bash
-                # This script was auto-generated.
 
                 docker compose \\
                         --file         {target_config_files['docker-compose-app-yml']['path']} \\
@@ -147,7 +161,6 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
             'path': target_dir / 'bin' / 'down',
             'content': textwrap.dedent(f'''\
                 #! /bin/bash
-                # This script was auto-generated.
 
                 docker compose \\
                         --file         {target_config_files['docker-compose-app-yml']['path']} \\
@@ -159,30 +172,34 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
             'path': target_dir / 'bin' / 'linkchecker',
             'content': textwrap.dedent(f'''\
                 #! /bin/bash
-                # This script was auto-generated.
+
+                export LINKCHECKER_PREFIX=''
+
+                # Iterate over all arguments passed to the script and append it
+                for arg in "$@"; do
+                    LINKCHECKER_PREFIX="$LINKCHECKER_PREFIX$arg/"
+                done
 
                 export UID="$(id -u)"
                 export GID="$(id -g)"
+                export LINKCHECKER_PASSWORD=`{config['linkcheckerPasswordLookupCmd']}` &&
                 docker compose \\
                         --file         {target_config_files['docker-compose-linkchecker-yml']['path']} \\
-                        --project-name {config['depl']['dockerProjName']}-linkchecker \\
-                        up
+                        --project-name {config['depl']['dockerProjName']} \\
+                        up &&
+
+                echo "Results are output in {config['linkcheckerVolDir']}/linkchecker-output.html, launching web browser now..."
+                xdg-open "file://{config['linkcheckerVolDir']}/linkchecker-output.html"
                 ''')
         }
     }
 
-    if 'auth' in config['depl']:
-        target_bin_scripts['preprocess'] = make_preprocess_target_bin_script_with_auth(
-            target_dir,
-            config['nginxVirtualHost'],
-            False, # HTTPS is not supported for DockerNginxDepl
-            config['depl']['auth']['preprocessScriptUser'],
-            config['depl']['auth']['preprocessScriptPasswordCmd'])
-    else:
-        target_bin_scripts['preprocess'] = make_preprocess_target_bin_script(
-            target_dir,
-            config['nginxVirtualHost'],
-            False) # HTTPS is not supported for DockerNginxDepl
+    target_bin_scripts['preprocess'] = make_preprocess_target_bin_script(
+        target_dir,
+        config['nginxVirtualHost'],
+        False, # HTTPS is not supported for DockerNginxDepl
+        config['depl']['desktopIntegration']['preprocessScriptUser'],
+        config['depl']['desktopIntegration']['preprocessScriptPasswordLookupCmd'])
 
     phase_build_bin_scripts(target_bin_scripts)
 
@@ -193,6 +210,8 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
 
     if install_symlinks_in_local_bin:
         phase_install_symlinks_in_local_bin_function(target_bin_scripts, config['depl']['name'])
+
+    print('Done.')
 
 
 ##################
@@ -214,7 +233,7 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
     # Read config file #
     ####################
 
-    config = phase_read_config(config_path)
+    config = phase_read_config(config_path, 'tagDockerSyncDepl')
 
 
     #########
@@ -246,7 +265,7 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
 
     for module in config['depl']['modules'].values():
         if module['compileScss']:
-            target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(module))
+            target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(module['location']))
 
     phase_build_dirs(target_dirs)
 
@@ -273,11 +292,16 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
     phase_build_dhall_config_files(target_config_files, config_path, 'makeDockerSyncConfigFiles')
 
 
-    #######################
-    # Build Docker images #
-    #######################
+    ##################################################
+    # Build `users.json` file and register passwords #
+    ##################################################
 
-    phase_build_docker_images(target_config_files_docker, config['depl']['dockerProjName'])
+    phase_build_user_json_file_and_register_passwords(
+        target_dir,
+        config['depl']['authentication']['users2passwords'],
+        config['depl']['desktopIntegration']['preprocessScriptUser'],
+        config['depl']['desktopIntegration']['preprocessScriptPasswordRegisterCmd']
+    )
 
 
     ############################
@@ -286,6 +310,13 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
 
     phase_build_htaccess(target_dir, conjin_dir, force_https=config['forceHTTPS'], activate_compression=config['activateCompression'])
     
+
+    #######################
+    # Build Docker images #
+    #######################
+
+    phase_build_docker_images(target_config_files_docker, config['depl']['dockerProjName'])
+
 
     #########################
     # Build `bin/*` scripts #
@@ -296,7 +327,6 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
             'path': target_dir / 'bin' / 'sync',
             'content': textwrap.dedent(f'''\
                 #! /bin/bash
-                # This script was auto-generated.
                 
                 export UID="$(id -u)"
                 export GID="$(id -g)"
@@ -310,18 +340,12 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
         }
     }
 
-    if 'auth' in config['depl']:
-        target_bin_scripts['preprocess'] = make_preprocess_target_bin_script_with_auth(
-            target_dir,
-            config['host'],
-            config['preferHTTPS'],
-            config['depl']['auth']['preprocessScriptUser'],
-            config['depl']['auth']['preprocessScriptPasswordCmd'])
-    else:
-        target_bin_scripts['preprocess'] = make_preprocess_target_bin_script(
-            target_dir,
-            config['host'],
-            config['preferHTTPS'])
+    target_bin_scripts['preprocess'] = make_preprocess_target_bin_script(
+        target_dir,
+        config['host'],
+        config['preferHTTPS'],
+        config['depl']['desktopIntegration']['preprocessScriptUser'],
+        config['depl']['desktopIntegration']['preprocessScriptPasswordLookupCmd'])
 
     phase_build_bin_scripts(target_bin_scripts)
 
@@ -333,15 +357,20 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
     if install_symlinks_in_local_bin:
         phase_install_symlinks_in_local_bin_function(target_bin_scripts, config['depl']['dockerProjName'])
 
+    
+    print('Done.')
+
 
 ####################
 # Helper functions #
 ####################
 
-def phase_read_config(config_path):
+def phase_read_config(config_path, function):
     print('Reading config file...')
 
-    config_json = subprocess.check_output(f'dhall-to-json --file "{config_path}"', shell=True, text=True)
+    input = f'(({types_path}).{function} ({config_path}))'
+    config_json = subprocess.check_output('dhall-to-json', input=input, shell=True, text=True)
+
     return json.loads(config_json)
 
 
@@ -369,21 +398,51 @@ def phase_build_dirs(target_dirs):
 
 
 def phase_build_dhall_config_files(target_config_files, config_path, tools_function):
-    print('Building config files...')
+    print('Building config files from Dhall config...')
 
     for key,file in target_config_files.items():
         command = 'dhall-to-' + file['format']
         input = f'(({tools_path}).{tools_function} ({config_path})).{key}'
+
+        print('- ' + key + '...')
         content = subprocess.check_output(command, input=input, shell=True, text=True)
 
         file['path'].write_text(content)
 
 
-def phase_build_docker_images(target_config_files, docker_proj_name):
-    print('Building Docker images...')
+def phase_build_user_json_file_and_register_passwords(target_dir, users2passwords, preprocessingUser, preprocessingCmd = None, linkcheckerUser = None, linkcheckerCmd = None):
+    print('Building users.json file...')
 
-    for file in target_config_files.values():
-        subprocess.run(f'docker compose --file "{file["path"]}" --project-name "{docker_proj_name}" build', shell=True)
+    users_2_hashes = {}
+
+    for user, tagged_password in users2passwords.items():
+        # Register preprocess script password, if given
+        if preprocessingUser == user and preprocessingCmd is not None:
+            assert tagged_password['tag'] == 'Plain', 'Password for preprocess script must be in plain text.'
+
+            print('- Registering preprocessing script password...')
+            subprocess.run(preprocessingCmd, input=tagged_password['contents'], shell=True, text=True)
+
+        # Register linkchecker password, if given
+        if linkcheckerUser == user and linkcheckerCmd is not None:
+            assert tagged_password['tag'] == 'Plain', 'Password for linkchecker must be in plain text.'
+
+            print('- Registering linkchecker password...')
+            subprocess.run(linkcheckerCmd, input=tagged_password['contents'], shell=True, text=True)
+
+        # Hash password for users.json file
+        if tagged_password['tag'] == 'Plain':
+            password = tagged_password['contents']
+
+            print('- Hashing password for ' + user + '...')
+            hash = subprocess.check_output(f"docker run -it php:8.2-cli php -r 'print(password_hash(\"{ password }\", PASSWORD_DEFAULT));'", shell=True, text=True)
+            users_2_hashes[user] = hash
+        else:
+            hash = tagged_password['contents']
+            users_2_hashes[user] = hash
+    
+    users_2_hases_json = json.dumps(users_2_hashes, indent=4)
+    (target_dir / 'htdocs/users.json').write_text(users_2_hases_json)
 
 
 def phase_build_htaccess(target_dir, conjin_dir, force_https, activate_compression):
@@ -402,7 +461,15 @@ def phase_build_htaccess(target_dir, conjin_dir, force_https, activate_compressi
     (target_dir / 'htdocs/.htaccess').write_text(content)
 
 
-def make_preprocess_target_bin_script_with_auth(target_dir: str, host: str, prefer_https: bool, user: str, password_retrieval_cmd: str):
+def phase_build_docker_images(target_config_files, docker_proj_name):
+    print('Building Docker images...')
+
+    for file in target_config_files.values():
+        print(f'- {file["path"]}...')
+        subprocess.run(f'docker compose --file "{file["path"]}" --project-name "{docker_proj_name}" build', shell=True)
+
+
+def make_preprocess_target_bin_script(target_dir: str, host: str, prefer_https: bool, user: str, password_retrieval_cmd: str):
     return {
         'path': target_dir / 'bin' / 'preprocess',
         'content': textwrap.dedent(f'''\
@@ -412,17 +479,6 @@ def make_preprocess_target_bin_script_with_auth(target_dir: str, host: str, pref
             # Read Password and send it to the server
             password=`{password_retrieval_cmd}` &&
             curl --cookie "user={user}; password=$password" {'https' if prefer_https else 'http'}://{host}/preprocess/
-            ''')
-    }
-
-def make_preprocess_target_bin_script(target_dir: str, host: str, prefer_https: bool):
-    return {
-        'path': target_dir / 'bin' / 'preprocess',
-        'content': textwrap.dedent(f'''\
-            #! /bin/bash
-            # This script was auto-generated.
-
-            curl {'https' if prefer_https else 'http'}://{host}/preprocess/
             ''')
     }
 
@@ -451,15 +507,15 @@ def phase_install_symlinks_in_local_bin_function(bin_scripts, depl_name):
         os.symlink(file['path'], link_path)
 
 
-def get_template_css_dir(module):
-    if module['location']['isShared'] and module['location']['isExternal']:
-        return 'modules-shared-ext-css/' + module['location']['dirName']
-    elif module['location']['isShared'] and not module['location']['isExternal']:
-        return 'modules-shared-css/' + module['location']['dirName']
-    elif not module['location']['isShared'] and module['location']['isExternal']:
-        return 'modules-ext-css/' + module['location']['dirName']
+def get_template_css_dir(module_location):
+    if module_location['isShared'] and module_location['isExternal']:
+        return 'modules-shared-ext-css/' + module_location['dirName']
+    elif module_location['isShared'] and not module_location['isExternal']:
+        return 'modules-shared-css/' + module_location['dirName']
+    elif not module_location['isShared'] and module_location['isExternal']:
+        return 'modules-ext-css/' + module_location['dirName']
     else:
-        return 'modules-css/' + module['location']['dirName']
+        return 'modules-css/' + module_location['dirName']
 
 
 ########

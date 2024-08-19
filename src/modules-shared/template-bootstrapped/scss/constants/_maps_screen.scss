@@ -1,0 +1,20 @@
+$color-extensions: (
+  "orange": (
+    "main":          $orange-700,
+    "text":          $orange-600,
+    "bg-subtle":     $orange-100,
+    "border-subtle": $orange-200
+  ),
+  "green": (
+    "main":          $green,
+    "text":          $green-600,
+    "bg-subtle":     $green-100,
+    "border-subtle": $green-200
+  ),
+  "blue": (
+    "main":          $blue,
+    "text":          $blue-600,
+    "bg-subtle":     $blue-100,
+    "border-subtle": $blue-200
+  ),
+);

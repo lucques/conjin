@@ -1,4 +1,0 @@
-- This is a modified version of the following project:
-    - Paper CSS for happy printing, version 0.4.1
-    - https://github.com/cognitom/paper-css/
-    - License: MIT

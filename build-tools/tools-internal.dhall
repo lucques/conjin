@@ -1,5 +1,5 @@
 let P       = https://raw.githubusercontent.com/dhall-lang/dhall-lang/fd057db9b3f89de44cdc77d9669e958b04ed416a/Prelude/package.dhall           -- 2023-03
-let Compose = https://raw.githubusercontent.com/lucques/dhall-docker-compose/9e93bdd7f87cdd1a020f8536f1bf30d93e21e5ab/compose/v3/package.dhall -- 2023-08
+let Compose = https://raw.githubusercontent.com/lucques/dhall-docker-compose/f077072175ee1501e12efc9fd37963ae043596ab/compose/v3/package.dhall -- 2024-08
 
 let T       = ./types.dhall
 
@@ -65,7 +65,7 @@ let makeModuleTargetCssDir =
 : Text
 
 let moduleToString =
-    \(m: T.Module) -> m.location.dirName ++ (if m.location.isShared then "-shared" else "-local")
+    \(m: T.ModuleValue) -> m.location.dirName ++ (if m.location.isShared then "-shared" else "-local")
 : Text
 
 
@@ -75,24 +75,17 @@ let makeAppVols =
     \(targetDir:      Text) ->
     \(appDir:         Text) ->
     \(conjinDir:      Text) ->
-    \(faviconIcoFrom: Optional T.ModuleLocation) ->
-    \(modules:        P.Map.Type Text T.Module) ->
+    \(modules:        P.Map.Type Text T.ModuleValue) ->
     \(preprocessDir:  Bool) ->
 
     let htdocsDir = "/files/htdocs"
 
-    let faviconVolume =
-        P.Optional.map T.ModuleLocation Compose.ServiceVolume (\(t: T.ModuleLocation) ->
-            makeReadonlyVol (makeModuleSourceDir conjinDir appDir t ++ "/res/favicon/favicon.ico")
-                            (htdocsDir ++ "/favicon.ico"))
-            faviconIcoFrom         
-
     let makeModuleVol =
-        \(m: T.Module) ->
+        \(m: T.ModuleValue) ->
         makeReadonlyVol (makeModuleSourceDir conjinDir appDir m.location) (makeModuleDir htdocsDir (None Text) m.location)
 
     let makeModuleCssVol =
-        \(m: T.Module) ->
+        \(m: T.ModuleValue) ->
         if m.compileScss
             then Some (makeReadonlyVol (makeModuleTargetCssDir targetDir m.location) (makeModuleDir htdocsDir (Some "css") m.location))
             else None Compose.ServiceVolume
@@ -104,18 +97,18 @@ let makeAppVols =
     in
     [
         , makeReadonlyVol (appDir    ++ "/src/content")             (htdocsDir ++ "/content")
+        , makeReadonlyVol (appDir    ++ "/src/system")              (htdocsDir ++ "/system")
 
         , makeReadonlyVol (conjinDir ++ "/src/conjin")              (htdocsDir ++ "/conjin")
 
         , makeReadonlyVol (targetDir ++ "/htdocs/.htaccess")        (htdocsDir ++ "/.htaccess")
         , makeReadonlyVol (targetDir ++ "/htdocs/config.json")      (htdocsDir ++ "/config.json")
+        , makeReadonlyVol (targetDir ++ "/htdocs/users.json")      (htdocsDir ++ "/users.json")
     ]
     #
-    unpackOptionals Compose.ServiceVolume [faviconVolume]
+    map T.ModuleValue Compose.ServiceVolume makeModuleVol (P.Map.values Text T.ModuleValue modules)
     #
-    map T.Module Compose.ServiceVolume makeModuleVol (P.Map.values Text T.Module modules)
-    #
-    unpackOptionals Compose.ServiceVolume (map T.Module (Optional Compose.ServiceVolume) makeModuleCssVol (P.Map.values Text T.Module modules))
+    unpackOptionals Compose.ServiceVolume (map T.ModuleValue (Optional Compose.ServiceVolume) makeModuleCssVol (P.Map.values Text T.ModuleValue modules))
     #
     unpackOptionals Compose.ServiceVolume [preprocessVol]
 : List Compose.ServiceVolume
@@ -126,17 +119,17 @@ let makeAppVols =
 -----------------------------
 
 let makeWebserver =
-    \(dockerImagePath:  Text) ->
+    \(conjinDir:        Text) ->
     \(appVols:          List Compose.ServiceVolume) ->
     \(preprocessVolDir: Text) ->
     \(nginxVirtualHost: Text) ->
     let preprocessVol = makeVol preprocessVolDir "/files/preprocess"
     in
     Compose.Service::{
-        , build       = Some (Compose.Build.String dockerImagePath)
+        , build       = Some (Compose.Build.String (conjinDir ++ "/docker/images/conjin-server"))
         , volumes     = Some (appVols # [preprocessVol])
         , restart     = Some "always"
-        , networks    = Some (Compose.Networks.List ["default", "nginx-proxy_default"])
+        , networks    = Some (Compose.ServiceNetworks.List ["default", "nginx-proxy_default"])
         , environment = Some (Compose.ListOrDict.Dict [P.Map.keyText "VIRTUAL_HOST" nginxVirtualHost]) 
     }
 : Compose.Service.Type
@@ -186,7 +179,7 @@ let makePhpmyadmin =
     Compose.Service::{
         , image   = Some "phpmyadmin/phpmyadmin"
         , restart = Some "always"
-        , networks = Some (Compose.Networks.List ["default", "nginx-proxy_default"])
+        , networks = Some (Compose.ServiceNetworks.List ["default", "nginx-proxy_default"])
         , environment = Some (Compose.ListOrDict.Dict [P.Map.keyText "VIRTUAL_HOST" ("phpmyadmin." ++ nginxVirtualHost)]) 
     }
 : Compose.Service.Type
@@ -195,7 +188,7 @@ let makeTemplateSassWatcher =
     \(targetDir: Text) ->
     \(conjinDir: Text) ->
     \(appDir:    Text) ->
-    \(template:  T.Module) ->
+    \(template:  T.ModuleValue) ->
 
     let moduleSassVol = makeReadonlyVol (makeModuleSourceDir conjinDir appDir template.location ++ "/scss") "/sass"
     let moduleCssVol  = makeVol         (makeModuleTargetCssDir targetDir template.location)                "/css"
@@ -229,7 +222,7 @@ let makeTemplateSassCompilation =
     \(targetDir: Text) ->
     \(conjinDir: Text) ->
     \(appDir:    Text) ->
-    \(template:  T.Module) ->
+    \(template:  T.ModuleValue) ->
 
     let moduleSassVol = makeReadonlyVol (makeModuleSourceDir conjinDir appDir template.location ++ "/scss") "/sass"
     let moduleCssVol  = makeVol         (makeModuleTargetCssDir targetDir template.location)                "/css"
@@ -264,13 +257,13 @@ let makeDockerNginxDeplConfig =
         , Some = \(db: T.DockerDb) -> config.depl.modules # [{mapKey = "db", mapValue = 
             {
                 location = {dirName = "db", isShared = True, isExternal = False},
+                config = P.JSON.object [
+                    , { mapKey = "host"     , mapValue = P.JSON.string "db" }
+                    , { mapKey = "user"     , mapValue = P.JSON.string db.user }
+                    , { mapKey = "password" , mapValue = P.JSON.string db.userPassword }
+                ],
                 compileScss = False,
                 scssModuleDeps = empty T.ModuleLocation,
-                defaultConfig = P.JSON.object [
-                                    , { mapKey = "host"     , mapValue = P.JSON.string "db" }
-                                    , { mapKey = "user"     , mapValue = P.JSON.string db.user }
-                                    , { mapKey = "password" , mapValue = P.JSON.string db.userPassword }
-                                ]
             }}]
     } config.db
 
@@ -278,14 +271,13 @@ let makeDockerNginxDeplConfig =
                     config.depl.targetDir
                     config.depl.appDir
                     config.depl.conjinDir
-                    config.depl.faviconIcoFrom
                     modules
                     False
 
     -- Define Services
 
     let webserver = makeWebserver
-                        (config.depl.conjinDir ++ "/docker/images/conjin-server")
+                        config.depl.conjinDir
                         appVols
                         config.preprocessVolDir
                         config.nginxVirtualHost
@@ -303,15 +295,15 @@ let makeDockerNginxDeplConfig =
     } config.db
 
     let templateSassWatchers =
-        filterMap T.Module (Entry Text Compose.Service.Type)
-            (\(m: T.Module) ->
+        filterMap T.ModuleValue (Entry Text Compose.Service.Type)
+            (\(m: T.ModuleValue) ->
                 if m.compileScss then
                     Some (keyValue Compose.Service.Type
                         ("sass-watch-" ++ (moduleToString m))
                         (makeTemplateSassWatcher config.depl.targetDir config.depl.conjinDir config.depl.appDir m))
                 else
                     None (Entry Text Compose.Service.Type))
-            (P.Map.values Text T.Module config.depl.modules)
+            (P.Map.values Text T.ModuleValue config.depl.modules)
 
 
     -- Wrap up
@@ -342,13 +334,13 @@ let makeDockerSyncDeplConfig =
         , Some = \(db: T.ServerDb) -> config.depl.modules # [{mapKey = "db", mapValue =
         {
             location = {dirName = "db", isShared = True, isExternal = False},
+            config = P.JSON.object [
+                , { mapKey = "host"     , mapValue = P.JSON.string "localhost" }
+                , { mapKey = "user"     , mapValue = P.JSON.string db.user }
+                , { mapKey = "password" , mapValue = P.JSON.string db.password }
+            ],
             compileScss = False,
             scssModuleDeps = empty T.ModuleLocation,
-            defaultConfig = P.JSON.object [
-                                , { mapKey = "host"     , mapValue = P.JSON.string "localhost" }
-                                , { mapKey = "user"     , mapValue = P.JSON.string db.user }
-                                , { mapKey = "password" , mapValue = P.JSON.string db.password }
-                            ]
         }}]
     } config.db
 
@@ -356,22 +348,21 @@ let makeDockerSyncDeplConfig =
                     config.depl.targetDir
                     config.depl.appDir
                     config.depl.conjinDir
-                    config.depl.faviconIcoFrom
                     config.depl.modules
                     True
 
     -- Define Services
 
     let templateSassCompilations =
-        filterMap T.Module (Entry Text Compose.Service.Type)
-            (\(m: T.Module) ->
+        filterMap T.ModuleValue (Entry Text Compose.Service.Type)
+            (\(m: T.ModuleValue) ->
                 if m.compileScss then
                     Some (keyValue Compose.Service.Type
                         ("sass-compile-" ++ (moduleToString m))
                         (makeTemplateSassCompilation config.depl.targetDir config.depl.conjinDir config.depl.appDir m))
                 else
                     None (Entry Text Compose.Service.Type))
-            (P.Map.values Text T.Module config.depl.modules)
+            (P.Map.values Text T.ModuleValue config.depl.modules)
     : P.Map.Type Text Compose.Service.Type
     
     let templateSassCompilationServices =
@@ -403,21 +394,22 @@ let makeDockerSyncDeplConfig =
 -- TODO: Needs env vars `UID` and `GID` to be set
 -- cf. https://stackoverflow.com/questions/56844746/how-to-set-uid-and-gid-in-docker-compose
 let makeLinkCheckerCompose =
-    \(nginxVirtualHost: Text) ->
-    \(linkcheckerVolDir: Text) ->
+    \(config: T.DockerNginxDepl) ->
 
     let linkchecker =
     Compose.Service::{
-        , image        = Some "ghcr.io/linkchecker/linkchecker:latest"
+        , build        = Some (Compose.Build.String (config.depl.conjinDir ++ "/docker/images/conjin-linkchecker"))
         , user         = Some "\${UID}:\${GID}"
-        , volumes      = Some ([ makeVol linkcheckerVolDir "/mnt" ])
+        , volumes      = Some ([ makeVol config.linkcheckerVolDir "/mnt" ])
         , network_mode = Some "host"
-        , command      = Some (Compose.StringOrList.List [
-                            "--verbose",
-                            "--file-output",
-                            "html/ascii/linkchecker-output.html",
-                            "http://" ++ nginxVirtualHost ++ "/"
-                            ])
+        , environment  = Some (Compose.ListOrDict.Dict [
+            -- Host and user are determined, but password needs to be passed by host
+            P.Map.keyText "LINKCHECKER_OUT_DIR" config.linkcheckerVolDir,
+            P.Map.keyText "LINKCHECKER_HOST" config.nginxVirtualHost,
+            P.Map.keyText "LINKCHECKER_USER" config.linkcheckerUser,
+            P.Map.keyText "LINKCHECKER_PASSWORD" "\${LINKCHECKER_PASSWORD}",
+            P.Map.keyText "LINKCHECKER_PREFIX" "\${LINKCHECKER_PREFIX}",
+        ])
     }
 
     let services
@@ -427,6 +419,17 @@ let makeLinkCheckerCompose =
             }
 
     in Compose.Config::{ services = Some services }
+
+
+-------------
+-- Helpers --
+-------------
+
+let stripPasswordsOffAuthentication = 
+    \(authentication: T.Authentication) ->
+    {
+        , loginWithoutUserName = authentication.loginWithoutUserName
+    }: T.AuthenticationWithoutPasswords
 
 
 ---------------------------------------------------
@@ -440,15 +443,16 @@ let makeDockerNginxConfigFiles =
             = makeDockerNginxDeplConfig config
             : Compose.ComposeConfig     
         , docker-compose-linkchecker-yml
-            = makeLinkCheckerCompose config.nginxVirtualHost config.linkcheckerVolDir
+            = makeLinkCheckerCompose config
             : Compose.ComposeConfig
         , config-json
             = T.tagConfigJsonFile {
                 path_root = "..",
                 path_preprocess = "../../preprocess",
                 url_root = "/",
-                auth = P.Optional.map T.Auth T.AppAuth (\(a: T.Auth) -> a.app) config.depl.auth,
-                modules = config.depl.modules
+                authentication = stripPasswordsOffAuthentication config.depl.authentication,
+                authorization = config.depl.authorization,
+                modules = config.depl.modules,
             }
             : T.ConfigJsonFileT
     }
@@ -457,15 +461,16 @@ let makeDockerSyncConfigFiles =
     \(config: T.DockerSyncDepl) ->
     {
         , docker-compose-sync-yml
-            = makeDockerSyncDeplConfig config           
+            = makeDockerSyncDeplConfig config
             : Compose.ComposeConfig
         , config-json
             = T.tagConfigJsonFile {
                 path_root = "..",
                 path_preprocess = "../preprocess",
                 url_root = "/",
-                auth = P.Optional.map T.Auth T.AppAuth (\(a: T.Auth) -> a.app) config.depl.auth,
-                modules = config.depl.modules
+                authentication = stripPasswordsOffAuthentication config.depl.authentication,
+                authorization = config.depl.authorization,
+                modules = config.depl.modules,
             }
             : T.ConfigJsonFileT
     }

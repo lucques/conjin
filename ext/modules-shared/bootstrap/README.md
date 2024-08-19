@@ -17,7 +17,7 @@ In either case, a JS file is added to the page.
 
 # Configuration
 
-The following configuration options are available, with default values as follows.
+The following configuration options with given default values are available.
 
 ```
 [
