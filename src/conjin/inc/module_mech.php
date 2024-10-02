@@ -12,15 +12,15 @@
         ////////////////////////
 
         public function get_dir_name(): string {
-            return get_global_config('modules', $this->name, 'location', 'dirName');
+            return get_global_config('module_2_location', $this->name, 'dirName');
         }
 
         public function is_shared(): bool {
-            return get_global_config('modules', $this->name, 'location', 'isShared');
+            return get_global_config('module_2_location', $this->name, 'isShared');
         }
 
         public function is_external(): bool {
-            return get_global_config('modules', $this->name, 'location', 'isExternal');
+            return get_global_config('module_2_location', $this->name, 'isExternal');
         }
 
         public function get_path(): string {
@@ -117,7 +117,7 @@
             $config_array = isset($defs['default_config']) ? $defs['default_config']() : [];           
 
             // Compose with build module config if available
-            $config_array = aux_nested_update($config_array, get_global_config_or_default(['modules', $name, 'config'], default: []));
+            $config_array = aux_nested_update($config_array, get_global_config_or_default(['module_2_config', $name], default: []));
 
             // Compose with client module config
             $config_array = aux_nested_update($config_array, $config_client ?? []);
@@ -161,7 +161,7 @@
         ///////////////
 
         public function init_processing_syslet(Syslet $syslet, Target $target_root): void {
-            $defs = load_defs_from_script($this->get_path() . '/processing_system.php');
+            $defs = load_defs_from_script($this->get_path() . '/processing_syslet.php');
 
             if (isset($defs['init_processing_syslet'])) {
                 $defs['init_processing_syslet']($this, $syslet, $target_root);

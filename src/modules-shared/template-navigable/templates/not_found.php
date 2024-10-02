@@ -15,10 +15,14 @@
         // Prepare placeholders //
         //////////////////////////
 
+        $res_module = $template->config->get('res_module') === null
+        ? $template
+        : new ModuleLocation($template->config->get('res_module'));
+
         $placeholders_default = [
-            'url'                             => $template->get_url(),
             'css_url'                         => $template->get_css_url(),
             'library_js_url'                  => $template->get_url() . '/res/js/library.js',
+            'logo_url'                        => $res_module->get_url() . '/res/logo/logo.png',
 
             'title_for_logo'                  => $title_for_logo,
             'title_for_head'                  => 'Nicht gefunden',

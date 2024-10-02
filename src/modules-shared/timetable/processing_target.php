@@ -64,17 +64,20 @@
         assert_iso_date($date_iso);
 
         $date = iso_to_date($date_iso);
-        $log = [
+        $entry = [
             'type'  => 'log-short',
             'id'    => 'log-' . $date_iso . '-' . ($id ?? kebabize($title)),
             'title' => $title
         ];
 
         if ($content !== null) {
-            $log['content'] = $content;
+            $entry['content'] = $content;
+        }
+        if ($timeslot !== null) {
+            $entry['timeslot'] = $timeslot;
         }
 
-        $GLOBALS['timetable_cur_classlog']->add($log, $date, $timeslot);
+        $GLOBALS['timetable_cur_classlog']->add($entry, $date, $timeslot);
     }
 
 
@@ -142,14 +145,20 @@
         // Stop buffering content
         $content = ob_get_clean();
 
-        // Add
+        // Create entry
+        $entry = [
+            'type'           => 'log-long',
+            'id'             => 'log-' . date_to_iso($GLOBALS['timetable_cur_entry_long_date']) . '-' . $GLOBALS['timetable_cur_entry_long_id'],
+            'title'          => $GLOBALS['timetable_cur_entry_long_title'],
+            'content'        => $content
+        ];
+        if ($GLOBALS['timetable_cur_entry_long_timeslot'] !== null) {
+            $entry['timeslot'] = $GLOBALS['timetable_cur_entry_long_timeslot'];
+        }
+
+        // Add entry
         $GLOBALS['timetable_cur_classlog']->add(
-            [
-                'type'           => 'log-long',
-                'id'             => 'log-' . date_to_iso($GLOBALS['timetable_cur_entry_long_date']) . '-' . $GLOBALS['timetable_cur_entry_long_id'],
-                'title'          => $GLOBALS['timetable_cur_entry_long_title'],
-                'content'        => $content
-            ],
+            $entry,   
             $GLOBALS['timetable_cur_entry_long_date'],
             $GLOBALS['timetable_cur_entry_long_timeslot']
         );
@@ -219,17 +228,24 @@ document.addEventListener('DOMContentLoaded', function() {
         events: [
 <?
         while ($date_cur <= $slot_latest->date) {
-            $entries = $sc->get_entries_on($date_cur, ['tag', 'log-long', 'log-short', 'topic-slot', 'cancellation-date', 'cancellation-slot']);
+            $entries = $sc->get_entries_on($date_cur, ['tag', 'log-long', 'log-short', 'topic-slot', 'slot', 'cancellation-date', 'cancellation-slot']);
             
             // If there exists a `log` entry, then drop `topic` entries
             $exists_log = false;
+            $exists_topic = false;
 
             foreach ($entries as $entry) {
                 // If there exists a `log` entry, then drop `topic` entries
                 if ($entry['type'] == 'log-long' || $entry['type'] == 'log-short') {
                     $exists_log = true;
                 }
-                if ($entry['type'] == 'topic-slot' && $exists_log) {
+                if ($entry['type'] == 'topic-slot') {
+                    $exists_topic = true;
+                }
+                if (
+                    ($entry['type'] == 'topic-slot' && $exists_log) ||
+                    ($entry['type'] == 'slot' && ($exists_log || $exists_topic))
+                ) {
                     continue;
                 }
 
@@ -282,16 +298,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         $properties['url'] = $syllabus_url . '#' . $entry['id'];
                     }
                 }
-                elseif ($entry['type'] == 'cancellation-date') {
-                    $properties['title'] = $entry['reason'];
+                elseif ($entry['type'] == 'slot') {
+                    $properties['title'] = 'Unterricht';
+                    $properties['backgroundColor'] = 'var(--bs-success)';
                     $properties['weight'] = 4;
-                    $properties['display'] = 'background';
-                    $properties['backgroundColor'] = 'gray';
                 }
-                else { // 'cancellation-slot'
+                elseif ($entry['type'] == 'cancellation-date') {
                     $properties['title'] = $entry['reason'];
                     $properties['weight'] = 5;
                     $properties['display'] = 'background';
+                    $properties['backgroundColor'] = 'gray';
+                }
+                elseif ($entry['type'] == 'cancellation-slot') {
+                    $properties['title'] = $entry['reason'];
+                    $properties['weight'] = 6;
+                    $properties['display'] = 'background';
+                }
+                else {
+                    throw new Exception('Unknown entry type: ' . $entry['type']);
                 }
 
                 echo implode(",\n", array_map(function($key, $value) {
@@ -335,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <table class="table">
     <thead>
         <tr>
-            <th>Datum</th>
+            <th style="width:100px;">Datum</th>
             <th>Log</th>
         </tr>
     </thead>
@@ -345,13 +369,14 @@ document.addEventListener('DOMContentLoaded', function() {
         $slot_latest = $sc->get_slot_latest();
 
         $cur_day = DateTime::createFromImmutable($slot_latest->date);
+        $first_log_already_passed = false;  // The first log entry is shown as "open"
         while ($cur_day >= $slot_earliest->date) {
             $entries = $sc->get_entries_on($cur_day, ['log-long', 'log-short']);
             if (count($entries) > 0) {
                 $date_str = weekday_abbrev($cur_day->format('w')) . '., ' . $cur_day->format('d.m.Y');
 ?>
         <tr>
-            <td>
+            <td style="white-space: nowrap;">
 <?
                 if ($calendar_url != null) {
 ?>
@@ -370,12 +395,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         echo '<div id="' . $entry['id'] . '"><strong>' . $entry['title'] . '</strong></div>';
                     }
                     elseif ($entry['type'] == 'log-long') {
-                        acc_single_item_start($entry['title'], variant: 'dark', item_id: $entry['id']);
+                        acc_single_item_start($entry['title'], variant: 'dark', item_id: $entry['id'], open: !$first_log_already_passed);
                         echo $entry['content'];
                         acc_single_item_end();
+
+                        $first_log_already_passed = true;
                     }
                     else { // 'log-short'
                         echo '<div id="' . $entry['id'] . '">' . $entry['title'] . '</div>';
+
+                        $first_log_already_passed = true;
                     }
                 }
 ?>
@@ -397,9 +426,9 @@ document.addEventListener('DOMContentLoaded', function() {
     <thead>
         <tr>
             <th></th>
-            <th class="text-decoration-underline">Thema</th>
-            <th class="text-decoration-underline">Blöcke</th>
-            <th class="text-decoration-underline">Beginn</th>
+            <th>Thema</th>
+            <th>Blöcke</th>
+            <th>Beginn</th>
         </tr>
     </thead>
     <tbody>
@@ -425,20 +454,20 @@ document.addEventListener('DOMContentLoaded', function() {
             <td colspan="3" class="text-center"><em><strong><?= $entry['title'] ?></strong></em></td>
             <td>
 <?
-                if ($calendar_url != null) {
+                    if ($calendar_url != null) {
 ?>
                 <a href="<?= $calendar_url . make_query_string(['date' => date_to_iso($cur_date)], base_queries: $_GET) ?>"><?= $cur_date->format('d.m.Y') ?></a>
 <?
-                }
-                else {
-                    echo $cur_date->format('d.m.Y');
-                }
+                    }
+                    else {
+                        echo $cur_date->format('d.m.Y');
+                    }
 ?>
             </td>
         </tr>
 <?
                 }
-                else { // 'topic'
+                else { // 'topic-slot'
                     // New unit?
                     if ($cur_unit_id == null || $cur_unit_id != $entry['topic']->unit->id) {
                         $cur_unit_id = $entry['topic']->unit->id;
@@ -448,7 +477,7 @@ document.addEventListener('DOMContentLoaded', function() {
 ?>
         <tr class="table-<?= $cur_unit_color ?> table-active border-dark" style="border-top-width:4px;">
             <td><strong><?= $cur_unit_counter ?></strong></td>
-            <td><strong><?= $entry['topic']->unit->title ?> </strong></td>
+            <td class="text-decoration-underline"><strong><?= $entry['topic']->unit->title ?> </strong></td>
             <td><strong><?= $entry['topic']->unit->get_number_of_slots() ?></strong></td>
             <td>
 <?
@@ -465,6 +494,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </tr>
 <?
                     }
+
                     // New topic?
                     if ($cur_topic_id == null || $cur_topic_id != $entry['topic']->id) {
                         $cur_topic_id = $entry['topic']->id;
@@ -472,7 +502,10 @@ document.addEventListener('DOMContentLoaded', function() {
 ?>
         <tr id="<?= $entry['id'] ?>" class="table-<?= $cur_unit_color ?> border-dark">
             <td><?= $cur_unit_counter ?>.<?= $cur_topic_counter ?></td>
-            <td><?= $entry['topic']->title ?></td>
+            <td>
+                <span class="text-decoration-underline"><?= $entry['topic']->title ?></span><br>
+                <?= $entry['topic']->content ?>
+            </td>
             <td><?= $entry['topic']->number_of_slots ?></td>
             <td>
 <?

@@ -23,7 +23,7 @@
         $logo = null;
         $logo_class = null;
         if ($placeholders['use_img_as_logo']) {
-            $logo .= '<img src="' . $placeholders['url'] . '/res/logo/logo.png" alt="' . $placeholders['title_for_logo'] . '">';
+            $logo .= '<img src="' . $placeholders['logo_url'] . '" alt="' . $placeholders['title_for_logo'] . '" height="200">';
             $logo_class = 'logo-img';
         }
         else {

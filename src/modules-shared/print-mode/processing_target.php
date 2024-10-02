@@ -17,8 +17,9 @@
         $GLOBALS['print_mode_requested']   = isset($_GET['print']) && $_GET['print'] === '1';
         
         if (is_print_mode_on()) {
-            // Specify the page layout
-            doc_extensions_add_head_element('<style>@page { size: ' . $GLOBALS['print_mode_size'] . ' ' . ($GLOBALS['print_mode_is_portrait'] ? 'portrait' : 'landscape') . ' }</style>');
+            // Filename of the CSS file that specifies the page layout
+            $css_path = $module->get_url() . '/res/page-' . $GLOBALS['print_mode_size'] . '-' . ($GLOBALS['print_mode_is_portrait'] ? 'portrait' : 'landscape') . '.css';
+
             // Load paged-js library
             doc_extensions_add_head_element('<script src="'. $pagedJsModule->get_url() . '/res/paged.js"></script>');
             // Nicer design of the pages for screen
@@ -30,11 +31,11 @@
             // `setupPrintMode`: Register function as hook
             if ($target->has_activated_module('mathjax-extensions')) {
                 // Activate `paged.js` after MathJax has finished rendering
-                doc_extensions_add_head_element('<script>if (typeof window.mathJaxAfterRenderingHooks !== \'undefined\') { window.mathJaxAfterRenderingHooks.push(setupPrintMode); } else { window.mathJaxAfterRenderingHooks = [setupPrintMode]; }</script>');
+                doc_extensions_add_head_element('<script>if (typeof window.mathJaxAfterRenderingHooks !== \'undefined\') { window.mathJaxAfterRenderingHooks.push(() => {setupPrintMode(\'' . $css_path . '\')}); } else { window.mathJaxAfterRenderingHooks = [() => {setupPrintMode(\'' . $css_path . '\')}]; }</script>');
             }
             else {
                 // Activate `paged.js` after DOM is ready
-                doc_extensions_add_head_element('<script>document.addEventListener("DOMContentLoaded", function() { setupPrintMode(); });</script>');
+                doc_extensions_add_head_element('<script>document.addEventListener("DOMContentLoaded", function() {setupPrintMode(\'' . $css_path . '\')});</script>');
             }
         }
     };

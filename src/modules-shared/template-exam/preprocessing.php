@@ -4,6 +4,5 @@
         $c->activate_module('template-bootstrapped');
         
         $c->activate_module('print-mode', config: ['always_on' => true]);
-        $c->activate_module('grading');
     };
 ?>

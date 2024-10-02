@@ -13,14 +13,3 @@ The bootstrap framework can be used in one of two ways.
 Activate 1. by setting the `import_standalone_css` config flag. This will add the standalone CSS file to the page.
 
 In either case, a JS file is added to the page.
-
-
-# Configuration
-
-The following configuration options with given default values are available.
-
-```
-[
-    'import_standalone_css' => false,
-]
-```

@@ -1,54 +1,65 @@
 <?
     // Abbreviations:
-    // - `ser` stands for `serialized`
-    // - `date_iso` stands for `date in ISO format`, e.g. `2023-08-28`
+    // - "ser" stands for "serialized"
+    // - "date_iso" stands for "date in ISO format", e.g. `2023-08-28`
     //
     // Type of an entry:
     //
     // [
-    //     'type'            => 'cancellation-date',
-    //     'reason'          => 'Public holiday'
+    //     'type'     => 'cancellation-date',
+    //     'reason'   => 'Public holiday'
     // ]
     //
     // or
     //
     // [
-    //     'type'            => 'cancellation-slot',
-    //     'reason'          => 'Sickness'
+    //     'type'     => 'cancellation-slot',
+    //     'timeslot' => 1,
+    //     'reason'   => 'Sickness'
     // ]
     //
     // or
     //
     // [
-    //     'type'            => 'log-long',
-    //     'id'              => 'log-2024-01-01-title-of-the-entry',   (used as anchor)
-    //     'title'           => 'Title of the entry',
-    //     'content'         => 'Content of the entry'
+    //     'type'     => 'slot',
+    //     'timeslot' => 1,
+    // ]
+    // 
+    // or
+    //
+    // [
+    //     'type'     => 'log-long',
+    //     'id'       => 'log-2024-01-01-title-of-the-entry',   (used as anchor)
+    //     'title'    => 'Title of the entry',
+    //     'content'  => 'Content of the entry'
+    //     'timeslot' => 1,                                     (optional field)
     // ]
     //
     // or
     //
     // [
-    //     'type'           => 'log-short',
-    //     'id'             => 'log-2024-01-01-title-of-the-entry',    (used as anchor)
-    //     'title'          => 'Title of the entry',
-    //     'content'        => 'Content of the entry'                  (optional field)
+    //     'type'     => 'log-short',
+    //     'id'       => 'log-2024-01-01-title-of-the-entry',   (used as anchor)
+    //     'title'    => 'Title of the entry',
+    //     'content'  => 'Content of the entry'                 (optional field)
+    //     'timeslot' => 1,                                     (optional field)
     // ]
     //
     // or
     //
     // [
-    //     'type'       => 'topic-slot',
-    //     'id'         => 'topic-my-unit-id-my-topic-id',
-    //     'topic'      => Topic object,
+    //     'type'     => 'topic-slot',
+    //     'timeslot' => 1,
+    //     'id'       => 'topic-my-unit-id-my-topic-id',
+    //     'topic'    => Topic object,
     // ]
     //
     // or
     //
     // [
-    //     'type'  => 'tag',
-    //     'id'    => 'tag-2024-01-01-id-of-the-tag',                  (used as anchor)
-    //     'title' => 'Name of the tag'
+    //     'type'     => 'tag',
+    //     'id'       => 'tag-2024-01-01-id-of-the-tag',        (used as anchor)
+    //     'title'    => 'Name of the tag'
     // ]
 
 
@@ -347,7 +358,11 @@
 
     class Syllabus {
         private $units = [];
-        private ?Unit $current_unit = null; // For convencience functions
+
+        // For convencience functions
+        private ?Unit   $cur_unit = null;
+        private ?string $cur_topic_title = null;
+        private ?int    $cur_topic_number_of_slots = null;
 
         public function __construct() {}
 
@@ -361,19 +376,34 @@
         ///////////////////////////
 
         public function unit_begin(string $title) {
-            assert($this->current_unit == null, 'There is still a non-ended unit.');
-            $this->current_unit = new Unit($title);
+            assert($this->cur_unit == null, 'There is still a non-ended unit.');
+            $this->cur_unit = new Unit($title);
         }
 
         public function unit_end() {
-            assert($this->current_unit != null, 'There is no unit to end.');
-            $this->add($this->current_unit);
-            $this->current_unit = null;
+            assert($this->cur_unit != null, 'There is no unit to end.');
+            $this->add($this->cur_unit);
+            $this->cur_unit = null;
         }
 
         public function add_topic(string $title, int $number_of_slots) {
-            assert($this->current_unit != null, 'There is no unit.');
-            $this->current_unit->add(new Topic($this->current_unit, $title, $number_of_slots));
+            assert($this->cur_unit != null, 'There is no unit.');
+            $this->cur_unit->add(new Topic($this->cur_unit, $title, $number_of_slots));
+        }
+
+        public function topic_start(string $title, int $number_of_slots) {
+            assert($this->cur_unit != null, 'There is no unit to add a topic to.');
+            assert($this->cur_topic_title === null, '⊤here is still a non-ended topic.');
+            $this->cur_topic_title = $title;
+            $this->cur_topic_number_of_slots = $number_of_slots;
+            ob_start();
+        }
+
+        public function topic_end() {
+            assert($this->cur_unit != null, 'There is no unit to end a topic for.');
+            assert($this->cur_topic_title !== null, 'There is no topic to end.');
+            $content = ob_get_clean();
+            $this->cur_unit->add(new Topic($this->cur_unit, $this->cur_topic_title, $this->cur_topic_number_of_slots, $content));
         }
 
 
@@ -436,9 +466,10 @@
         public readonly string $id;
 
         public function __construct(
-            public readonly Unit   $unit,
-            public readonly string $title,
-            public readonly int    $number_of_slots,
+            public readonly Unit    $unit,
+            public readonly string  $title,
+            public readonly int     $number_of_slots,
+            public readonly ?string $content = null,
             ?string $id = null
         ) {
             $this->id = $id ?? kebabize($title);
@@ -525,7 +556,11 @@
         // Used for coloring; declares some *deterministic* order
         private array $unit_order = [];      // list<unit_id>
 
-        public function __construct(public readonly Timetable $timetable, public readonly Classlog $classlog, public readonly Syllabus $syllabus) {
+        public function __construct(
+            public readonly Timetable $timetable,
+            public readonly Classlog $classlog,
+            public readonly ?Syllabus $syllabus = null
+        ) {
 
             //////////////////////////////////////////
             // Fill in cancellations from timetable //
@@ -547,8 +582,9 @@
                     }
 
                     $this->date_to_entries[$date_iso][] = [
-                        'type'   => 'cancellation-slot',
-                        'reason' => $reason
+                        'type'     => 'cancellation-slot',
+                        'timeslot' => $timeslot,
+                        'reason'   => $reason
                     ];
                 }
             }
@@ -562,7 +598,10 @@
             $cur_date = DateTime::createFromImmutable($this->timetable->get_slot_earliest()->date);
             
             // Go through topics of syllabus
-            $topic_iterator = $this->syllabus->iterate_topics();
+            $topic_iterator =
+                $this->syllabus != null
+                ? $this->syllabus->iterate_topics()
+                : new ArrayIterator([]);
             $topic_iterator->rewind();
             $topic_slots_used = 0;
 
@@ -578,8 +617,16 @@
                 // Keep track of logs: All logs must be assigned to timetable slots
                 $number_of_logs_for_date_left = $this->classlog->count_logs_on_date($cur_date);
 
-                foreach ($slots as $slot_ser) {
-                    // Schedule next topic, if topics left (otherwise ignore)
+                foreach ($slots as $cur_slot_ser) {
+                    $cur_slot = Slot::unserialize($cur_slot_ser);
+
+                    // Add slot entry
+                    $this->date_to_entries[$cur_date_iso][] = [
+                        'type'     => 'slot',
+                        'timeslot' => $cur_slot->timeslot,
+                    ];
+
+                    // Schedule next topic, if topics left
                     if ($topic_iterator->valid()) {
                         $cur_topic = $topic_iterator->current();
                         // Update counter
@@ -595,14 +642,15 @@
                         }
 
                         $this->date_to_entries[$cur_date_iso][] = [
-                            'type'    => 'topic-slot',
-                            'id'      => 'topic-' . $cur_topic->unit->id . '-' . $cur_topic->id,
-                            'topic'   => $cur_topic,
+                            'type'     => 'topic-slot',
+                            'timeslot' => $cur_slot->timeslot,
+                            'id'       => 'topic-' . $cur_topic->unit->id . '-' . $cur_topic->id,
+                            'topic'    => $cur_topic,
                         ];
                     }
                     
                     // Schedule log, if available
-                    $cur_log = $this->classlog->get_log_for_slot(Slot::unserialize($slot_ser));
+                    $cur_log = $this->classlog->get_log_for_slot($cur_slot);
                     if ($cur_log !== null) {
                         $this->date_to_entries[$cur_date_iso][] = $cur_log;
 

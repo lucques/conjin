@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.3.0] - 2024-10-02
+- Targets may now be written hard-coded into `content.php`
+
+## [2.2.0] - 2024-08-21
+- Refactored password config mechanism
+
+## [2.1.0] - 2024-08-21
+- Refactored module config mechanism
+
 ## [2.0.1] - 2024-08-20
 - Updated server config mechanism
 

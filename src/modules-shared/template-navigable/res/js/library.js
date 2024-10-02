@@ -34,9 +34,8 @@ function setupSidebar() {
 
         // Prune sibling level-1 nav items if all these hold:
         // 1. We are not at the root target
-        // 2. nav_show_top_level is set
-        // 3. The given level-1 id exists
-        if (pageIds.length > 0 && 'show-top-level-nav' in document.querySelector('body').classList) {
+        // 2. The given level-1 id exists
+        if (pageIds.length > 0) {
             let found = false;
             document.querySelectorAll('#nav .item-level-1').forEach(item => {
                 const linkIdsString = item.dataset.ids;

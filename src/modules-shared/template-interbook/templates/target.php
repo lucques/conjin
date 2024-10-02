@@ -14,7 +14,7 @@
             ? ($target->has_parent()
                 ? implode(' » ', get_plain_titles(true)) . ' − ' . get_top_level_plain_title()
                 : get_top_level_plain_title())
-            : ($target->id ?? 'Unbenannt');        
+            : ($target->id ?? 'Unbenannt');
         $title_for_h1 =
             $target->has_activated_module('title')
             ? implode(' » ', get_html_titles(true))
@@ -35,9 +35,13 @@
         // Prepare sub-template `template-navigable` //
         ///////////////////////////////////////////////
         
+        $res_module = $template->config->get('res_module') === null
+            ? $template
+            : new ModuleLocation($template->config->get('res_module'));
+
         $placeholders_for_subtemplate_default = [
-            'url'                             => $template->get_url(),
             'css_url'                         => $template->get_css_url(),
+            'logo_url'                        => $res_module->get_url() . '/res/logo/logo.png',
 
             'title_for_logo'                  => $title_for_logo,
             'title_for_head'                  => $title_for_head,
@@ -62,16 +66,6 @@
         if ($target->has_activated_module('title') && $target->activated_modules['title']->config->get('is_part_of_content')) {
 ?>
                 <h1><?= $placeholders['title_for_h1'] ?></h1>
-<?
-        }
-        elseif ($target->id !== null) {
-?>
-                <h1><?= $target->id ?></h1>
-<?
-        }
-        else {
-?>
-                <h1>Unbenannt</h1>
 <?
         }
         $content = ob_get_clean() . $content;

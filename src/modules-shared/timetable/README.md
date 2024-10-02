@@ -41,6 +41,8 @@ It results in four components.
     - `topic-slot`
         - Represents a slot within a topic (A topic may span multiple slots)
         - Contains: Topic ID (refers also to unit, e.g. `myunit-mytopic`; disregards slot) + Topic object
-    - `topic-tag`
+    - `slot`
+        - Represents a slot 
+    - `tag`
         - Represents a **tag**
         - Contains: ID + Title

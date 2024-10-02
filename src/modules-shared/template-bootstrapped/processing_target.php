@@ -25,6 +25,7 @@
             case 'example':    return 'info';
             case 'theorem':    return 'dark';
             case 'proof':      return 'dark';
+            case 'remark':     return 'light';
             case 'exercise':   return 'primary';
             case 'solution':   return 'success';
             case 'hint':       return 'orange';

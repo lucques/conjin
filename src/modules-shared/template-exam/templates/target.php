@@ -38,10 +38,14 @@
         ///////////////////////////////////////////////
         // Prepare sub-template `template-navigable` //
         ///////////////////////////////////////////////
+
+        $res_module = $template->config->get('res_module') === null
+        ? $template
+        : new ModuleLocation($template->config->get('res_module'));
         
         $placeholders_for_subtemplate_default = [
-            'url'                             => $template->get_url(),
             'css_url'                         => $template->get_css_url(),
+            'logo_url'                        => $res_module->get_url() . '/res/logo/logo.png',
 
             'title_for_logo'                  => $title_for_logo,
             'title_for_head'                  => $title_for_head,

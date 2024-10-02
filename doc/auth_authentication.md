@@ -8,3 +8,6 @@ There are different methods to authenticate, they are tried in the following ord
 2. Login session. Gets stored in `$_SESSION['user']`
     - `$_SESSION['user']` is set     => User is as specified (resume session)
     - `$_SESSION['user']` is not set => User is `guest`
+
+## Passwords
+Passwords can be configured in plaintext or as hashes. Plaintext passwords should not contain special characters. 

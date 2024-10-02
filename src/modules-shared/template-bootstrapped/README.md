@@ -57,7 +57,9 @@ When slices are stacked upon each other, this works very fine as margins are mer
     - Any element can be made a slice by using one of these classes:
         - `.p`: Behaves like `<p>`
         - `.pp`: Behaves like 1.5 times `<p>`
+        - `.ppp`: Behaves like 2 times `<p>`
         - ...
+        - `.section`: Behaves like `<section>`
 
 
 ## Boxes
@@ -90,6 +92,11 @@ Next to the common `list-style-types`, there are the following of the form `deci
 - `circled`, `bracket`, `parens`
 
 
+## Lists
+There is a problem with styling list markers using CSS (e.g., it is impossible to position the markers on top instead of on baseline). Read more about using `::marker` vs. `::before`+counters. So whenever you want to use the custom markers (using `::before`+counters), there is a possibility: Just add
+`.ol-decimal-circled` to the `<ol>` element. There is one CSS class for each list-style-type.
+
+
 ## Ordered lists, Bootstrap-style: `.list-group.list-group-numbered`
 There are two decorations available:
 - `.bold-list-markers`
@@ -118,6 +125,7 @@ Treating all these just as colors without any semantic meaning is fine even if u
     - `example`
     - `theorem`
     - `proof`
+    - `remark`
     - `exercise`
     - `solution`
     - `hint`

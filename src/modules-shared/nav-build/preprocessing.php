@@ -35,7 +35,7 @@
             // Create nav item
             $this->nav_item = new TargetNavItem(
                 target_ids:        $this->ctx->target_ids,
-                has_content:       $this->ctx->has_content,
+                has_content:       $this->ctx->content_location != ContentLocation::NONE,
                 title:             $title,
                 privileged_actors: $this->ctx->actions_ser_2_actorlist_ser[auth_aux_serialize_action(AUTH_VIEW_ACTION)]
             );

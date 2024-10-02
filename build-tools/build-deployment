@@ -17,20 +17,85 @@ types_path = script_dir / 'types.dhall'
 tools_path = script_dir / 'tools-internal.dhall'
 
 
-###################
-# DockerNginxDepl #
-###################
+###############
+# Entry points #
+###############
 
-def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
+def build(config_path, install_symlinks_in_local_bin = False):
     '''
     Input must be a file containing a Dhall expression of type `DockerNginxDepl`
-    (see also tools.dhall).
+    or `DockerSyncDepl` (see also `types.dhall`).
     Output is written to the directory specified by the `targetDir` setting.
     The flag `install_symlinks_in_local_bin` can be used to install symlinks to
     the generated scripts in `~/bin`.
     '''
-        
+
     config_path = Path(config_path).absolute()
+
+    deployment_type = phase_discriminate_deployment_type(config_path)
+
+    if deployment_type is None:
+        raise Exception('Could not discriminate deployment type.')
+    elif deployment_type == 'DockerNginxDepl':
+        build_docker_nginx_depl(config_path, install_symlinks_in_local_bin)
+    else:
+        build_docker_sync_depl(config_path, install_symlinks_in_local_bin)
+
+
+def generate_password_hashes(password_list_path, out_path):
+    '''
+    Input must be a file containing a Dhall expression of type `PasswordList`
+    (see also `types.dhall`).
+    Output is a Dhall expression of type `PasswordList` with all passwords given
+    as hashes; written to `out_path`.
+    '''
+
+    password_list_path = Path(password_list_path).absolute()
+
+
+    ###########################
+    # Read password list file #
+    ###########################
+
+    password_list = phase_read_password_list(password_list_path)
+
+
+    ############################
+    # Generate password hashes #
+    ############################
+
+    users_2_hashes = phase_generate_password_hashes(password_list)
+
+
+    ##########################
+    # Write Dhall expression #
+    ##########################
+
+    print('Writing to output file...')
+
+    passwords_dhall = ''.join([f', t.assignUser2PasswordHash "{user}" "{hash}"\n' for user, hash in users_2_hashes.items()])
+
+    content = textwrap.dedent(f'''\
+        let t = ./EXTERNAL_TOOLS_PATH
+        let T = t.types
+
+        in
+        [
+    ''')
+    content += passwords_dhall
+    content += textwrap.dedent(f'''\
+        ]
+        : T.PasswordList
+    ''')
+
+    Path(out_path).absolute().write_text(content)
+
+
+###################
+# DockerNginxDepl #
+###################
+
+def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin):
 
     ####################
     # Read config file #
@@ -70,12 +135,9 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
         target_dir / 'htdocs',
     ]
 
-    for module in config['depl']['modules'].values():
+    for module_id,module in config['depl']['modules'].items():
         if module['compileScss']:
-            target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(module['location']))
-
-    if 'db' in config:
-        target_dirs.append(Path(config['db']['volDir']))
+            target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(config['depl']['moduleLocations'][module_id]))
 
     phase_build_dirs(target_dirs)
 
@@ -109,18 +171,31 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
     phase_build_dhall_config_files(target_config_files, config_path, 'makeDockerNginxConfigFiles')
 
 
-    ##################################################
-    # Build `users.json` file and register passwords #
-    ##################################################
+    ############################
+    # Generate password hashes #
+    ############################
 
-    phase_build_user_json_file_and_register_passwords(
-        target_dir,
-        config['depl']['authentication']['users2passwords'],
-        config['depl']['desktopIntegration']['preprocessScriptUser'],
-        config['depl']['desktopIntegration']['preprocessScriptPasswordRegisterCmd'],
-        config['linkcheckerUser'],
-        config['linkcheckerPasswordRegisterCmd']
-    )
+    users_2_hashes = phase_generate_password_hashes(config['depl']['authentication']['users2passwords'])
+
+
+    ######################
+    # Build `users.json` #
+    ######################
+
+    phase_build_users_json(target_dir, users_2_hashes)
+
+
+    ############################################################
+    # Register passwords for preprocess script and linkchecker #
+    ############################################################
+
+    users_2_commands = {}
+    if 'preprocessScriptPasswordRegisterCmd' in config['depl']['desktopIntegration']:
+        users_2_commands[config['depl']['desktopIntegration']['preprocessScriptUser']] = config['depl']['desktopIntegration']['preprocessScriptPasswordRegisterCmd']
+    if 'linkcheckerPasswordRegisterCmd' in config:
+        users_2_commands[config['linkcheckerUser']] = config['linkcheckerPasswordRegisterCmd']
+    
+    phase_register_passwords(config['depl']['authentication']['users2passwords'], users_2_commands)
 
 
     ############################
@@ -219,16 +294,7 @@ def build_docker_nginx_depl(config_path, install_symlinks_in_local_bin = False):
 # DockerSyncDepl #
 ##################
 
-def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
-    '''
-    Input must be a file containing a Dhall expression of type `DockerSyncDepl`
-    (see also tools.dhall).
-    Output is written to the directory specified by the `targetDir` setting.
-    The flag `install_symlinks_in_local_bin` can be used to install symlinks to
-    the generated scripts in `~/bin`.
-    '''
-    
-    config_path = Path(config_path).absolute()
+def build_docker_sync_depl(config_path, install_symlinks_in_local_bin):  
 
     ####################
     # Read config file #
@@ -264,9 +330,9 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
         target_dir / 'htdocs' / 'preprocess'
     ]
 
-    for module in config['depl']['modules'].values():
+    for module_id,module in config['depl']['modules'].items():
         if module['compileScss']:
-            target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(module['location']))
+            target_dirs.append(target_dir / 'htdocs' / get_template_css_dir(config['depl']['moduleLocations'][module_id]))
 
     phase_build_dirs(target_dirs)
 
@@ -293,16 +359,29 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
     phase_build_dhall_config_files(target_config_files, config_path, 'makeDockerSyncConfigFiles')
 
 
-    ##################################################
-    # Build `users.json` file and register passwords #
-    ##################################################
+    ############################
+    # Generate password hashes #
+    ############################
 
-    phase_build_user_json_file_and_register_passwords(
-        target_dir,
-        config['depl']['authentication']['users2passwords'],
-        config['depl']['desktopIntegration']['preprocessScriptUser'],
-        config['depl']['desktopIntegration']['preprocessScriptPasswordRegisterCmd']
-    )
+    users_2_hashes = phase_generate_password_hashes(config['depl']['authentication']['users2passwords'])
+
+
+    ######################
+    # Build `users.json` #
+    ######################
+
+    phase_build_users_json(target_dir, users_2_hashes)
+
+
+    ############################################################
+    # Register passwords for preprocess script and linkchecker #
+    ############################################################
+
+    users_2_commands = {}
+    if 'preprocessScriptPasswordRegisterCmd' in config['depl']['desktopIntegration']:
+        users_2_commands[config['depl']['desktopIntegration']['preprocessScriptUser']] = config['depl']['desktopIntegration']['preprocessScriptPasswordRegisterCmd']
+    
+    phase_register_passwords(config['depl']['authentication']['users2passwords'], users_2_commands)
 
 
     ############################
@@ -367,6 +446,27 @@ def build_sync_depl(config_path, install_symlinks_in_local_bin = False):
 # Helper functions #
 ####################
 
+def phase_discriminate_deployment_type(config_path):
+    print('Discriminating deployment type...')
+
+    input  = f'({config_path}): ({types_path}).DockerNginxDepl'
+    result = subprocess.run('dhall type', input=input, shell=True, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    if (result.returncode == 0):
+        return 'DockerNginxDepl'
+    else:
+        input  = f'({config_path}): ({types_path}).DockerSyncDepl'
+        result = subprocess.run('dhall type', input=input, shell=True, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        if (result.returncode == 0):
+            return 'DockerSyncDepl'
+        else:
+            # Provoke type error and write error to StdErr
+            input  = f'{config_path}'
+            result = subprocess.run('dhall type', input=input, shell=True, text=True, stdout=subprocess.DEVNULL)
+            return None
+
+    
 def phase_read_config(config_path, function):
     print('Reading config file...')
 
@@ -374,6 +474,15 @@ def phase_read_config(config_path, function):
     config_json = subprocess.check_output('dhall-to-json', input=input, shell=True, text=True)
 
     return json.loads(config_json)
+
+
+def phase_read_password_list(password_list_path):
+    print('Reading password list file...')
+
+    input = f'(({types_path}).tagPasswordList ({password_list_path}))'
+    password_list_json = subprocess.check_output('dhall-to-json', input=input, shell=True, text=True)
+
+    return json.loads(password_list_json)
 
 
 def phase_check_conjin_version(conjin_dir, app_dir):
@@ -412,39 +521,42 @@ def phase_build_dhall_config_files(target_config_files, config_path, tools_funct
         file['path'].write_text(content)
 
 
-def phase_build_user_json_file_and_register_passwords(target_dir, users2passwords, preprocessingUser, preprocessingCmd = None, linkcheckerUser = None, linkcheckerCmd = None):
-    print('Building users.json file...')
+def phase_generate_password_hashes(users2tagged_passwords):
+    print('Generating password hashes...')
 
     users_2_hashes = {}
 
-    for user, tagged_password in users2passwords.items():
-        # Register preprocess script password, if given
-        if preprocessingUser == user and preprocessingCmd is not None:
-            assert tagged_password['tag'] == 'Plain', 'Password for preprocess script must be in plain text.'
-
-            print('- Registering preprocessing script password...')
-            subprocess.run(preprocessingCmd, input=tagged_password['contents'], shell=True, text=True)
-
-        # Register linkchecker password, if given
-        if linkcheckerUser == user and linkcheckerCmd is not None:
-            assert tagged_password['tag'] == 'Plain', 'Password for linkchecker must be in plain text.'
-
-            print('- Registering linkchecker password...')
-            subprocess.run(linkcheckerCmd, input=tagged_password['contents'], shell=True, text=True)
-
-        # Hash password for users.json file
+    for user, tagged_password in users2tagged_passwords.items():
         if tagged_password['tag'] == 'Plain':
             password = tagged_password['contents']
 
             print('- Hashing password for ' + user + '...')
-            hash = subprocess.check_output(f"docker run -it php:8.2-cli php -r 'print(password_hash(\"{ password }\", PASSWORD_DEFAULT));'", shell=True, text=True)
+            hash = subprocess.check_output(f"docker run --rm -it php:8.2-cli php -r 'print(password_hash(\"{ password }\", PASSWORD_DEFAULT));'", shell=True, text=True)
             users_2_hashes[user] = hash
         else:
             hash = tagged_password['contents']
             users_2_hashes[user] = hash
-    
-    users_2_hases_json = json.dumps(users_2_hashes, indent=4)
-    (target_dir / 'htdocs/users.json').write_text(users_2_hases_json)
+
+    return users_2_hashes
+
+
+def phase_build_users_json(target_dir, users_2_hashes):
+    print('Building `users.json`...')
+
+    users_2_hashes_json = json.dumps(users_2_hashes, indent=4)
+    (target_dir / 'htdocs/users.json').write_text(users_2_hashes_json)
+
+
+def phase_register_passwords(users_2_tagged_passwords, users_2_commands):
+    print('Registering passwords...')
+
+    for user, command in users_2_commands.items():
+        print(f'- Registering password for {user}...')
+
+        assert user in users_2_tagged_passwords, f'No password given for user {user}.'
+        assert users_2_tagged_passwords[user]['tag'] == 'Plain', f'Password for {user} must be in plain text.'
+
+        subprocess.run(command, input=users_2_tagged_passwords[user]['contents'], shell=True, text=True)
 
 
 def phase_build_htaccess(target_dir, conjin_dir, url_base, force_https, activate_compression):
@@ -530,6 +642,6 @@ def get_template_css_dir(module_location):
 
 if __name__ == '__main__':
     fire.Fire({
-        'build-docker-nginx-depl': build_docker_nginx_depl,
-        'build-sync-depl':         build_sync_depl,
+        'build':                    build,
+        'generate-password-hashes': generate_password_hashes,
     })

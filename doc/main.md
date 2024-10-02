@@ -29,11 +29,13 @@ Documentation is spread out over multiple files.
     - Contains a list of activated modules, each with a configuration
     - Is the result of a preprocessing step
     - **Target**
-        - External view: A content node that can be accessed via URL and that contains content
-        - Internal view: An `index.php` within the `content` dir tree
         - Targets are organized in a tree structure, where each node...
             - is represented by a `Target` obj 
             - has a target id (only a list of target id's therefore specifies the path to a specific target)
+        - Usually contains content, three types:
+            - **Inline**: In `index.php`, there is a `process` function
+            - **Extra**: In `content.php`, the content is hardcoded (no function)
+            - **None**: No content. The node is just a container and cannot be requested by itself 
     - **Syslet**
         - External view: A webpage that fulfills a pre-defined system function such as "login", "not found" etc.
         - Internal view: A file `login.php`, `not_found.php` etc. within the `system` dir

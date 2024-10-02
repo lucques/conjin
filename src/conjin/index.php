@@ -143,7 +143,7 @@
             }
             
             // If target has no content, send "not found"
-            if (!$target->has_content) {
+            if ($target->content_location == ContentLocation::NONE) {
                 send_not_found_response_and_exit(); // Not Found
             }
     

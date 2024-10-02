@@ -4,12 +4,12 @@
 
 // Definition of `.stack`
 .stack > :first-child,
-.stack   .first-child { // Sometimes the first child has to be identified manually
+.first-child {        // Sometimes the first child has to be identified manually
   margin-top: 0 !important;
 }
 
 .stack > :last-child,
-.stack   .last-child { // Sometimes the last child has to be identified manually
+.last-child {         // Sometimes the last child has to be identified manually
   margin-bottom: 0 !important;
 }
 
@@ -59,7 +59,9 @@ td,
   .float-start { margin-right: $margin_float; }
   .float-end   { margin-left:  $margin_float; }
 
-  section { margin-top: $margin_section; margin-bottom: $margin_section; }
+  .section { margin-top: $margin_section; margin-bottom: $margin_section; }
+
+  section { @extend .section; }
 
 
   // Boxes
@@ -176,6 +178,82 @@ ol > li > ul,
 ul > li > ol {
   margin-top: 0;
   margin-bottom: 0;
+}
+
+
+///////////////////
+// Lists, custom //
+///////////////////
+
+// Read more about this in the README.md
+
+.ul-custom, .ol-custom {
+  list-style: none !important;
+  padding-left: 0;
+}
+
+.ol-custom {
+  counter-reset: list-item;
+}
+
+.ol-custom > li, .ul-custom > li {
+  display: flex;
+  @extend .stack;
+}
+
+.ol-custom > li::before {
+  counter-increment: list-item;
+  width:2rem;
+  padding-right:5px;
+  text-align: end;
+}
+
+.ol-decimal-circled, .ol-lower-alpha-circled, .ol-upper-alpha-circled, .ol-lower-alpha-bracket, .ol-upper-alpha-bracket, .ol-decimal-bracket, .ol-lower-roman-bracket, .ol-lower-alpha-parens, .ol-upper-alpha-parens, .ol-decimal-parens, .ol-lower-roman-parens {
+  @extend .ol-custom;
+}
+
+.ol-decimal-circled > li::before {
+  content: counter(list-item, decimal-circled);
+}
+
+.ol-lower-alpha-circled > li::before {
+  content: counter(list-item, lower-alpha-circled);
+}
+
+.ol-upper-alpha-circled > li::before {
+  content: counter(list-item, upper-alpha-circled);
+}
+
+.ol-lower-alpha-bracket > li::before {
+  content: counter(list-item, lower-alpha-bracket) ") ";
+}
+
+.ol-upper-alpha-bracket > li::before {
+  content: counter(list-item, upper-alpha-bracket) ") ";
+}
+
+.ol-decimal-bracket > li::before {
+  content: counter(list-item, decimal-bracket) ") ";
+}
+
+.ol-lower-roman-bracket > li::before {
+  content: counter(list-item, lower-roman-bracket) ") ";
+}
+
+.ol-lower-alpha-parens > li::before {
+  content: "(" counter(list-item, lower-alpha-parens) ") ";
+}
+
+.ol-upper-alpha-parens > li::before {
+  content: "(" counter(list-item, upper-alpha-parens) ") ";
+}
+
+.ol-decimal-parens > li::before {
+  content: "(" counter(list-item, decimal-parens) ") ";
+}
+
+.ol-lower-roman-parens > li::before {
+  content: "(" counter(list-item, lower-roman-parens) ") ";
 }
 
 

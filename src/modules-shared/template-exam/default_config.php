@@ -7,11 +7,17 @@
             'nav_active_sidebar_by_default'   => true,
             'nav_reduce_by_default'           => true,
             'nav_reduce_toggleable_with_ctrl' => true,
+            // The module that holds the logo file under `res/`
+            // If this is null, the currently set template is used
+            'res_module'                      => null,
+
 
             'institution'                     => 'Unbenannt',
             'class'                           => 'Unbenannt',
+            
             // Printed only if it cannot be determined from target id
             'date_default'                    => 'Unbekannt',
+
             'title'                           => 'Unbenannt'
         ];
     }

@@ -25,6 +25,7 @@
     }
 
     function process(Target $target): void {
+        assert($target->content_location != ContentLocation::NONE, 'Cannot process contentless target');
 
         //////////////////
         // Init modules //
@@ -41,14 +42,25 @@
         // Pass-through //
         //////////////////
 
-        $script_path = $target->path('/index.php');
-        $defs = load_defs_from_script($script_path);
-        assert($defs['process'] !== null, 'Missing `$process` function');
+        if ($target->content_location == ContentLocation::INLINE) {
+            $script_path = $target->path('/index.php');
+            $defs = load_defs_from_script($script_path);
+            assert($defs['process'] !== null, 'Missing `$process` function');
 
-        // First process only `$process` function: If this one fails, no need to further process the header component.
-        ob_start();
-        $defs['process']($target);
-        $content = ob_get_clean();
+            // Process
+            ob_start();
+            $defs['process']($target);
+            $content = ob_get_clean();
+        }
+        else // ContentLocation::EXTRA
+        {
+            $script_path = $target->path('/content.php');
+
+            // Process
+            ob_start();
+            require($script_path);
+            $content = ob_get_clean();
+        }
 
         // Render
         $target->get_template()->render_target($target, $content);

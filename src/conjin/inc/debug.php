@@ -1,16 +1,19 @@
 <?
-    function debug_aux_print_json($obj) {
-        $json = json_encode($obj);
-        if ($json === false) {
-            echo 'Error during `json_encode`: ' . json_last_error_msg();
-        }
-        else {
-            echo $json;
-        }
-    }
+    //////////
+    // Main //
+    //////////
 
     if (!isset($_GET['what'])) {
-        echo "Please specify what to debug via ?what=...\n";
+        echo '<html><body>What to debug?<ul>';
+        echo '<li><a href="?what=config-json">?what=config-json</a></li>';
+        echo '<li><a href="?what=preprocess-obj&name=target_root">?what=preprocess-obj&name=target_root</a></li>';
+        echo '<li><a href="?what=preprocess-obj&name=syslet_login">?what=preprocess-obj&name=syslet_login</a></li>';
+        echo '<li><a href="?what=preprocess-obj&name=syslet_not_found">?what=preprocess-obj&name=syslet_not_found</a></li>';
+        echo '<li><a href="?what=preprocess-obj&name=groups_2_userlist">?what=preprocess-obj&name=groups_2_userlist</a></li>';
+        echo '<li><a href="?what=preprocess-obj&name=nav">?what=preprocess-obj&name=nav</a></li>';
+        echo '<li><a href="?what=mime-types">?what=mime-types</a></li>';
+        echo '<li><a href="?what=phpinfo">?what=phpinfo</a></li>';
+        echo '</ul></body></html>';
         exit();
     }
     else {
@@ -56,5 +59,20 @@
     }
     else {
         echo 'not found';
+    }
+
+
+    /////////////
+    // Helpers //
+    /////////////
+
+    function debug_aux_print_json($obj) {
+        $json = json_encode($obj);
+        if ($json === false) {
+            echo 'Error during `json_encode`: ' . json_last_error_msg();
+        }
+        else {
+            echo $json;
+        }
     }
 ?>

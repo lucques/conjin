@@ -1,0 +1,11 @@
+@page  {
+  margin-top: 15mm;
+  margin-right: 12mm;
+  margin-bottom: 15mm;
+  margin-left: 12mm;
+  size: A4 portrait;
+}
+
+.sheet {
+  page-break-after: always;
+}

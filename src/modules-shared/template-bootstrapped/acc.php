@@ -1,6 +1,6 @@
 <?
     $init_processing_target = function(Module $module, Target $target) {
-        $GLOBALS['acc_stack']   = [];
+        $GLOBALS['acc_stack']           = [];
         $GLOBALS['acc_next_id_numeric'] = 0;
 
         // Support `sync-dims` module, only heights need to be resynced
@@ -123,7 +123,7 @@
 <?
     }
 
-    function acc_block_start($title = '', $variant = null, $id = null, $class = '', $style = '') {
+    function acc_block_start($title = '', $variant = null, $bg_as_collapsed = false, $id = null, $class = '', $style = '') {
         // The last item must be of type 'acc'
         assert(count($GLOBALS['acc_stack']) > 0 && end($GLOBALS['acc_stack'])['type'] == 'acc', 'No accordion set started');
 
@@ -145,7 +145,7 @@
         if ($title != '') {
 ?>
             <span class="block-header">
-                <span class="block-title"><span><?= $title ?></span></span>
+                <span class="block-title<?= $bg_as_collapsed ? ' collapsed' : '' ?>"><span><?= $title ?></span></span>
             </span>
 <?
         }
@@ -169,13 +169,21 @@
 <?
     }
 
+    function acc_header_only($title, $variant = null, $bg_as_collapsed = false, $acc_id = null, $acc_class = '', $acc_style = '') {
+        acc_start(variant: $variant, id: $acc_id, class: $acc_class, style: $acc_style);
+?>
+            <span class="block-title border-bottom-0<?= $bg_as_collapsed ? ' collapsed' : '' ?>"><span><?= $title ?></span></span>
+<?
+        acc_end();
+    }
+
 
     ////////////////
     // Shorthands //
     ////////////////
 
-    function acc_single_item_start($title, $variant = null, $open = false, $item_id = null, $item_class = '', $item_style = '') {
-        acc_start();
+    function acc_single_item_start($title, $variant = null, $open = false, $acc_id = null, $acc_class = null, $acc_style = null, $item_id = null, $item_class = '', $item_style = '') {
+        acc_start(id: $acc_id, class: $acc_class, style: $acc_style);
         acc_item_start($title, variant: $variant, open: $open, id: $item_id, class: $item_class, style: $item_style);
     }
 
@@ -184,8 +192,8 @@
         acc_end();
     }
 
-    function acc_single_block_start($title = '', $variant = null, $block_id = null, $block_class = '', $block_style = '') {
-        acc_start();
+    function acc_single_block_start($title = '', $variant = null, $acc_id = null, $acc_class = null, $acc_style = null, $block_id = null, $block_class = '', $block_style = '') {
+        acc_start(id: $acc_id, class: $acc_class, style: $acc_style);
         acc_block_start($title, variant: $variant, id: $block_id, class: $block_class, style: $block_style);
     }
 

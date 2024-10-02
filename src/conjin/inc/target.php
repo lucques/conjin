@@ -3,7 +3,7 @@
     class Processable {
         public function __construct(
             public readonly array  $activated_modules, // dict<string, Module>
-            public readonly string $template,          // key of `activated_modules`
+            public readonly ?string $template,         // key of `activated_modules` or `null` if not set
         ) {}
         
         public function has_activated_module(string $name): bool {
@@ -15,6 +15,12 @@
         }
     }
 
+    enum ContentLocation: string {
+        case INLINE = 'inline';
+        case EXTRA  = 'extra';
+        case NONE   = 'none';
+    }
+
     // Immutable
     class Target extends Processable implements JsonSerializable {
         // Circular pointer back to parent Target (null, if root). It is set
@@ -23,14 +29,17 @@
         private ?Target $parent;
 
         public function __construct(
-            array   $activated_modules,           // dict<string, Module>
-            string  $template,                    // key of `activated_modules`
+            array    $activated_modules,           // dict<string, Module>
+            ?string  $template,                    // key of `activated_modules` or `null` if not set
             public readonly ?string $id,
-            public readonly bool    $has_content,
+            public readonly ContentLocation $content_location,
             public readonly array   $actions_ser_2_actorlist_ser, // dict<action_serialized, list<actor_serialized>>
             public readonly array   $id_2_child                   // dict<string, Target>
         ) {
             parent::__construct($activated_modules, $template);
+
+            assert(!$this->content_location == ContentLocation::NONE || $template !== null, 'Contentful target must have a template');
+
             // Set to null pointer initially
             $null = null;
             $this->parent = $null;
@@ -95,9 +104,9 @@
         public function jsonSerialize(): mixed {
             return [
                 'id' => $this->id,
-                'has_content' => $this->has_content,
-                'template' => $this->template,
+                'content_location' => $this->content_location,
                 'activated_modules' => $this->activated_modules,
+                'template' => $this->template,
                 'actions_ser_2_actorlist_ser' => $this->actions_ser_2_actorlist_ser,
                 'id_2_child' => $this->id_2_child
             ];
@@ -112,7 +121,7 @@
     class Syslet extends Processable {
         public function __construct(
             array  $activated_modules, // dict<string, Module>
-            string $template,          // key of `activated_modules`
+            string $template,          // key of `activated_modules`, must not be null
         ) {
             parent::__construct($activated_modules, $template);
         }

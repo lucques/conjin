@@ -11,7 +11,9 @@
             : 'Unbenannt';
         $title_for_head =
             $target->has_activated_module('title')
-            ? implode(' » ', get_plain_titles(true))
+            ? ($target->has_parent()
+                ? implode(' » ', get_plain_titles(true)) . ' − ' . get_top_level_plain_title()
+                : get_top_level_plain_title())
             : ($target->id ?? 'Unbenannt');
 
 
@@ -19,10 +21,14 @@
         // Prepare placeholders //
         //////////////////////////
 
+        $res_module = $template->config->get('res_module') === null
+            ? $template
+            : new ModuleLocation($template->config->get('res_module'));
+
         $placeholders_default = [
-            'url'                             => $template->get_url(),
             'css_url'                         => $template->get_css_url(),
             'library_js_url'                  => $template->get_url() . '/res/js/library.js',
+            'logo_url'                        => $res_module->get_url() . '/res/logo/logo.png',
             
             'title_for_logo'                  => $title_for_logo,
             'title_for_head'                  => $title_for_head,

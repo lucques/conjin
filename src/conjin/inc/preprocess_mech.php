@@ -46,11 +46,11 @@
         }
         
         // @param $config_root: Nested assoc array (for convencience not wrapped as `ConfigTree`)
-        public function update_module_config(string $name, ?array $config_root) {
+        public function update_module_config(string $name, ?array $config) {
             assert(isset($this->activated_modules[$name]), "Module `$name` not activated");
             $module = $this->activated_modules[$name];
 
-            $module_updated = $module->update_config($config_root);
+            $module_updated = $module->update_config($config);
             
             // Re-activate
             $this->activated_modules[$name] = $module_updated;
@@ -70,14 +70,6 @@
             $this->activate_module($name, $config);
             $this->template = $name; // Set pointer
         }
-
-        // @param $config_root: Nested assoc array (for convencience not wrapped as `ConfigTree`)
-        public function update_template_config(array $config_root) {
-            assert($this->template !== null, "Template not activated");
-
-            $this->update_module_config($this->template, $config_root);
-        }
-
 
         // Preprocessing Macros
 
@@ -126,9 +118,9 @@
         // Fixed during construction //
         ///////////////////////////////
 
-        public readonly array $target_ids;                  // list<string>
-        public readonly bool  $has_content;
-        public readonly array $actions_ser_2_actorlist_ser; // dict<action_serialized, list<actor_serialized>>
+        public readonly array           $target_ids;                  // list<string>
+        public readonly ContentLocation $content_location;
+        public readonly array           $actions_ser_2_actorlist_ser; // dict<action_serialized, list<actor_serialized>>
 
                 
         /////////////////////////////
@@ -162,8 +154,13 @@
             parent::__construct();
 
             // Fixed during construction
-            $this->target_ids                  = $target_ids;
-            $this->has_content                 = isset(load_defs_from_script(path_collect($target_ids) . '/index.php')['process']);
+            $this->target_ids = $target_ids;
+            $this->content_location =
+                isset(load_defs_from_script(path_collect($target_ids) . '/index.php')['process'])
+                ? ContentLocation::INLINE
+                : (file_exists(path_collect($target_ids) . '/content.php')
+                    ? ContentLocation::EXTRA
+                    : ContentLocation::NONE);
             $this->actions_ser_2_actorlist_ser = auth_generate_actions_ser_2_actorlist_ser_for_target($target_ids);
 
             // Set during PASS-THROUGH
@@ -245,7 +242,7 @@
         load_def_from_script_and_call($script_path, 'preprocess', $c);
 
         // Template must have been set
-        assert($c->template !== null, 'Template not set for sytem target `' . $which . '`');
+        assert($c->template !== null, 'Template not set for system target `' . $which . '`');
         
         return new Syslet(
             $c->activated_modules,
@@ -271,10 +268,20 @@
       
         // Preprocess!
         $script_path = path_collect($c->target_ids) . '/index.php';
-        load_def_from_script_and_call($script_path, 'preprocess', $c);
+        $defs = load_defs_from_script($script_path);
 
-        // Template must have been set
-        assert($c->template !== null, 'Template not set for ' . path_collect($c->target_ids));
+        // If `preprocess` function is defined, run it
+        if (isset($defs['preprocess'])) {
+            load_def_from_script_and_call($script_path, 'preprocess', $c);
+        }
+        // Else, use default
+        else {
+            $script_path = path('system/target_default.php');
+            load_def_from_script_and_call($script_path, 'preprocess', $c);
+        }
+
+        // If content exists, template must have been set
+        assert($c->content_location == ContentLocation::NONE || $c->template !== null, 'Template not set for ' . path_collect($c->target_ids));
 
         $c->change_phase(TargetPreprocessingPhase::CONSTRUCTED, TargetPreprocessingPhase::PASSED_THROUGH);
         
@@ -314,7 +321,7 @@
             $c->activated_modules,
             $c->template,
             count($c->target_ids) > 0 ? $c->target_ids[count($c->target_ids)-1] : null,
-            $c->has_content,
+            $c->content_location,
             $c->actions_ser_2_actorlist_ser,
             $id_2_child_target
         );

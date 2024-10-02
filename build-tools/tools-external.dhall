@@ -151,65 +151,54 @@ let denyCustomActionToUser =
 -- Modules --
 -------------
 
-let makeModule = 
-    \(dirName: Text) ->
-    \(isShared: Bool) ->
-    \(isExternal: Bool) -> {
-        location = {dirName, isShared, isExternal},
-        config = P.JSON.null,
-        compileScss = False,
-        scssModuleDeps = empty T.ModuleLocation,
-    }
-: T.ModuleValue
+-- Use dir-name as key. Implicit assumption: dir-names are unique.
+let bareModuleListToMap =
+    \(modules: List T.BareModule) ->
+    map T.BareModule (Entry Text T.BareModule) (\(m: T.BareModule) -> { mapKey = (T.bareModuleToLocation m).dirName, mapValue = m }) modules
+: P.Map.Type Text T.BareModule
 
-let makeModules = 
-    \(isShared: Bool) ->
-    \(isExternal: Bool) ->
-    \(names: List Text) ->
-    map Text T.ModuleValue (\(n: Text) -> {
-        location = {dirName = n, isShared, isExternal},
-        config = P.JSON.null,
-        compileScss = False,
-        scssModuleDeps = empty T.ModuleLocation,
-    })
-    names
-: List T.ModuleValue
-
+-- Use dir-name as key. Implicit assumption: dir-names are unique.
 let moduleListToMap =
-    \(modules: List T.ModuleValue) ->
-    map T.ModuleValue (Entry Text T.ModuleValue) (\(m: T.ModuleValue) -> { mapKey = m.location.dirName, mapValue = m }) modules
-: P.Map.Type Text T.ModuleValue
+    \(modules: List T.Module) ->
+    map T.Module (Entry Text T.Module) (\(m: T.Module) -> { mapKey = (T.bareModuleToLocation m.bare).dirName, mapValue = m }) modules
+: P.Map.Type Text T.Module
 
 let makeDbModuleFromDockerDb =
     \(db: T.DockerDb) -> {
-    , location = { dirName = "db", isShared = True, isExternal = False }
-    , config =
-        P.JSON.object [
-            , { mapKey = "host"    , mapValue = P.JSON.string "db" }
-            , { mapKey = "user"    , mapValue = P.JSON.string db.user }
-            , { mapKey = "password", mapValue = P.JSON.string db.userPassword }
-        ]
-    , compileScss = False
-    , scssModuleDeps = P.List.empty T.ModuleLocation
+        , bare = T.BareModule.Db {=}
+        , compileScss = False
+        , config =
+            P.JSON.object [
+                , { mapKey = "host"    , mapValue = P.JSON.string "db" }
+                , { mapKey = "user"    , mapValue = P.JSON.string db.user }
+                , { mapKey = "password", mapValue = P.JSON.string db.userPassword }
+            ]
     }
-: T.ModuleValue
+: T.Module
 
 let makeDbModuleFromServerDb =
     \(db: T.ServerDb) -> {
-    , location = { dirName = "db", isShared = True, isExternal = False }
-    , config =
-        P.JSON.object [
-            , { mapKey = "host"    , mapValue = P.JSON.string db.host }
-            , { mapKey = "user"    , mapValue = P.JSON.string db.user }
-            , { mapKey = "password", mapValue = P.JSON.string db.password }
-        ]
-    , compileScss = False
-    , scssModuleDeps = P.List.empty T.ModuleLocation
+        , bare = T.BareModule.Db {=}
+        , compileScss = False
+        , config =
+            P.JSON.object [
+                , { mapKey = "host"    , mapValue = P.JSON.string db.host }
+                , { mapKey = "user"    , mapValue = P.JSON.string db.user }
+                , { mapKey = "password", mapValue = P.JSON.string db.password }
+            ]
     }
-: T.ModuleValue
+: T.Module
 
-let moduleValueToModule =
-    \(m: T.ModuleValue) -> { name = m.location.dirName, config = m.config }
+let makeLocalBareModuleWithoutDeps =
+    \(dirName: Text) ->
+    \(isExternal: Bool) -> {
+        , location = {
+            , dirName
+            , isExternal
+        }
+        , scssModuleDeps = P.List.empty T.ModuleLocation
+    }
+: T.LocalBareModule
 
 
 -------------------------
@@ -241,6 +230,16 @@ let makeDefaultDesktopIntegration =
     }
 : T.DesktopIntegration
 
+let defaultUnsafeAuthentication = {
+    , loginWithoutUserName = True
+    , users2passwords = [
+        , assignUser2Password "root"        "rutus"
+        , assignUser2Password "preprocess"  "preprocess"
+        , assignUser2Password "linkchecker" "linkchecker"
+    ]
+}
+
+-- The db module is added automatically.
 let makeDefaultDockerNginxDepl = 
     \(name: Text) ->
     \(conjinDir: Text) ->
@@ -249,8 +248,17 @@ let makeDefaultDockerNginxDepl =
     \(authentication: T.Authentication) ->
     \(authorization: T.Authorization) ->
     \(db: Optional T.DockerDb) ->
-    \(mainTemplate: T.Module) ->
-    \(modules: List T.ModuleValue) ->
+    \(localBareModules: List T.LocalBareModule) ->  -- All local bare modules
+    \(modules: List T.Module) ->                    -- Only modules that are specially configured
+    let localBareModulesWrapped =
+        P.List.map T.LocalBareModule T.BareModule (\(m: T.LocalBareModule) -> T.BareModule.LocalBareModule m) localBareModules
+    let modulesWithDbModule = merge {
+        , None = modules
+        , Some = \(db: T.DockerDb) -> modules # [makeDbModuleFromDockerDb db]
+    } db
+
+    in
+
     {
         depl = {
             , name
@@ -260,7 +268,8 @@ let makeDefaultDockerNginxDepl =
             , targetDir            = makeDefaultTargetDir deplDir
             , authentication
             , authorization
-            , modules              = moduleListToMap modules
+            , bareModules          = bareModuleListToMap (T.sharedBareModules # localBareModulesWrapped)
+            , modules              =     moduleListToMap modulesWithDbModule
             , desktopIntegration   = makeDefaultDesktopIntegration name
         }
       , nginxVirtualHost  = name ++ ".localhost"
@@ -281,12 +290,15 @@ let makeDefaultDockerSyncDepl =
     \(authentication: T.Authentication) ->
     \(authorization: T.Authorization) ->
     \(db: Optional T.ServerDb) ->
-    \(mainTemplate: T.Module) ->
-    \(modules: List T.ModuleValue) ->
+    \(localBareModules: List T.LocalBareModule) ->
+    \(modules: List T.Module) ->
     \(host: Text) ->
     \(pathBase: Text) ->
     \(urlBase: Text) ->
     \(rcloneRemote: T.RCloneRemote) ->
+    let localBareModulesWrapped =
+        P.List.map T.LocalBareModule T.BareModule (\(m: T.LocalBareModule) -> T.BareModule.LocalBareModule m) localBareModules in
+
     {
         depl = {
             , name                 = name
@@ -296,7 +308,8 @@ let makeDefaultDockerSyncDepl =
             , targetDir            = makeDefaultTargetDir deplDir
             , authentication
             , authorization
-            , modules              = moduleListToMap modules
+            , bareModules          = bareModuleListToMap (T.sharedBareModules # localBareModulesWrapped)
+            , modules              = moduleListToMap     modules
             , desktopIntegration   = makeDefaultDesktopIntegration name
         }
         , host
@@ -330,15 +343,15 @@ in {
     , denyCustomActionToGroup
     , denyCustomActionToUser
 
-    , makeModule
-    , makeModules
     , moduleListToMap
     , makeDbModuleFromDockerDb
     , makeDbModuleFromServerDb
-    , moduleValueToModule
+    , makeLocalBareModuleWithoutDeps
+
+    , defaultUnsafeAuthentication
 
     , makeDefaultDockerDb
-    , makeDefaultDockerSyncDepl
 
     , makeDefaultDockerNginxDepl
+    , makeDefaultDockerSyncDepl
 }

@@ -55,4 +55,14 @@
 
         return $defs[$def_name](...$args);
     }
+
+    function load_def_from_script_and_get(string $script_path, string $def_name): mixed {
+        assert(file_exists($script_path), "Missing file `$script_path`");
+
+        $defs = load_defs_from_script($script_path);
+
+        assert(isset($defs[$def_name]), "Missing definition of `\$$def_name` in file `$script_path`");
+
+        return $defs[$def_name];
+    }
 ?>

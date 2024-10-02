@@ -65,7 +65,7 @@ let makeModuleTargetCssDir =
 : Text
 
 let moduleToString =
-    \(m: T.ModuleValue) -> m.location.dirName ++ (if m.location.isShared then "-shared" else "-local")
+    \(m: T.Module) -> (T.bareModuleToLocation m.bare).dirName ++ (if (T.bareModuleToLocation m.bare).isShared then "-shared" else "-local")
 : Text
 
 
@@ -75,19 +75,22 @@ let makeAppVols =
     \(targetDir:      Text) ->
     \(appDir:         Text) ->
     \(conjinDir:      Text) ->
-    \(modules:        P.Map.Type Text T.ModuleValue) ->
+    \(bareModules:    P.Map.Type Text T.BareModule) ->
+    \(modules:        P.Map.Type Text T.Module) ->
     \(preprocessDir:  Bool) ->
 
     let htdocsDir = "/files/htdocs"
 
     let makeModuleVol =
-        \(m: T.ModuleValue) ->
-        makeReadonlyVol (makeModuleSourceDir conjinDir appDir m.location) (makeModuleDir htdocsDir (None Text) m.location)
+        \(m: T.BareModule) ->
+        let location = T.bareModuleToLocation m in
+        makeReadonlyVol (makeModuleSourceDir conjinDir appDir location) (makeModuleDir htdocsDir (None Text) location)
 
     let makeModuleCssVol =
-        \(m: T.ModuleValue) ->
+        \(m: T.Module) ->
+        let location = T.bareModuleToLocation m.bare in
         if m.compileScss
-            then Some (makeReadonlyVol (makeModuleTargetCssDir targetDir m.location) (makeModuleDir htdocsDir (Some "css") m.location))
+            then Some (makeReadonlyVol (makeModuleTargetCssDir targetDir location) (makeModuleDir htdocsDir (Some "css") location))
             else None Compose.ServiceVolume
 
     let preprocessVol =
@@ -103,12 +106,12 @@ let makeAppVols =
 
         , makeReadonlyVol (targetDir ++ "/htdocs/.htaccess")        (htdocsDir ++ "/.htaccess")
         , makeReadonlyVol (targetDir ++ "/htdocs/config.json")      (htdocsDir ++ "/config.json")
-        , makeReadonlyVol (targetDir ++ "/htdocs/users.json")      (htdocsDir ++ "/users.json")
+        , makeReadonlyVol (targetDir ++ "/htdocs/users.json")       (htdocsDir ++ "/users.json")
     ]
     #
-    map T.ModuleValue Compose.ServiceVolume makeModuleVol (P.Map.values Text T.ModuleValue modules)
+    map T.BareModule Compose.ServiceVolume makeModuleVol (P.Map.values Text T.BareModule bareModules)
     #
-    unpackOptionals Compose.ServiceVolume (map T.ModuleValue (Optional Compose.ServiceVolume) makeModuleCssVol (P.Map.values Text T.ModuleValue modules))
+    unpackOptionals Compose.ServiceVolume (map T.Module (Optional Compose.ServiceVolume) makeModuleCssVol (P.Map.values Text T.Module modules))
     #
     unpackOptionals Compose.ServiceVolume [preprocessVol]
 : List Compose.ServiceVolume
@@ -188,20 +191,23 @@ let makeTemplateSassWatcher =
     \(targetDir: Text) ->
     \(conjinDir: Text) ->
     \(appDir:    Text) ->
-    \(template:  T.ModuleValue) ->
+    \(template:  T.Module) ->
 
-    let moduleSassVol = makeReadonlyVol (makeModuleSourceDir conjinDir appDir template.location ++ "/scss") "/sass"
-    let moduleCssVol  = makeVol         (makeModuleTargetCssDir targetDir template.location)                "/css"
+    let location = T.bareModuleToLocation template.bare
+    let scssDeps = T.bareModuleToScssDeps template.bare
+
+    let moduleSassVol = makeReadonlyVol (makeModuleSourceDir conjinDir appDir location ++ "/scss") "/sass"
+    let moduleCssVol  = makeVol         (makeModuleTargetCssDir targetDir location)                "/css"
 
     let makeModuleDependencyVol = 
         \(m: T.ModuleLocation) -> makeReadonlyVol (makeModuleSourceDir conjinDir appDir m ++ "/scss") (makeModuleDir   "" (None Text) m ++ "/scss")
 
     let volumes = [moduleSassVol, moduleCssVol] #
-                  (map T.ModuleLocation Compose.ServiceVolume makeModuleDependencyVol template.scssModuleDeps)
+                  (map T.ModuleLocation Compose.ServiceVolume makeModuleDependencyVol scssDeps)
     let moduleDependencyLoadPaths =
         map T.ModuleLocation Text
         (\(m: T.ModuleLocation) -> "--load-path=" ++ (makeModuleDir "" (None Text) m ++ "/scss"))
-        template.scssModuleDeps
+        scssDeps
     in
 
     Compose.Service::{
@@ -222,16 +228,19 @@ let makeTemplateSassCompilation =
     \(targetDir: Text) ->
     \(conjinDir: Text) ->
     \(appDir:    Text) ->
-    \(template:  T.ModuleValue) ->
+    \(template:  T.Module) ->
 
-    let moduleSassVol = makeReadonlyVol (makeModuleSourceDir conjinDir appDir template.location ++ "/scss") "/sass"
-    let moduleCssVol  = makeVol         (makeModuleTargetCssDir targetDir template.location)                "/css"
+    let location = T.bareModuleToLocation template.bare
+    let scssDeps = T.bareModuleToScssDeps template.bare
+
+    let moduleSassVol = makeReadonlyVol (makeModuleSourceDir conjinDir appDir location ++ "/scss") "/sass"
+    let moduleCssVol  = makeVol         (makeModuleTargetCssDir targetDir location)                "/css"
 
     let makeModuleDependencyVol = 
         \(m: T.ModuleLocation) -> makeReadonlyVol (makeModuleSourceDir conjinDir appDir m ++ "/scss") (makeModuleDir   "" (None Text) m ++ "/scss")
 
     let volumes = [moduleSassVol, moduleCssVol] #
-                  (map T.ModuleLocation Compose.ServiceVolume makeModuleDependencyVol template.scssModuleDeps)
+                  (map T.ModuleLocation Compose.ServiceVolume makeModuleDependencyVol scssDeps)
     in
 
     Compose.Service::{
@@ -252,26 +261,31 @@ let makeDockerNginxDeplConfig =
     \(config: T.DockerNginxDepl) ->
 
     -- Add db module for docker db if it is used
-    let modules = merge {
-        , None = config.depl.modules
-        , Some = \(db: T.DockerDb) -> config.depl.modules # [{mapKey = "db", mapValue = 
-            {
-                location = {dirName = "db", isShared = True, isExternal = False},
-                config = P.JSON.object [
-                    , { mapKey = "host"     , mapValue = P.JSON.string "db" }
-                    , { mapKey = "user"     , mapValue = P.JSON.string db.user }
-                    , { mapKey = "password" , mapValue = P.JSON.string db.userPassword }
-                ],
-                compileScss = False,
-                scssModuleDeps = empty T.ModuleLocation,
-            }}]
-    } config.db
+    -- let modules = merge {
+    --     , None = config.depl.modules
+    --     , Some = \(db: T.DockerDb) -> config.depl.modules # [{mapKey = "db", mapValue = 
+    --         {
+    --             withDeps = {
+    --                 location = {dirName = "db", isShared = True, isExternal = False},
+    --                 scssModuleDeps = empty T.ModuleLocation,
+    --             },
+    --             config = P.JSON.object [
+    --                 , { mapKey = "host"     , mapValue = P.JSON.string "db" }
+    --                 , { mapKey = "user"     , mapValue = P.JSON.string db.user }
+    --                 , { mapKey = "password" , mapValue = P.JSON.string db.userPassword }
+    --             ],
+    --             compileScss = False,
+    --         }}]
+    -- } config.db
+    -- TODO
+    -- let modules = config.depl.modules
 
     let appVols = makeAppVols
                     config.depl.targetDir
                     config.depl.appDir
                     config.depl.conjinDir
-                    modules
+                    config.depl.bareModules
+                    config.depl.modules
                     False
 
     -- Define Services
@@ -295,15 +309,15 @@ let makeDockerNginxDeplConfig =
     } config.db
 
     let templateSassWatchers =
-        filterMap T.ModuleValue (Entry Text Compose.Service.Type)
-            (\(m: T.ModuleValue) ->
+        filterMap T.Module (Entry Text Compose.Service.Type)
+            (\(m: T.Module) ->
                 if m.compileScss then
                     Some (keyValue Compose.Service.Type
                         ("sass-watch-" ++ (moduleToString m))
                         (makeTemplateSassWatcher config.depl.targetDir config.depl.conjinDir config.depl.appDir m))
                 else
                     None (Entry Text Compose.Service.Type))
-            (P.Map.values Text T.ModuleValue config.depl.modules)
+            (P.Map.values Text T.Module config.depl.modules)
 
 
     -- Wrap up
@@ -329,40 +343,44 @@ let makeDockerSyncDeplConfig =
     \(config: T.DockerSyncDepl) ->
 
     -- Add db module for server db if it is used
-    let modules = merge {
-        , None = config.depl.modules
-        , Some = \(db: T.ServerDb) -> config.depl.modules # [{mapKey = "db", mapValue =
-        {
-            location = {dirName = "db", isShared = True, isExternal = False},
-            config = P.JSON.object [
-                , { mapKey = "host"     , mapValue = P.JSON.string "localhost" }
-                , { mapKey = "user"     , mapValue = P.JSON.string db.user }
-                , { mapKey = "password" , mapValue = P.JSON.string db.password }
-            ],
-            compileScss = False,
-            scssModuleDeps = empty T.ModuleLocation,
-        }}]
-    } config.db
+    -- let modules = merge {
+    --     , None = config.depl.modules
+    --     , Some = \(db: T.ServerDb) -> config.depl.modules # [{mapKey = "db", mapValue =
+    --     {
+    --         withDeps = {
+    --             location = {dirName = "db", isShared = True, isExternal = False},
+    --             scssModuleDeps = empty T.ModuleLocation,
+    --         },
+    --         config = P.JSON.object [
+    --             , { mapKey = "host"     , mapValue = P.JSON.string "localhost" }
+    --             , { mapKey = "user"     , mapValue = P.JSON.string db.user }
+    --             , { mapKey = "password" , mapValue = P.JSON.string db.password }
+    --         ],
+    --         compileScss = False,
+    --     }}]
+    -- } config.db
+    -- TODO
 
     let appVols = makeAppVols
                     config.depl.targetDir
                     config.depl.appDir
                     config.depl.conjinDir
+                    config.depl.bareModules
                     config.depl.modules
                     True
 
     -- Define Services
 
     let templateSassCompilations =
-        filterMap T.ModuleValue (Entry Text Compose.Service.Type)
-            (\(m: T.ModuleValue) ->
+        filterMap T.Module (Entry Text Compose.Service.Type)
+            (\(m: T.Module) ->
                 if m.compileScss then
                     Some (keyValue Compose.Service.Type
                         ("sass-compile-" ++ (moduleToString m))
                         (makeTemplateSassCompilation config.depl.targetDir config.depl.conjinDir config.depl.appDir m))
                 else
                     None (Entry Text Compose.Service.Type))
-            (P.Map.values Text T.ModuleValue config.depl.modules)
+            (P.Map.values Text T.Module config.depl.modules)
     : P.Map.Type Text Compose.Service.Type
     
     let templateSassCompilationServices =
@@ -452,7 +470,8 @@ let makeDockerNginxConfigFiles =
                 url_base = "/",
                 authentication = stripPasswordsOffAuthentication config.depl.authentication,
                 authorization = config.depl.authorization,
-                modules = config.depl.modules,
+                module_2_location = P.Map.map Text T.BareModule T.ModuleLocation T.bareModuleToLocation config.depl.bareModules,
+                module_2_config = P.Map.map Text T.Module P.JSON.Type (\(m: T.Module) -> m.config) config.depl.modules,
             }
             : T.ConfigJsonFileT
     }
@@ -470,7 +489,8 @@ let makeDockerSyncConfigFiles =
                 url_base = config.urlBase,
                 authentication = stripPasswordsOffAuthentication config.depl.authentication,
                 authorization = config.depl.authorization,
-                modules = config.depl.modules,
+                module_2_location = P.Map.map Text T.BareModule T.ModuleLocation T.bareModuleToLocation config.depl.bareModules,
+                module_2_config = P.Map.map Text T.Module P.JSON.Type (\(m: T.Module) -> m.config) config.depl.modules,
             }
             : T.ConfigJsonFileT
     }

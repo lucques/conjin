@@ -21,10 +21,13 @@ Less advanced than `preprocess_target_root`. See also next section.
 
 The resulting `Target` obj is a tree representation of the whole content, with each node containing meta data such as title, activated modules and more.
 
-The whole `content` directory tree is traversed top-down according to `add_subpage` calls. For each target file (i.e. `index.php`), there is one call to the **recursive** `preprocess_all_rec: PreprocessingContext -> Target` function:
+The whole `content` directory tree is traversed top-down according to `add_subpage` calls. For each target (represented by its own dir), there is one call to the **recursive** `preprocess_all_rec: PreprocessingContext -> Target` function:
 1. Start with a fresh `PreprocessingContext` obj.
     - Status: `CONSTRUCTED`.
-3. Include the `index.php` and retrieve the `$preprocess SysletPreprocessContext -> ()` function. Execute it.
+2. Retrieve the `preprocess SysletPreprocessContext -> ()` function from either
+    1. `index.php` or
+    2. `system/target_default.php`
+    Execute it.
     - Gets provided with the `PreprocessingContext` obj which offers:
         - Add preprocessors via `add_preprocessor`
         - Add sub-targets via `add_subpage`
@@ -33,10 +36,10 @@ The whole `content` directory tree is traversed top-down according to `add_subpa
         - Activate template via `activate_template`
         - Run preprocessing macros via `run_macro`
     - Status: `PASSED_THROUGH`
-5. Recurse on children (create child-context and run `preprocess`)
+3. Recurse on children (create child-context and run `preprocess`)
     - Status: `RECURSED`
-6. For each `Preprocessor` obj:
+4. For each `Preprocessor` obj:
     - Execute its `finish: dict<string, PreprocessingContext> -> ()` function which gets provided the child-contexts (which are already `DONE`).
     - Status: `FINISHED_PREPROCESSORS`
-7. Produce `Target` obj and fill `parent` obj of children
+5. Produce `Target` obj and fill `parent` obj of children
     - Status: `DONE`
