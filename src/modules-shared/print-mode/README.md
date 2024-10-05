@@ -11,7 +11,8 @@ Activating this module for a target will add the toggle button to the page if th
 - Functions:
     - Custom page flow:
         - `page_start`, `page_end`, `page_break` functions
-    - `css_print_mode_start` and `css_print_mode_end`:
+    - CSS just for print mode:
+        - `css_print_mode_start` and `css_print_mode_end`
         - Work like `css_start` and `css_end` but only when print mode is on
 
 
@@ -30,6 +31,13 @@ Activating this module for a target will add the toggle button to the page if th
 ## How to support this module
 If a template supports this module, it should:
 - Render some sort of toggle-button
+- CSS: Provide distinction:
+    - "normal-mode" (non-print-mode), there is usually
+        - `screen.scss`
+        - `print.scss`.
+    - When print mode is on, it may make sense to provide:
+        - `print-mode-screen.scss`
+        - `print-mode-print.scss` (this one is usually the same as `print.scss`)
 - Make sure the DOM is prepared as follows:
     - DOM should have this form:
     ```html
@@ -43,9 +51,9 @@ If a template supports this module, it should:
         </main>
     </div>
     ```
-    - Initial `page_start` automatically inserted
-    - Final `page_end` automatically inserted
-    - `page_break`s by user
+    - Initial `page_start` should be automatically inserted
+    - Final `page_end` should be automatically inserted
+    - `page_break`s should be given by user
 
 
 ## Design and Layout

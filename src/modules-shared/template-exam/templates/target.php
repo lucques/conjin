@@ -1,19 +1,11 @@
 <?
     $render_target = function(Module $template, Target $target, string $content, array $placeholders_overrides = []) {
 
-        //////////////////////
-        // Determine titles //
-        //////////////////////
+        //////////////////////////
+        // Prepare placeholders //
+        //////////////////////////
 
-        $title_for_logo =
-            $target->has_activated_module('title')
-            ? get_top_level_html_title()
-            : 'Unbenannt';
-        $title_for_head = $target->id ?? 'Unbenannt';        
-        $title_for_h1 =
-            $target->has_activated_module('title')
-            ? implode(' » ', get_html_titles(true))
-            : ($target->id ?? 'Unbenannt');
+        $title_for_head = $target->id ?? 'Unbenannt';
 
         $date_str = $template->config->get('date_default');
         $date = iso_to_date(substr($target->id, 0, 10));
@@ -22,9 +14,9 @@
         }
     
 
-        //////////////////////////
-        // Prepare placeholders //
-        //////////////////////////
+        ///////////////////////
+        // Make placeholders //
+        ///////////////////////
 
         $placeholders_default = [
             'institution'  => $template->config->get('institution'),
@@ -39,25 +31,9 @@
         // Prepare sub-template `template-navigable` //
         ///////////////////////////////////////////////
 
-        $res_module = $template->config->get('res_module') === null
-        ? $template
-        : new ModuleLocation($template->config->get('res_module'));
-        
-        $placeholders_for_subtemplate_default = [
-            'css_url'                         => $template->get_css_url(),
-            'logo_url'                        => $res_module->get_url() . '/res/logo/logo.png',
-
-            'title_for_logo'                  => $title_for_logo,
-            'title_for_head'                  => $title_for_head,
-
-            'use_img_as_logo'                 => $template->config->get('use_img_as_logo'),
-            'link_logo_to_home'               => $template->config->get('link_logo_to_home'),
-            'nav_show_top_level'              => $template->config->get('nav_show_top_level'),
-            'nav_active_sidebar_by_default'   => $template->config->get('nav_active_sidebar_by_default'),
-            'nav_reduce_by_default'           => $template->config->get('nav_reduce_by_default'),
-            'nav_reduce_toggleable_with_ctrl' => $template->config->get('nav_reduce_toggleable_with_ctrl'),
-        ];
+        $placeholders_for_subtemplate_default = $template->load_def_from_script_and_call('templates/inc/default_placeholders_for_subtemplate.php', 'default_placeholders', $template, $title_for_head);
         $placeholders_for_subtemplate = array_merge($placeholders_for_subtemplate_default, $placeholders_overrides);
+
         $sub_template = $target->activated_modules['template-navigable'];
         
 

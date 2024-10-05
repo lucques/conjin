@@ -1,7 +1,8 @@
 FROM php:8.3.4-apache
 
-RUN apt-get update && apt-get install -y libgmp-dev
-RUN docker-php-ext-install mysqli gmp
+RUN apt-get update && \
+    apt-get install -y libgmp-dev libcurl4-openssl-dev
+RUN docker-php-ext-install mysqli gmp curl
 RUN a2enmod rewrite
 
 COPY ./custom.ini /usr/local/etc/php/conf.d/custom.ini

@@ -1,7 +1,11 @@
 // All functionality for folding & unfolding the nav
 
-#nav {  
-  .nav-item {
+#sidebar-nav-tree {  
+  .breadcrumb {
+    margin-top:0;
+  }
+
+  li {
     display:flex;
   }
 
@@ -46,11 +50,11 @@
     cursor:pointer;
   }
 
-  .nested > .content > ul {
+  .nested > .nav-tree-item > ul {
     display:none;
   }
 
-  .nested.unfolded > .content > ul {
+  .nested.unfolded > .nav-tree-item > ul {
     display:block;
   }
 }

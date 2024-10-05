@@ -274,10 +274,14 @@
         if (isset($defs['preprocess'])) {
             load_def_from_script_and_call($script_path, 'preprocess', $c);
         }
-        // Else, use default
+        // Else if defined, use default
         else {
             $script_path = path('system/target_default.php');
-            load_def_from_script_and_call($script_path, 'preprocess', $c);
+            $defs = load_defs_from_script($script_path);
+
+            if (isset($defs['preprocess'])) {
+                load_def_from_script_and_call($script_path, 'preprocess', $c);
+            }
         }
 
         // If content exists, template must have been set

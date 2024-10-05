@@ -790,6 +790,7 @@ class ValueTable {
         return 'value-table-' + this.divId + '-' + expId + '-' + chunkId;
     }
 
+    // Must only be called after Mathjax etc. is loaded
     rerender() {
         MathJax.typeset();
         setupSyncWidths();

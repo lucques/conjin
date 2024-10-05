@@ -1,5 +1,5 @@
 <?
-    function process_login(Syslet $syslet, bool $logout_successful, bool $password_incorrect) {
+    function process_login(Syslet $syslet, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names) {
 
         // Init modules
         foreach ($syslet->activated_modules as $name => $module) {
@@ -9,7 +9,7 @@
         }
 
         // Render
-        $syslet->get_template()->render_login($syslet, $logout_successful, $password_incorrect);
+        $syslet->get_template()->render_login($syslet, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names);
     }
 
     function process_not_found(Syslet $syslet, ?array $target_ids) {

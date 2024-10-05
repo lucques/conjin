@@ -5,11 +5,14 @@
         // Prepare placeholders //
         //////////////////////////
 
-        $placeholders_default = [
-            'css_url'        => $template->get_css_url(),
-            
-            'title_for_head' => 'Nicht gefunden',
-        ];
+        $title_for_head = 'Nicht gefunden';
+
+
+        ///////////////////////
+        // Make placeholders //
+        ///////////////////////
+
+        $placeholders_default = $template->load_def_from_script_and_call('templates/inc/default_placeholders.php', 'default_placeholders', $template, $title_for_head);
         $placeholders = array_merge($placeholders_default, $placeholders_overrides);
         
         

@@ -1,60 +1,32 @@
 <?
-    ////////////
-    // Config //
-    ////////////
-
-
-    // Stateless wrapper for a nested assoc array
-    class ConfigTree {
-        function __construct(public readonly array $root) {}
-
-        function get(...$path) {
-            $config = $this->root;
-            foreach ($path as $key) {
-                $config = $config[$key];
-            }
-            return $config;
-        }
-    
-        function isset(...$path) {
-            $config = $this->root;
-            foreach ($path as $key) {
-                if (!isset($config[$key])) {
-                    return false;
-                }
-                $config = $config[$key];
-            }
-            return true;
-        }
-        
-        function get_or_default(array $path, $default) {
-            if ($this->isset(...$path)) {
-                return $this->get(...$path);
-            }
-            else {
-                return $default;
-            }
-        }
-    }
-    
-
     //////////////////
     // Semantic IDs //
     //////////////////
 
     // Take a title and return a semantic id, i.e. in kebab case
     function kebabize($title): string {
+        // Lowercase
         $slug = strtolower($title);
 
-        // Umlauts and sharp s
+        // Remove HTML tags
+        $slug = strip_tags($slug);
+
+        // Remove special characters like &shy;
+        $slug = preg_replace('/&[a-z]+;/', '', $slug);
+
+        // Replace umlauts and sharp s
         $slug = str_replace('ä', 'ae', $slug);
         $slug = str_replace('ö', 'oe', $slug);
         $slug = str_replace('ü', 'ue', $slug);
         $slug = str_replace('ß', 'ss', $slug);
 
+        // Replace any other characters by `-`
         $slug = preg_replace('/[^a-z0-9]/', '-', $slug);
+        // Replace multiple `-` by single `-`
         $slug = preg_replace('/-+/', '-', $slug);
+        // Remove leading and trailing `-`
         $slug = trim($slug, '-');
+
         return $slug;
     }
 
@@ -135,13 +107,29 @@
     // Date and time //
     ///////////////////
 
-    // By "date" we mean a date without time
+    // Definitions:
+    // - `iso_date`:  E.g. `2024-12-21`: A date in the format `YYYY-MM-DD`, following the ISO 8601 standard
+    // - `iso_month`: E.g. `2024-12`: Possibly negative year, followed by a month, e.g. `-123-12` which stands for December of the year 123 BC
+    // - `iso_year`:  E.g. `2024`: Possibly negative year, with an unbounded number of digits, e.g. `-123` which stands for the year 123 BC
+
+    function is_iso_year(string $string): bool {
+        return preg_match('/^-?\d{1,}$/', $string) === 1;
+    }
+
+    function is_iso_month(string $string): bool {
+        return preg_match('/^-?\d{1,}-\d{1,2}$/', $string) === 1;
+    }
+
+    function is_iso_date(string $string): bool {
+        return preg_match('/^-?\d{1,}-\d{1,2}-\d{1,2}$/', $string) === 1;
+    }
+
     function date_to_iso(DateTimeInterface $date): string {
         return $date->format('Y-m-d');
     }
 
-    function assert_iso_date(string $date_iso) {
-        assert(DateTimeImmutable::createFromFormat('Y-m-d', $date_iso) !== false, 'Invalid date format');
+    function assert_iso_date(string $string) {
+        assert(is_iso_date($string), 'Invalid date format');
     }
 
     function iso_to_date(string $date_iso): ?DateTimeImmutable {
@@ -150,6 +138,38 @@
             return null;
         }
         return $date;
+    }
+
+    // $date must be either an iso date, iso month, or iso year
+    function floor_to_iso_date(string $date): string {
+        if (is_iso_year($date)) {
+            return $date . '-01-01';
+        }
+        elseif (is_iso_month($date)) {
+            return $date . '-01';
+        }
+        elseif (is_iso_date($date)) {
+            return $date;
+        }
+        else {
+            throw new Exception('Invalid date format');
+        }
+    }
+
+    // $date must be either an iso date, iso month, or iso year
+    function ceil_to_iso_date(string $date): string {
+        if (is_iso_year($date)) {
+            return $date . '-12-31';
+        }
+        elseif (is_iso_month($date)) {
+            return $date . '-' . date('t', strtotime($date . '-01'));
+        }
+        elseif (is_iso_date($date)) {
+            return $date;
+        }
+        else {
+            throw new Exception('Invalid date format');
+        }
     }
 
 

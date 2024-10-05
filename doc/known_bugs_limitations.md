@@ -1,2 +1,2 @@
 # Not yet implemented
-- Option `loginWithoutUserName` is ignored and always set to `true`
+- Option `staticLoginWithoutUserName` is ignored and always set to `true`

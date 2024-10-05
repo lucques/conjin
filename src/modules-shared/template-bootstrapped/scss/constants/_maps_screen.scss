@@ -1,4 +1,4 @@
-$color-extensions: (
+$color-extensions-predefined: (
   "orange": (
     "main":          $orange-700,
     "text":          $orange-600,
@@ -18,3 +18,10 @@ $color-extensions: (
     "border-subtle": $blue-200
   ),
 );
+
+@if global-variable-exists(color-extensions) {
+  $color-extensions: map-merge($color-extensions, $color-extensions-predefined) !global;
+}
+@else {
+  $color-extensions: $color-extensions-predefined !global;
+}

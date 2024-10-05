@@ -32,7 +32,8 @@
     // [
     //     'type' => 'item',
     //     'id_numeric' => $GLOBALS['acc_next_id_numeric'],
-    //     'id_extra' => 'some-special-id'      (optional)
+    //     'id_extra' => 'some-special-id'      (optional),
+    //     'hidden' => $hidden,
     // ]
 
 
@@ -40,9 +41,12 @@
     // Core //
     //////////
 
-    function acc_start($variant = null, $only_one_open = false, $id = null, $class = '', $style = '') {
+    // Parameter `$custom_color`: If to use another color outside of the variants as described in `README.md`
+    function acc_start($variant = null, $custom_color = null, $only_one_open = false, $id = null, $class = '', $style = '') {
         // If there is already a last element, it must not be of type 'acc'
         assert(count($GLOBALS['acc_stack']) == 0 || end($GLOBALS['acc_stack'])['type'] != 'acc', 'An accordion set is already started');
+        // `$variant` and `$custom_color` must not be set together
+        assert($variant === null || $custom_color === null, 'Variant and custom color cannot be set together');
 
         // Push on stack
         $cur = [
@@ -58,7 +62,7 @@
 
         $html_accordion_id = acc_aux_get_html_id($GLOBALS['acc_stack']);
 ?>
-    <div id="<?= $html_accordion_id ?>" class="accordion<? if ($variant !== null) { echo ' accordion-' . variant_to_color($variant); } if ($class != '') { echo ' ' . $class; } ?>"<?= $style != '' ? ' style="' . $style . '"' : '' ?>>
+    <div id="<?= $html_accordion_id ?>" class="accordion<? if ($variant !== null) { echo ' accordion-' . variant_to_color($variant); } elseif ($custom_color !== null) { echo ' accordion-' . $custom_color; } if ($class != '') { echo ' ' . $class; } ?>"<?= $style != '' ? ' style="' . $style . '"' : '' ?>>
 <?
     }
 
@@ -76,9 +80,13 @@
 <?
     }
 
-    function acc_item_start($title, $variant = null, $open = false, $id = null, $class = '', $style = '') {
+    // Parameter `$custom_color`: If to use another color outside of the variants as described in `README.md`
+    function acc_item_start($title, $variant = null, $custom_color = null, $hidden = false, $open = false, $id = null, $class = '', $style = '') {
         // The last element must be of type 'acc'
         assert(count($GLOBALS['acc_stack']) > 0 && end($GLOBALS['acc_stack'])['type'] == 'acc', 'No accordion set started');
+        // `$variant` and `$custom_color` must not be set together
+        assert($variant === null || $custom_color === null, 'Variant and custom color cannot be set together');
+
 
         $html_accordion_id = acc_aux_get_html_id($GLOBALS['acc_stack']);
         $accordion_only_one_open = end($GLOBALS['acc_stack'])['only_one_open'];
@@ -87,6 +95,7 @@
         $cur = [
             'type' => 'item',
             'id_numeric' => $GLOBALS['acc_next_id_numeric'],
+            'hidden' => $hidden,
         ];
         if ($id !== null) { $cur['id_extra'] = $id; }
         $GLOBALS['acc_stack'][] = $cur;
@@ -95,8 +104,13 @@
         $GLOBALS['acc_next_id_numeric'] = 0;
 
         $html_accordion_item_id = acc_aux_get_html_id($GLOBALS['acc_stack']);
+
+        if ($hidden) {
+            ob_start();
+        }
+        else {
 ?>
-        <div id="<?= $html_accordion_item_id ?>" class="accordion-item<? if ($variant !== null) { echo ' accordion-item-' . variant_to_color($variant); } if ($class != '') { echo ' ' . $class; } ?>"<?= $style != '' ? ' style="' . $style . '"' : '' ?>>
+        <div id="<?= $html_accordion_item_id ?>" class="accordion-item<? if ($variant !== null) { echo ' accordion-item-' . variant_to_color($variant); } elseif ($custom_color !== null) { echo ' accordion-item-' . $custom_color; } if ($class != '') { echo ' ' . $class; } ?>"<?= $style != '' ? ' style="' . $style . '"' : '' ?>>
             <span class="accordion-header" id="<?= $html_accordion_item_id . '-header' ?>">
                 <button class="accordion-button<? if (!$open) { echo ' collapsed'; } ?>" type="button" data-bs-toggle="collapse" data-bs-target="#<?= $html_accordion_item_id . '-collapse' ?>" aria-expanded="true" aria-controls="<?= $html_accordion_item_id . '-collapse' ?>">
                     <span><?= $title ?></span>
@@ -105,6 +119,7 @@
             <div id="<?= $html_accordion_item_id . '-collapse' ?>" class="accordion-collapse collapse<? if ($open) { echo ' show'; } ?>" aria-labelledby="<?= $html_accordion_item_id . '-header' ?>"<? if ($accordion_only_one_open) { echo ' data-bs-parent="#' . $html_accordion_id . '"'; } ?>>
                 <div class="accordion-body">
 <?
+        }
     }
 
     function acc_item_end() {
@@ -116,16 +131,25 @@
 
         // Update next id_numeric (track back)
         $GLOBALS['acc_next_id_numeric'] = $last_element['id_numeric'] + 1;
+
+        if ($last_element['hidden']) {
+            ob_end_clean();
+        }
+        else {
 ?>
                 </div>
             </div>
         </div>
 <?
+        }
     }
 
-    function acc_block_start($title = '', $variant = null, $bg_as_collapsed = false, $id = null, $class = '', $style = '') {
+    // Parameter `$custom_color`: If to use another color outside of the variants as described in `README.md`
+    function acc_block_start($title = '', $variant = null, $custom_color = null, $bg_as_collapsed = false, $id = null, $class = '', $style = '') {
         // The last item must be of type 'acc'
         assert(count($GLOBALS['acc_stack']) > 0 && end($GLOBALS['acc_stack'])['type'] == 'acc', 'No accordion set started');
+        // `$variant` and `$custom_color` must not be set together
+        assert($variant === null || $custom_color === null, 'Variant and custom color cannot be set together');
 
         // Push on stack
         $cur = [
@@ -140,7 +164,7 @@
 
         $html_accordion_block_id = acc_aux_get_html_id($GLOBALS['acc_stack']);
 ?>
-        <div id="<?= $html_accordion_block_id ?>" class="accordion-block<? if ($variant !== null) { echo ' accordion-block-' . variant_to_color($variant); } if ($class != '') { echo ' ' . $class; } ?>"<?= $style != '' ? ' style="' . $style . '"' : '' ?>>
+        <div id="<?= $html_accordion_block_id ?>" class="accordion-block<? if ($variant !== null) { echo ' accordion-block-' . variant_to_color($variant); } elseif ($custom_color !== null) { echo ' accordion-item-' . $custom_color; } if ($class != '') { echo ' ' . $class; } ?>"<?= $style != '' ? ' style="' . $style . '"' : '' ?>>
 <?
         if ($title != '') {
 ?>
@@ -169,8 +193,9 @@
 <?
     }
 
-    function acc_header_only($title, $variant = null, $bg_as_collapsed = false, $acc_id = null, $acc_class = '', $acc_style = '') {
-        acc_start(variant: $variant, id: $acc_id, class: $acc_class, style: $acc_style);
+    // Parameter `$custom_color`: If to use another color outside of the variants as described in `README.md`
+    function acc_header_only($title, $variant = null, $custom_color = null, $bg_as_collapsed = false, $acc_id = null, $acc_class = '', $acc_style = '') {
+        acc_start(variant: $variant, custom_color: $custom_color, id: $acc_id, class: $acc_class, style: $acc_style);
 ?>
             <span class="block-title border-bottom-0<?= $bg_as_collapsed ? ' collapsed' : '' ?>"><span><?= $title ?></span></span>
 <?
@@ -182,9 +207,9 @@
     // Shorthands //
     ////////////////
 
-    function acc_single_item_start($title, $variant = null, $open = false, $acc_id = null, $acc_class = null, $acc_style = null, $item_id = null, $item_class = '', $item_style = '') {
+    function acc_single_item_start($title, $variant = null, $custom_color = null, $open = false, $acc_id = null, $acc_class = null, $acc_style = null, $item_id = null, $item_class = '', $item_style = '') {
         acc_start(id: $acc_id, class: $acc_class, style: $acc_style);
-        acc_item_start($title, variant: $variant, open: $open, id: $item_id, class: $item_class, style: $item_style);
+        acc_item_start($title, variant: $variant, custom_color: $custom_color, open: $open, id: $item_id, class: $item_class, style: $item_style);
     }
 
     function acc_single_item_end() {
@@ -192,9 +217,9 @@
         acc_end();
     }
 
-    function acc_single_block_start($title = '', $variant = null, $acc_id = null, $acc_class = null, $acc_style = null, $block_id = null, $block_class = '', $block_style = '') {
+    function acc_single_block_start($title = '', $variant = null, $custom_color = null, $acc_id = null, $acc_class = null, $acc_style = null, $block_id = null, $block_class = '', $block_style = '') {
         acc_start(id: $acc_id, class: $acc_class, style: $acc_style);
-        acc_block_start($title, variant: $variant, id: $block_id, class: $block_class, style: $block_style);
+        acc_block_start($title, variant: $variant, custom_color: $custom_color, id: $block_id, class: $block_class, style: $block_style);
     }
 
     function acc_single_block_end() {

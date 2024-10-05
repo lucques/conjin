@@ -3,11 +3,17 @@
 /////////////
 
 /*
-    Definitions:
-    - sidebar-active: Sidebar is visible (CSS class of `body`)
-    - reduced-nav (vs. full-nav): Prune some targets out of nav (CSS class of `body`)
-    - hide-on-reduced-nav: Target is pruned out of nav during minimal-view (CSS class of `.nav-item`)
-    - unfolded (vs. folded): Children are unfolded (CSS class of `.nav-item`)
+    Definitions / CSS classes:
+    - `<body>` classes:
+        - sidebar-active: Sidebar is visible
+        - reduced-nav (vs. full-nav): Prune some targets out of nav
+    - `.nav-tree-item` classes:
+        - hide-on-reduced-nav
+            - On reduced-nav: Target is pruned
+        - show-only-children-on-reduced-nav
+            - On reduced-nav: Target is pruned, but its children are not
+        - nested (vs. no-page): Target has children
+        - unfolded (vs. folded): Children are unfolded
 */
 
 // Non-idempotent; therefore must only be called once
@@ -32,53 +38,50 @@ function setupSidebar() {
         const pageIdsString = document.querySelector('body').dataset.targetIds;
         const pageIds       = pageIdsString == '' ? [] : pageIdsString.split(' ');
 
-        // Prune sibling level-1 nav items if all these hold:
-        // 1. We are not at the root target
-        // 2. The given level-1 id exists
-        if (pageIds.length > 0) {
-            let found = false;
-            document.querySelectorAll('#nav .item-level-1').forEach(item => {
-                const linkIdsString = item.dataset.ids;
-                const linkIds       = linkIdsString == '' ? [] : linkIdsString.split(' ');
-                
-                if (linkIds[0] !== pageIds[0]) {
-                    item.classList.add('hide-on-reduced-nav');
-                }
-                else {
-                    found = true;
-                }
-            });
+        // Prune as follows:
+        // For every target present in the breadcrumb:
+        //  (i) Label with `show-only-children-on-reduced-nav`
+        // (ii) For all siblings: Label with `hide-on-reduced-nav`
 
-            // Undo pruning if the level-1 nav item is not found
-            if (!found) {
-                document.querySelectorAll('#nav .item-level-1').forEach(item => {
-                    item.classList.remove('hide-on-reduced-nav');
+        // Select all breadcrumb items
+        const breadcrumbItems = document.querySelectorAll('#sidebar-nav-breadcrumb li');
+
+        breadcrumbItems.forEach(breadcrumbItem => {
+            const navItemClass = Array.from(breadcrumbItem.classList).find(cls => cls.startsWith('nav-item_'));
+
+            document.querySelectorAll('#sidebar-nav-tree .' + navItemClass).forEach(item => {
+                // (i)
+                item.parentElement.classList.add('show-only-children-on-reduced-nav');
+
+                // (ii)
+                const siblings = Array.from(item.parentElement.parentElement.children).filter(child => child !== item.parentElement && child.tagName === 'LI');
+                siblings.forEach(sibling => {
+                    sibling.classList.add('hide-on-reduced-nav');
                 });
-            }
-        }
+            })
+        });
 
         // Fold the following parts of the nav:
         // - Above current target: Siblings of parents, grand-parents, etc.
         // - Below current target: Children and below
         // This is checked by the prefix relation of the target ids.
-        document.querySelectorAll('#nav .nested').forEach(item => {
+        document.querySelectorAll('#sidebar-nav-tree .nested > .nav-tree-item').forEach(item => {
             const linkIdsString = item.dataset.ids;
             const linkIds       = linkIdsString == '' ? [] : linkIdsString.split(' ');
-
             if (arrayIsPrefixOf(linkIds, pageIds)) {
-                item.classList.add('unfolded');
+                item.parentElement.classList.add('unfolded');
             }
         });
     }
 
     // Register tree view
-    document.querySelectorAll('#nav .caret').forEach(item => {
+    document.querySelectorAll('#sidebar-nav-tree .caret').forEach(item => {
         item.addEventListener('click', event => {
             item.parentElement.classList.toggle('unfolded');
         });
     });
 
-    document.querySelectorAll('#nav .no-page').forEach(item => {
+    document.querySelectorAll('#sidebar-nav-tree .no-page').forEach(item => {
         item.addEventListener('click', event => {
             item.parentElement.parentElement.classList.toggle('unfolded');
         });

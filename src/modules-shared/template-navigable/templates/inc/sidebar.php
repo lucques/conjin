@@ -1,5 +1,10 @@
 <?
     $render = function(Module $template, array $placeholders) {
+        // If nav not enabled, do nothing
+        if (!$placeholders['nav_enabled']) {
+            return;
+        }
+
         $module_sol_mode_active   = function_exists('is_sol_mode_on');
         $module_print_mode_active = function_exists('is_print_mode_on');
 
@@ -81,17 +86,17 @@
                     <button id="sidebar-collapse-button-deactivate" type="button" class="btn-close" aria-label="Close"></button>
                 </div>
             </div>
-            <nav id="nav">
+            <div id="sidebar-nav">
 <?
-        nav_print();
+        nav_print('sidebar-nav-breadcrumb', 'sidebar-nav-tree', $placeholders['nav_reduce_breadcrumb_up_to_level']);
 ?>
-            </nav>
+            </div>
 <?
         // Initialize toggleability of `reduced nav`
         if ($placeholders['nav_reduce_toggleable_with_ctrl']) {
 ?>
             <script>
-                document.querySelector('#nav').addEventListener('click', event => { if (event.ctrlKey) { toggleReducedNav(); } });
+                document.querySelector('#sidebar-nav').addEventListener('click', event => { if (event.ctrlKey) { toggleReducedNav(); } });
             </script>
 <?
         }
@@ -100,7 +105,7 @@
 <?
         if (auth_is_logged_in()) {
 ?>
-                <?= auth_get_user() ?> | <a href="<?= auth_get_logout_url() ?>">Logout</a>
+                <?= auth_get_user_name() ?> | <a href="<?= auth_get_logout_url() ?>">Logout</a>
 <?
         }
         else {

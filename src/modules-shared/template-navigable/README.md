@@ -23,6 +23,7 @@ It forms the base of templates like `template-interbook` and `template-exam`.
     - How?
         - The `.sheets` are properly included in DOM; toggle button is added
         - `sheets` are treated as stacks
+    - Requires there to be a `print-mode-print.scss` file
 - `sol-mode`
     - How? Toggle button is added
 - `footnotes`

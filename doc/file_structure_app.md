@@ -1,0 +1,54 @@
+# Content repo file structure (part of your repo)
+The following app dir's file structure is kept very easy, but is rather strict.
+```
+- src
+    - content
+        - index.php                             Home page (specifies a target)
+        - res                                   Resources needed by `index.php`
+        - first-subpage
+            - index.php                         First subpage (specifies a target)
+            - res                               Resources needed by `index.php`
+            - inc                               By convention: PHP scripts that can be included
+            ...
+        - ...                                   All further pages hav the same structure
+    - system
+        - login.php                             Specifies a syslet
+        - not_found.php                         Specifies a syslet
+        - unauthorized.php                      Specifies a syslet (TODO)
+        - target_default.php                    Specifies the `$preprocess` def for targets that don't defined their own 
+    - modules                                   (optional)
+        - template-default                      (example)
+            - preprocessing.php                 (optional) For preprocessing
+            - processing.php                    (optional) For processing a syslet
+            - default_config.php                (optional)
+            - templates                         (optional) For template components
+                - inc
+                    - default_placeholders.php
+                - target.php                    (example)
+                - login.php                     (example)
+                - not_found.php                 (example)
+                - unauthorized.php              (example)
+            - scss                              (optional) For templating: Fed to SCSS compiler
+            - res                               (optional)
+        - role-default                
+            - preprocessing.php
+    - database-init                             (optional)
+        - my-tables.sql
+- ext
+    - modules                                   (optional) Modules from external sources
+        - ...
+- deployments
+    - deployment-1
+        - docker_volumes
+        - src
+            - config.dhall
+        - target                                (by convention)
+        - build                                 (by convention) Script that call the build-deployment tool
+    - deployment-2
+    - APP_DIR                                   Contains the absolute path to the root dir
+    - CONJIN_DIR                                Contains the absolute path to the conjin repo
+    - DEPLOYMENTS_DIR                           Contains the absolute path to the deployments dir
+    - DHALL_PACKAGE_PATH                       Contains the absolute path to the external tools Dhall file
+    - config_common.dhall                       (by convention)
+- metadata.json                                 (optional) Contains version of app
+```

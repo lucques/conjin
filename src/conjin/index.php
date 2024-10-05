@@ -3,6 +3,7 @@
     // Setup, part 1 //
     ///////////////////
 
+    require('inc/core_init.php');
     require('inc/core_pure.php');
     require('inc/core_effectful.php');
 
@@ -13,6 +14,7 @@
         case Logout     = 'logout';
         case Show       = 'show';
         case Res        = 'res';
+        case Other      = 'other'; 
     }
 
     $req = Req::tryFrom($_GET['req'] ?? '');
@@ -25,8 +27,6 @@
     ///////////////////
     // Setup, part 2 //
     ///////////////////
-
-    global_config_init();
 
     require('inc/load_mech.php');
     require('inc/module_mech.php');
@@ -67,13 +67,14 @@
         require('inc/preprocess_mech.php');
 
         // Preprocessing prepares objects:
-        // 1. For auth:    `groups_2_userlist`
+        // 1. For auth:    `groups_2_userlist_ser`
         // 2. Targets:     `target_root`
         // 3. Syslets:     `syslet_*`
-        core_save_obj('groups_2_userlist',   auth_generate_groups_2_userlist());
-        core_save_obj('target_root',         preprocess_target_root());
-        core_save_obj('syslet_login',        preprocess_syslet('login'));
-        core_save_obj('syslet_not_found',    preprocess_syslet('not_found'));
+        core_save_obj('groups_2_userlist_ser',       auth_generate_groups_2_userlist_ser());
+        core_save_obj('groups_2_openidmarkerlist', auth_generate_groups_2_openidmarkerlist());
+        core_save_obj('target_root',                 preprocess_target_root());
+        core_save_obj('syslet_login',                preprocess_syslet('login'));
+        core_save_obj('syslet_not_found',            preprocess_syslet('not_found'));
 
         // Render response
         send_response_and_exit(message: 'Preprocessing done.');
@@ -228,6 +229,9 @@
             // Send file
             header('Content-Type: ' . get_mime($path));
             readfile($real_path);
+        }
+        elseif ($req == Req::Other) {
+            send_not_found_response_and_exit(); // Not Found            
         }
     }
 ?>

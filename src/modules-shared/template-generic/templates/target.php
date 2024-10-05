@@ -1,9 +1,9 @@
 <?
     $render_target = function(Module $template, Target $target, string $content, array $placeholders_overrides = []) {
 
-        //////////////////////
-        // Determine titles //
-        //////////////////////
+        //////////////////////////
+        // Prepare placeholders //
+        //////////////////////////
 
         $title_for_head =
             $target->has_activated_module('title')
@@ -11,19 +11,19 @@
             : ($target->id ?? 'Unbenannt');
 
 
-        //////////////////////////
-        // Prepare placeholders //
-        //////////////////////////
-
-        $placeholders_default = [
-            'title_for_head' => $title_for_head,
-        ];
+        ///////////////////////
+        // Make placeholders //
+        ///////////////////////
+        
+        $placeholders_default = $template->load_def_from_script_and_call('templates/inc/default_placeholders.php', 'default_placeholders', $title_for_head);
         $placeholders = array_merge($placeholders_default, $placeholders_overrides);
 
         
         ////////////
         // Render //
         ////////////
+
+        $module_doc_extensions_active = $target->has_activated_module('doc-extensions');
 ?>
 <!doctype html>
 <html lang="de">
@@ -31,7 +31,7 @@
         <meta charset="utf-8">
         <title><?= $placeholders['title_for_head'] ?></title>
 <?
-        if ($target->has_activated_module('doc-extensions')) {
+        if ($module_doc_extensions_active) {
             array_map(function($extension) {
                 echo '        ' . str_replace("\n", "\n        ", $extension) . "\n";
             }, doc_extensions_get_head_elements());
@@ -40,11 +40,16 @@
     </head>
     <body>
 <?
-        if ($target->has_activated_module('doc-extensions')) {
+        if ($module_doc_extensions_active) {
             echo implode("\n", doc_extensions_get_body_top_elements());
         }
 ?>
 <?= $content ?>
+<?
+        if ($module_doc_extensions_active) {
+            echo implode("\n", doc_extensions_get_body_bottom_elements());
+        }
+?>
     </body>
 </html>
 <?

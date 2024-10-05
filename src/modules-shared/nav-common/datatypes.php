@@ -68,7 +68,7 @@
         }
     }
 
-    class TargetNavItem extends NavItem {
+    class TargetNavItem extends NavItem implements JsonSerializable {
         public function __construct(
             array $target_ids,
             bool $has_content,
@@ -102,6 +102,17 @@
         public function add_target_child(TargetNavItem $targetItem): void {
             $this->id_2_child[$targetItem->get_last_id()] = $targetItem;
             $this->children_ids[] = $targetItem->get_last_id();
+        }
+
+        // Implement this in order to include the `children` field
+        public function jsonSerialize(): mixed {
+            return [
+                'target_ids' => $this->target_ids,
+                'has_content' => $this->has_content,
+                'title' => $this->title,
+                'privileged_actors' => $this->privileged_actors,
+                'children' => array_values($this->id_2_child)
+            ];
         }
     }
 

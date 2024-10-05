@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0] - 2025-08-07
+- Updated many components, modules and more
+
+## [2.4.0] - 2024-10-02
+- Reworked `timetable` module
+- Many small fixes
+
 ## [2.3.0] - 2024-10-02
 - Targets may now be written hard-coded into `content.php`
 

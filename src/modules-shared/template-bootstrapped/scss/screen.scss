@@ -2,11 +2,7 @@
 // Customize & Import Boostrap //
 /////////////////////////////////
 
-// Since we change some colors, we have to manually set up Bootstrap.
-// See also https://getbootstrap.com/docs/5.3/customize/sass/#maps-and-loops.
-// Instead of simple Option A (single-line),
-//   `@import "bootstrap_scss/bootstrap";`
-// we choose the fine-grained Option B.
+// Option B: See also README.md for more on the Bootstrap customization process.
 
 // 0. Include CSS grid (https://getbootstrap.com/docs/5.1/layout/css-grid/)
 $enable-cssgrid: true;
@@ -26,7 +22,6 @@ $enable-cssgrid: true;
 // Each theme color needs to be defined here.
 
 @import "./constants/maps_screen";
-
 @each $name, $color-map in $color-extensions {
   $theme-colors: map-merge($theme-colors, ($name: map-get($color-map, "main")));
 }
@@ -108,15 +103,16 @@ $margin_float:   1.5*$margin_p;
 $margin_section: 2.5*$margin_p;
 
 // Common elements
-@include basic-defs($margin_p, $margin_float, $margin_section);
+@include common-slices($margin_p, $margin_float, $margin_section);
+@include common-boxes($margin_p, $margin_float, $margin_section);
 
 // Headings
-h1 { font-size: 2.0rem;  margin-top: 2.0*$margin_p;  margin-bottom: 0.8*$margin_p; }
-h2 { font-size: 1.6rem;  margin-top: 2.0*$margin_p;  margin-bottom: 0.8*$margin_p; }
-h3 { font-size: 1.4rem;  margin-top: 1.5*$margin_p;  margin-bottom: 0.8*$margin_p; }
-h4 { font-size: 1.2rem;  margin-top: 1.5*$margin_p;  margin-bottom: 0.7*$margin_p; }
-h5 { font-size: 1.1rem;  margin-top: 1.4*$margin_p;  margin-bottom: 0.6*$margin_p; }
-h6 { font-size: 1.0rem;  margin-top: 1.4*$margin_p;  margin-bottom: 0.5*$margin_p; }
+h1 { font-size: 2.0rem; }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.4rem; }
+h4 { font-size: 1.2rem; }
+h5 { font-size: 1.1rem; }
+h6 { font-size: 1.0rem; }
 
 h4     { font-weight: bold; }
 h5, h6 { font-weight: $font_weight_bold; }

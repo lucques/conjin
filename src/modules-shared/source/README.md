@@ -15,3 +15,11 @@ This module offers to include source code and to format it nicely. The formattin
 - Scopes
     - Used to define the language and line numbering of the code
     - `source_scope_start`, `source_scope_end`
+
+## Languages
+- `none` (default)
+- `java`
+- `css`
+
+## Problems
+- Line number highlighting does not properly work (rendering happens too late)

@@ -10,9 +10,6 @@
 $background-color: $gray-800;
 $main-background-color: white;
 
-$main-min-width: 300px;
-$main-max-width: 960px;
-
 body {
   background-color:$background-color;
 }
@@ -26,8 +23,22 @@ body {
   background-color: $main-background-color;
 
   min-width: 300px;
-  max-width: $main-max-width;
 }
+
+// Widths correspond to Bootstrap breakpoint sizes, minus 30px
+body.content-min-width-sm  #content > main { min-width: 546px; }
+body.content-min-width-md  #content > main { min-width: 738px; }
+body.content-min-width-lg  #content > main { min-width: 962px; }
+body.content-min-width-xl  #content > main { min-width: 1170px; }
+body.content-min-width-xxl #content > main { min-width: 1370px; }
+
+body.content-max-width-sm  #content > main { max-width: 546px; }
+body.content-max-width-md  #content > main { max-width: 738px; }
+body.content-max-width-lg  #content > main { max-width: 962px; }
+body.content-max-width-xl  #content > main { max-width: 1170px; }
+body.content-max-width-xxl #content > main { max-width: 1370px; }
+
+
 
 
 /////////////

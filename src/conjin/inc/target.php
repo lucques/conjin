@@ -38,7 +38,7 @@
         ) {
             parent::__construct($activated_modules, $template);
 
-            assert(!$this->content_location == ContentLocation::NONE || $template !== null, 'Contentful target must have a template');
+            assert(!$this->content_location == ContentLocation::NONE || $template !== null, 'Contentful target with id `' . $id . '` must have a template');
 
             // Set to null pointer initially
             $null = null;

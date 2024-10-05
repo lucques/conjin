@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+import fire
+import json
+
+from common import phase_read_config
+from local import build_local_depl
+from remote import build_remote_depl
+from generate_password_hashes import generate_password_hashes
+
+
+###############
+# Entry points #
+###############
+
+def build(
+        depl_type,
+        config_path,
+        check_conjin_version = True,
+        create_env_dirs = True,
+        check_vol_source_paths_exist = True,
+        register_passwords = True,
+        install_symlinks_in_local_bin = True,
+        force_build_docker_images = False
+    ):
+    '''
+    Build a deployment target based on a given config file.
+    Output is written to the directory specified by the `targetDir` setting.
+    The flags can be used to make additional checks and to integrate the target
+    with the environment. 
+    
+    Args:
+        depl_type: Type of deployment, either "local" or "remote".
+        config_path: Path to the Dhall config file. Must be of type
+            `LocalDepl` or `RemoteDepl` (see also `types.dhall`).
+    '''
+
+    if depl_type not in {"local", "remote"}:
+        raise ValueError("Invalid depl: choose from local, remote")
+
+    config_path = Path(config_path).absolute()
+
+    if depl_type == "local":
+        build_local_depl(config_path, check_conjin_version, create_env_dirs, check_vol_source_paths_exist, register_passwords, install_symlinks_in_local_bin, force_build_docker_images)
+    else:
+        build_remote_depl(config_path, check_conjin_version, create_env_dirs, check_vol_source_paths_exist, register_passwords, install_symlinks_in_local_bin, force_build_docker_images)
+
+
+def view_as_json(
+        depl_type,
+        config_path
+    ):
+    '''
+    Output the deployment config as a tagged JSON, written to StdOut.
+
+    Args:
+        depl_type: Type of deployment, either "local" or "remote".
+        config_path: Path to the Dhall config file. Must be of type
+            `LocalDepl` or `RemoteDepl` (see also `types.dhall`).
+    '''
+
+    if depl_type not in {"local", "remote"}:
+        raise ValueError("Invalid depl: choose from local, remote")
+
+    config_path = Path(config_path).absolute()
+
+    if depl_type == "local":
+        config = phase_read_config(config_path, 'tagLocalDepl')
+        print(json.dumps(config, indent=2))
+    else:
+        config = phase_read_config(config_path, 'tagRemoteDepl')
+        print(json.dumps(config, indent=2))
+
+
+
+########
+# Main #
+########
+
+if __name__ == '__main__':
+    fire.Fire({
+        'build': build,
+        'view-as-json': view_as_json,
+        'generate-password-hashes': generate_password_hashes
+    })

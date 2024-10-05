@@ -6,6 +6,10 @@
         @extend .box-medium;
     }
 
+    .accordion-header {
+        @extend .my-0;  // Anti-slice
+    }
+
     // Analogous defs of `.accordion-item` and `.block-item` 
     .accordion-block { @extend .accordion-item;   }
     .block-header    { @extend .accordion-header; }
@@ -16,4 +20,8 @@
     
     // Remove toggle button
     .block-title::after { display:none; }
+
+    .acc-h2 { @extend .h4; }
+    .acc-h3 { @extend .h5; }
+    .acc-h4 { @extend .h6; }
 }

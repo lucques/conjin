@@ -5,8 +5,9 @@ Documentation is spread out over multiple files.
 - [Design decisions](./design_decisions.md): Problem description, motivation, advantages, disadvantages of chosen technologies
 - [Dependencies](./dependencies.md)
 - [Deployment](./deployment.md)
-    - [Deployment using Docker + Nginx](./deployment_docker_nginx.md): Deploy by running your own server
-    - [Deployment using Docker + sync](./deployment_docker_sync.md): Deploy by syncing to an external server
+    - [Deployment using Docker + Nginx](./deployment_local.md): Deploy by running your own server
+    - [Deployment using Docker + sync](./deployment_remote.md): Deploy by syncing to an external server
+- [Building](./build.md)
 - File structures:
     - [Conjin repo](./file_structure_conjin.md): File file structure of *this* repo
     - [Content repo](./file_structure_content.md): The file structure of the content repo
@@ -39,6 +40,7 @@ Documentation is spread out over multiple files.
     - **Syslet**
         - External view: A webpage that fulfills a pre-defined system function such as "login", "not found" etc.
         - Internal view: A file `login.php`, `not_found.php` etc. within the `system` dir
+- **Building phase**
 - **Preprocessing phase**
     - Main idea: Collect all "meta information" (target title, config etc.) to build a navigation etc.
     - Gets triggered explicitly, which results in a target tree and the syslets

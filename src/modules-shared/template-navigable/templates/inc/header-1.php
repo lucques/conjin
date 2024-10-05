@@ -12,16 +12,16 @@
 <?
         if (!$module_print_mode_active || !is_print_mode_on()) {
 ?>
-        <link href="<?= $placeholders['css_url'] . '/screen.css' ?>" rel="stylesheet" media="screen">
-        <link href="<?= $placeholders['css_url'] . '/print.css'  ?>" rel="stylesheet" media="print">
+        <link href="<?= $placeholders['css_screen_url'] ?>" rel="stylesheet" media="screen">
+        <link href="<?= $placeholders['css_print_url'] ?>" rel="stylesheet" media="print">
 <?
         }
         else {
             // This is only the template-specific part of the print mode CSS.
             // Another part is included by the "print-mode" module.
 ?>
-        <link href="<?= $placeholders['css_url'] . '/print-mode-screen.css'  ?>" rel="stylesheet" media="screen">
-        <link href="<?= $placeholders['css_url'] . '/print.css'  ?>" rel="stylesheet" media="print">
+        <link href="<?= $placeholders['css_print_mode_screen_url'] ?>" rel="stylesheet" media="screen">
+        <link href="<?= $placeholders['css_print_mode_print_url'] ?>" rel="stylesheet" media="print">
 
 <?
         }
@@ -40,12 +40,13 @@
             $module_doc_extensions_active
                 ? doc_extensions_get_body_classes()
                 : [];
-        
-        if ($placeholders['nav_show_top_level']) {
-            $body_classes[] = 'show-top-level-nav';
-        }
+        $body_classes = [...$body_classes, ...$placeholders['body_classes']];
+
+        $body_classes_html = count($body_classes) > 0
+            ? ' class="' . implode(' ', $body_classes) . '"'
+            : '';
 ?>
-    <body class="<?= implode(' ', $body_classes) ?>"<?= $target_ids !== null ? ' data-target-ids="' . implode(' ', $target_ids) . '"' : '' ?>>
+    <body<?= $body_classes_html ?><?= $target_ids !== null ? ' data-target-ids="' . implode(' ', $target_ids) . '"' : '' ?>>
 <?
         if ($module_doc_extensions_active) {
             echo implode("\n", doc_extensions_get_body_top_elements());

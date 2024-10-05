@@ -279,8 +279,8 @@
         //
         // $intervals = [
         //     [
-        //         'from'                 => new DateTimeImmutable('2023-08-28'),
-        //         'to'                   => new DateTimeImmutable('2023-10-06'),
+        //         'from'                 => '2023-08-28',
+        //         'to'                   => '2023-10-06',
         //         'weeks_offset_until_a' => 0
         //     ],
         //     ...
@@ -298,7 +298,7 @@
         // $repeat_every_n_weeks = 2
         public function add_sub_timetable(array $intervals, array $slots_repeated, int $repeat_every_n_weeks) {
             foreach ($intervals as $interval) {
-                foreach ($slots_repeated as $slot_repeated) {
+                foreach ($slots_repeated as $slot_repeated) {                    
                     $this->add_repeatedly_within_interval(
                         $interval['from'],
                         $interval['to'],
@@ -377,24 +377,28 @@
 
         public function unit_begin(string $title) {
             assert($this->cur_unit == null, 'There is still a non-ended unit.');
+
             $this->cur_unit = new Unit($title);
         }
 
         public function unit_end() {
             assert($this->cur_unit != null, 'There is no unit to end.');
+
             $this->add($this->cur_unit);
             $this->cur_unit = null;
         }
 
         public function add_topic(string $title, int $number_of_slots) {
             assert($this->cur_unit != null, 'There is no unit.');
+
             $this->cur_unit->add(new Topic($this->cur_unit, $title, $number_of_slots));
         }
 
         public function topic_start(string $title, int $number_of_slots) {
             assert($this->cur_unit != null, 'There is no unit to add a topic to.');
             assert($this->cur_topic_title === null, '⊤here is still a non-ended topic.');
-            $this->cur_topic_title = $title;
+
+            $this->cur_topic_title           = $title;
             $this->cur_topic_number_of_slots = $number_of_slots;
             ob_start();
         }
@@ -402,8 +406,15 @@
         public function topic_end() {
             assert($this->cur_unit != null, 'There is no unit to end a topic for.');
             assert($this->cur_topic_title !== null, 'There is no topic to end.');
+
             $content = ob_get_clean();
+
+            // Add topic
             $this->cur_unit->add(new Topic($this->cur_unit, $this->cur_topic_title, $this->cur_topic_number_of_slots, $content));
+            
+            // Reset cache
+            $this->cur_topic_title = null;
+            $this->cur_topic_number_of_slots = null;
         }
 
 
@@ -488,6 +499,12 @@
         private array $date_to_log = [];             // date_iso -> entry_log
         private array $date_to_timeslot_to_log = []; // date_iso -> int -> entry_log 
 
+        // For convencience functions
+        private ?DateTimeInterface $cur_long_date = null;
+        private ?string            $cur_long_id = null;
+        private ?string            $cur_long_title = null;        
+        private ?int               $cur_long_timeslot = null;        
+
         public function __construct() {}
 
         // `$log` is either of type `log-long` or `log-short`
@@ -513,6 +530,128 @@
         }
 
 
+        ///////////////////////////
+        // Convenience functions //
+        ///////////////////////////
+
+        public function long_start(string $date_iso, string $title, ?int $timeslot = null, ?string $id = null) {
+            assert($this->cur_long_id === null, 'There is still a non-ended entry.');
+            assert_iso_date($date_iso);
+    
+            $this->cur_long_date     = iso_to_date($date_iso);
+            $this->cur_long_id       = $id ?? kebabize($title);
+            $this->cur_long_title    = $title;
+            $this->cur_long_timeslot = $timeslot;
+    
+            // Start buffering content
+            ob_start();
+        }
+
+        public function long_end() {
+            assert($this->cur_long_id !== null, 'There is no entry to end.');
+
+            // Stop buffering content
+            $content = ob_get_clean();
+
+            $entry = [
+                'type'           => 'log-long',
+                'id'             => 'log-' . date_to_iso($this->cur_long_date) . '-' . $this->cur_long_id,
+                'title'          => $this->cur_long_title,
+                'content'        => $content
+            ];
+            if ($this->cur_long_timeslot !== null) {
+                $entry['timeslot'] = $this->cur_long_timeslot;
+            }
+
+            // Add entry
+            $this->add(
+                $entry,   
+                $this->cur_long_date,
+                $this->cur_long_timeslot
+            );
+
+            // Reset cache
+            $this->cur_long_date     = null;
+            $this->cur_long_id       = null;
+            $this->cur_long_title    = null;
+            $this->cur_long_timeslot = null;
+        }
+
+        public function add_short(string $date_iso, string $title, ?int $timeslot = null, ?string $id = null, ?string $content = null) {
+            assert($this->cur_long_id === null, 'There is still a non-ended long entry.');
+            assert_iso_date($date_iso);
+    
+            $date = iso_to_date($date_iso);
+            $entry = [
+                'type'  => 'log-short',
+                'id'    => 'log-' . $date_iso . '-' . ($id ?? kebabize($title)),
+                'title' => $title
+            ];
+    
+            if ($content !== null) {
+                $entry['content'] = $content;
+            }
+            if ($timeslot !== null) {
+                $entry['timeslot'] = $timeslot;
+            }
+    
+            $this->add($entry, $date, $timeslot);
+        }
+
+
+        /////////////////////////////////////////
+        // Macros during building a long entry //
+        /////////////////////////////////////////
+
+        public function h(int $level, string $title) {
+            assert($this->cur_long_id !== null, 'There is no long entry.');
+?>
+                <div><strong><?= $title ?></strong></div>
+<?
+        }  
+
+        function img(string $file_name, string $width = null) {
+            assert($this->cur_long_id !== null, 'There is no long entry.');
+
+            $style  = $width === null ? 'width:100%;' : ' width:' . $width . ';';
+            $style .= ' max-width:100%;';
+            $style .= ' border: 2px solid gray;';
+            $style .= ' padding: 30px;';
+?>
+                <p class="text-center">
+                    <img src="res/<?= date_to_iso($this->cur_long_date) ?>/<?= $file_name ?>" alt="" loading="lazy" style="<?= $style ?>" class="rounded">
+                </p>
+<?
+        }
+
+        public function a_file(string $file_name, string $text = null, bool $solution = false) {
+            assert($this->cur_long_id !== null, 'There is no long entry.');
+
+            if ($text === null) {
+                $text = $file_name;
+            }
+            $suffix = $solution ? ' (Lösungsvorschlag)' : '';
+
+            echo '<a href="res/' . date_to_iso($this->cur_long_date) . '/' . $file_name . '">' . $text . $suffix . '</a>';
+        }
+
+        function daily_exercise(string $width = null, bool $with_solution = true, string $solution_caption = 'Lösungsvorschlag zur TÜ') {
+            assert($this->cur_long_id !== null, 'There is no long entry.');
+
+            $this->h(2, 'Tägliche Übung');
+            $this->img('t_ue.png', $width);
+            if ($with_solution) {
+?>
+                <p>
+<?
+                $this->a_file('t_ue_loesung.pdf', $solution_caption);
+?>
+                </p>
+<?
+            }
+        }
+
+
         //////////////////////////////////////
         // Only callable after construction //
         //////////////////////////////////////
@@ -523,7 +662,7 @@
                    (isset($this->date_to_timeslot_to_log[$date_iso]) ? count($this->date_to_timeslot_to_log[$date_iso]) : 0);
         }
 
-        // Returns either `log-long` or `log-short`
+        // Returns either `log-long` or `log-short` or `null`
         public function get_log_for_slot(Slot $slot): ?array {
             $date_iso = date_to_iso($slot->date);
             $timeslot = $slot->timeslot;
@@ -546,19 +685,24 @@
     }
 
 
-    ///////////////////////////////////////////////
-    // Schedule = Timetable + Classlog + Syllabus //
-    ///////////////////////////////////////////////
+    ////////////////////////////////////////////////
+    // Schedule =                                 //
+    //   (i) Timetable + Classlog + Syllabus      //
+    //  (ii) Timetable + Classlog                 //
+    // (iii) Timetable + Syllabus                 //
+    //  (iv) Timetable                            //
+    ////////////////////////////////////////////////
 
     // Type of a tag: string
     class Schedule {
         private array $date_to_entries = []; // date_iso -> list<entry>
+        
         // Used for coloring; declares some *deterministic* order
         private array $unit_order = [];      // list<unit_id>
 
         public function __construct(
             public readonly Timetable $timetable,
-            public readonly Classlog $classlog,
+            public readonly ?Classlog $classlog = null,
             public readonly ?Syllabus $syllabus = null
         ) {
 
@@ -601,7 +745,7 @@
             $topic_iterator =
                 $this->syllabus != null
                 ? $this->syllabus->iterate_topics()
-                : new ArrayIterator([]);
+                : new ArrayIterator([]); // If there is no syllabus, there are no topics to iterate over
             $topic_iterator->rewind();
             $topic_slots_used = 0;
 
@@ -615,7 +759,10 @@
                 }
 
                 // Keep track of logs: All logs must be assigned to timetable slots
-                $number_of_logs_for_date_left = $this->classlog->count_logs_on_date($cur_date);
+                $number_of_logs_for_date_left =
+                    $this->classlog != null
+                    ? $this->classlog->count_logs_on_date($cur_date)
+                    : 0; // If there is no classlog, there are no slots left
 
                 foreach ($slots as $cur_slot_ser) {
                     $cur_slot = Slot::unserialize($cur_slot_ser);
@@ -641,6 +788,7 @@
                             $this->unit_order[] = $cur_topic->unit->id;
                         }
 
+                        // Add topic-slot entry
                         $this->date_to_entries[$cur_date_iso][] = [
                             'type'     => 'topic-slot',
                             'timeslot' => $cur_slot->timeslot,
@@ -650,8 +798,13 @@
                     }
                     
                     // Schedule log, if available
-                    $cur_log = $this->classlog->get_log_for_slot($cur_slot);
+                    $cur_log =
+                        $this->classlog != null
+                        ? $this->classlog->get_log_for_slot($cur_slot)
+                        : null; // If there is no classlog, there is no log
+
                     if ($cur_log !== null) {
+                        // Add log entry
                         $this->date_to_entries[$cur_date_iso][] = $cur_log;
 
                         // Update counter

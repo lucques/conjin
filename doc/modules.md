@@ -10,14 +10,14 @@
     - **Module location** does not have a config
     - **Module** has a config, namely a `ConfigTree` obj which is a wrapper for an assoc array
 - A module is attached to a **target** or a **syslet**.
-- Three possible roles that a module can take up, any combination possible:
+- Three possible functions that a module can take up, any combination possible:
     - **Preprocessing**
         A module can hook into the preprocessing mechanism by implementing the `$init_preprocessing`, `$init_preprocessing_target`, `$init_preprocessing_syslet` functions. These functions then can:
         - Activate and configure other modules
-        - Create and add a preprocessor object to the preprocessing context. This is used e.g. to build up the navigation tree.
+        - Create and add a preprocessor object to the preprocessing context. This is used e.g. by `nav-build` to build up the navigation tree.
         - Provide preprocessing macros to be used by other modules during the preprocessing phase.
     - **Processing**
-        - A module can hook into the processing mechanism by implementing the `$init_processing_target`, `$init_processing_syslet` functions. These functions get access to the currently-processed target / syslet obj. This allows the definition of macros etc. that can then be used later by the `index.php` content files, other modules and template files.
+        - A module can hook into the processing mechanism by implementing the `$init_processing`, `$init_processing_target`, `$init_processing_syslet` functions. These functions get access to the currently-processed target / syslet obj. This allows the definition of macros etc. that can then be used later by the `index.php` content files, other modules and template files.
     - **Templating**
         - A module may serve as a template. There are e.g. `target.php`, `login.php` that both provide a function that renders output for processables, while given access to the currently-processed processable (see more below).
 
@@ -27,30 +27,29 @@
     - `default_config: () -> dict<string, mixed>`
     - Returns the default config of the module; must be complete
 - `preprocessing.php`
-    - `init_preprocessing:        (Module, PreprocessContext)       -> ()`
-    - `init_preprocessing_target: (Module, TargetPreprocessContext) -> ()`
-    - `init_preprocessing_syslet: (Module, SysletPreprocessContext) -> ()`
-    - Further preprocessing macros can be defined here
-    - Declare module dependencies by calling `$c->activate_module` etc. Results in a DAG of activated modules.
-- `process_target.php`
-    - `init_processing_target:    (Module, Target $target) -> ()`
-        - Initializes state that is needed by this module during the processing phase, e.g. a db connection
-    - Further processing macros can be defined here
-    - Module-specific state during processing phase should be managed by `$GLOBALS` var
-- `process_syslet.php`
-    - `init_processing_syslet:    (Module, Syslet $syslet) -> ()`
-        - Initializes state that is needed by this module during the processing phase, e.g. a db connection
-    - Further functions offered to the rendering phase
-    - Module-specific state during processing phase should be managed by `$GLOBALS` var
+    - Always included; therefore Preprocessing macros (= top level PHP functions) can be defined here
+    - `init_*` defs:
+        - `init_preprocessing:        (Module, PreprocessContext)       -> ()` always called
+        - `init_preprocessing_target: (Module, TargetPreprocessContext) -> ()` only called for target
+        - `init_preprocessing_syslet: (Module, SysletPreprocessContext) -> ()` only called for syslet
+        - May declare module dependencies by calling `$c->activate_module` etc. Results in a DAG of activated modules.
+- `processing.php`
+    - Always included; therefore: Processing macros (= top level PHP functions) can be defined here
+    - `init_*` defs:
+        - `init_processing:           (Module) -> ()`                 always called
+        - `init_processing_target:    (Module, Target $target) -> ()` only called for target
+        - `init_processing_syslet:    (Module, Syslet $syslet) -> ()` only called for target
+        - May init state that is needed by this module during the processing phase, e.g. a db connection. Such state should be managed by `$GLOBALS` var
 - `templates/`:
     - `target.php`
         - `render_target: (Module, Target, $content: string, $placeholders_override: dict<string, mixed>) -> ()`
     - `login.php`
-        - `render_login: (Module, Syslet, $logout_sucessful: bool, $password_incorrect: bool, $placeholders_override: dict<string, mixed>) -> ()`
+        - `render_login: (Module, Syslet, $logout_sucessful: bool, $password_incorrect: bool, $openid_fail: mixed, $openid_provider_names: array, $placeholders_override: dict<string, mixed>) -> ()`
     - `notfound.php`
-        - `render_login: (Module, Syslet, $target_ids: ?array, $placeholders_override: dict<string, mixed>) -> ()`
+        - `render_not_found: (Module, Syslet, $target_ids: ?array, $placeholders_override: dict<string, mixed>) -> ()`
     - `unauthorized.php`
-        - `render_login: (Module, Syslet, $target_ids: ?array, $placeholders_override: dict<string, mixed>) -> ()`
+        - `render_unauthorized: (Module, Syslet, $target_ids: ?array, $placeholders_override: dict<string, mixed>) -> ()`
+        - TODO: This is not implemented yet
 - `scss/`:
     - Contains SCSS files that are fed into the SCSS compiler
 - `res/`:
@@ -92,20 +91,20 @@ What often happens is that templates are based on each other, e.g. `template-int
 
 
 ## Conventions
-1. "A **depends on** B"
-    - We do not declare all modules in every `index.php` file but use the following dependency mechanism to package the modules together.
-    - Here is the conventions:
-        - **Template module**: Modules of the name `template-<name>`
-        - **Role module**: Modules of the name `role-<name>`
-            - This is a module whose only purpose is to group together modules for a specific kind of page, called a role.
-            - E.g., the `role-content` module groups together all modules that are needed to render an information/content page.
-            - E.g., the `role-exercise` module groups together all modules that are needed to render an exercise page. 
-        - We declare the modules which are strictly associated with a template as dependencies of that template.
-            - E.g., the `nav` module is a dependency of the `template-interbook` module, because it is needed to render the sidebar.
-
-2. "A **supports** B"
+- "A **depends on** B"
+    - We do not declare all modules in every `index.php` file but use the following dependency mechanism to package the modules together: During the preprocessing phase, a module can call `$c->activate_module` to declare that it depends on another module. This results in a DAG of activated modules.
+- "A **supports** B"
     - Module A **supports** module B if A integrates B in the way that B described in its specs. Note that there is no dependency here.
     - E.g.: The `template-interbook` module supports `sol-mode` by providing the show-solution-toggle-button as demanded.
+- **Template module**: Modules of the name `template-<name>`
+    - We declare the modules which are strictly associated with a template as dependencies of that template.
+        - E.g., the `nav` module is a dependency of the `template-interbook` module, because it is needed to render the sidebar.
+- **Role module**: Modules of the name `role-<name>`
+    - This is a module whose only purpose is to group together modules for a specific kind of page, called a role.
+    - E.g., the `role-content` module groups together all modules that are needed to render an information/content page.
+    - E.g., the `role-exercise` module groups together all modules that are needed to render an exercise page. 
+- Module named `local`: Contains local resources like logo etc.
+
 
 
 ## Conventions for Templates
@@ -128,4 +127,3 @@ What often happens is that templates are based on each other, e.g. `template-int
         ```
         @import "/modules-shared/template/scss/screen";
         ```
-4. Default config values should be stored and read from `inc/default_values.php`

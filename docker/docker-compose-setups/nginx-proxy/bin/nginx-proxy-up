@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+# Go to parent directory
+DIR="$(dirname "$(readlink -f "$0")")/"
+cd $DIR/../
+
+# Run
+docker compose up -d

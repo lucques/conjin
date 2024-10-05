@@ -1,6 +1,6 @@
 # template-interbook
 
-This template provides the style of a "interactive" "book". The template is based on `template-bootstrapped`. Many modules are supported and there are some config options.
+This template provides the style of an "interactive" "book". The template is based on `template-bootstrapped`. Many modules are supported and there are some config options.
 
 This template can be used in two ways:
 1. As a template out-of-the-box

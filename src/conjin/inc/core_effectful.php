@@ -1,65 +1,7 @@
 <?
-    ///////////
-    // Timer //
-    ///////////
-
-    $GLOBALS['timer_start'] = hrtime(true);
-
-    function timer_get_elapsed_ms() {
-        return (hrtime(true) - $GLOBALS['timer_start'])/1e+6;
-    }
-
-
-    ///////////////////////////////
-    // Error Logging & Debugging //
-    ///////////////////////////////
-
-    error_reporting(0);
-
-    function the_shutdown_function()
-    {
-        $last_error = error_get_last();
-        
-        if ($last_error != null) {
-            while (ob_get_level() > 0) {
-                ob_end_clean();
-            }
-            fail("Error code: " . $last_error['type'] . "\n\nError message:\n\n" . $last_error['message'] . "\n\nError file: " . $last_error['file'] . "\n\nError line: " . $last_error['line']);
-
-        }
-    }
-
-    function the_error_handler($error_code, $error_msg, $error_file, $error_line)
-    {
-        fail("Error code: $error_code\n\nError message:\n\n$error_msg\n\nError file: $error_file\n\nError line: $error_line");
-    }
-
-    // Register error handlers
-    set_error_handler("the_error_handler");
-    register_shutdown_function("the_shutdown_function");
-
-    function debug_var($var) {
-        while (ob_get_level() > 0) {
-            ob_end_clean();
-        }
-        echo '<pre>';
-        print_r($var);
-        echo '</pre>';
-    }
-
-
     ////////////////////////////
     // Special HTTP responses //
     ////////////////////////////
-
-    function fail($message) {
-        ob_start();
-        echo "\n\nStack trace:\n\n";
-        debug_print_backtrace();
-        $backtrace = ob_get_clean();
-
-        send_response_and_exit(status_code: 500, message: $message . $backtrace);
-    }
 
     function send_response_and_exit($status_code = 200, $message = null) {
         assert($status_code != 404, 'Use different function for 404');
@@ -115,58 +57,13 @@
     }
 
 
-    ///////////////////
-    // Global Config //
-    ///////////////////
-
-    function global_config_init(): void {
-        // Merge `users2passwordHashes` into global config
-        $config               = json_decode(load_file('../config.json'), associative: true);
-        $users2passwordHashes = json_decode(load_file('../users.json'),  associative: true);
-        $config['authentication']['users2passwordHashes'] = $users2passwordHashes;
-
-        $GLOBALS['config'] = new ConfigTree($config);
-
-        $GLOBALS['core_path_base']       = realpath(get_global_config('path_base'));
-        $GLOBALS['core_path_preprocess'] = realpath(get_global_config('path_preprocess'));
-
-        assert($GLOBALS['core_path_base'] !== false, 'Path base does not exist.');
-        assert($GLOBALS['core_path_preprocess'] !== false, 'Path to preprocess dir does not exist.');
-    }
-
-    function get_global_config(...$path): mixed {
-        return $GLOBALS['config']->get(...$path);
-    }
-
-    function get_global_config_or_default(array $path, mixed $default): mixed {
-        return $GLOBALS['config']->get_or_default($path, $default);
-    }
-
-    function isset_global_config(...$path): bool {
-        return $GLOBALS['config']->isset(...$path);
-    }
-
-
-    ///////////////////
-    // Save and load //
-    ///////////////////
+    //////////////////////////////////////////////////////
+    // Save and load: Objs and Res during preprocessing //
+    //////////////////////////////////////////////////////
 
     function core_save_obj($name, $obj) {
         $s = serialize($obj);
         core_save_file(path_preprocess('obj/' . $name), $s);
-    }
-
-    function core_save_res($name, $content) {
-        core_save_file(path_preprocess('res/' . $name), $content);
-    }
-
-    function core_save_file($path, $content) {
-        $dir = dirname($path);
-        if (!is_dir($dir)) {
-            mkdir($dir, recursive: true);
-        }
-
-        file_put_contents($path, $content);
     }
 
     function core_load_obj($name) {
@@ -186,9 +83,46 @@
         return isset($GLOBALS['loaded_objs'][$name]) || file_exists(path_preprocess('obj/' . $name));
     }
 
+    function core_save_res($name, $content) {
+        core_save_file(path_preprocess('res/' . $name), $content);
+    }
+
+
+    //////////////////////////////////
+    //// Save and load: Store files //
+    //////////////////////////////////
+
+    function save_store_file($filename, $content) {
+        $path = path_store($filename);
+        core_save_file($path, $content);
+    }
+
+    function core_load_store_file($filename) {
+        $path = path_store($filename);
+        if (!file_exists($path)) {
+            // fail('Error: Store file does not exist: ' . $path);  // TODO
+        }
+
+        return file_get_contents($path);
+    }
+
+
+    ////////////////////////////
+    // Save and load: General //
+    ////////////////////////////
+
+    function core_save_file($path, $content) {
+        $dir = dirname($path);
+        if (!is_dir($dir)) {
+            mkdir($dir, recursive: true);
+        }
+
+        file_put_contents($path, $content);
+    }
+
     function load_file($path) {
         if (!file_exists($path)) {
-            fail('Error: File does not exist.');
+            // fail('Error: File does not exist.');  // TODO
         }
         
         return file_get_contents($path);
@@ -206,6 +140,10 @@
 
     function path_preprocess($suffix = '') {
         return $GLOBALS['core_path_preprocess'] . '/' . $suffix;
+    }
+
+    function path_store($suffix = '') {
+        return $GLOBALS['core_path_store'] . '/' . $suffix;
     }
 
     // Get path based on target ids

@@ -1,39 +1,21 @@
 <?
     $render_not_found = function(Module $template, Syslet $syslet, ?array $target_ids, $placeholders_overrides = []) {
 
-        //////////////////////
-        // Determine titles //
-        //////////////////////
-
-        $title_for_logo =
-            function_exists('get_top_level_html_title')
-            ? get_top_level_html_title()
-            : 'Unbenannt';
-
-
         //////////////////////////
         // Prepare placeholders //
         //////////////////////////
 
-        $res_module = $template->config->get('res_module') === null
-        ? $template
-        : new ModuleLocation($template->config->get('res_module'));
+        $title_for_head = 'Nicht gefunden';
+        if ($syslet->has_activated_module('title') && $template->config->get('title_for_head_contains_top_level')) {
+            $title_for_head .= ' − ' . get_top_level_plain_title();
+        }
 
-        $placeholders_default = [
-            'css_url'                         => $template->get_css_url(),
-            'library_js_url'                  => $template->get_url() . '/res/js/library.js',
-            'logo_url'                        => $res_module->get_url() . '/res/logo/logo.png',
 
-            'title_for_logo'                  => $title_for_logo,
-            'title_for_head'                  => 'Nicht gefunden',
+        ///////////////////////
+        // Make placeholders //
+        ///////////////////////
 
-            'use_img_as_logo'                 => $template->config->get('use_img_as_logo'),
-            'link_logo_to_home'               => $template->config->get('link_logo_to_home'),
-            'nav_show_top_level'              => $template->config->get('nav_show_top_level'),
-            'nav_active_sidebar_by_default'   => $template->config->get('nav_active_sidebar_by_default'),
-            'nav_reduce_by_default'           => $template->config->get('nav_reduce_by_default'),
-            'nav_reduce_toggleable_with_ctrl' => $template->config->get('nav_reduce_toggleable_with_ctrl'),
-        ];
+        $placeholders_default = $template->load_def_from_script_and_call('templates/inc/default_placeholders.php', 'default_placeholders', $template, $title_for_head);
         $placeholders = array_merge($placeholders_default, $placeholders_overrides);
 
         
@@ -42,9 +24,11 @@
         ////////////
 
         ob_start();
-        $template->load_def_from_script_and_call('templates/inc/header-1.php',  'render', $template, $target_ids, $placeholders);
-        $template->load_def_from_script_and_call('templates/inc/sidebar.php',   'render', $template, $placeholders);
-        $template->load_def_from_script_and_call('templates/inc/header-2.php',  'render', $template, $placeholders);
+        $template->load_def_from_script_and_call('templates/inc/header-1.php', 'render', $template, $target_ids, $placeholders);
+        if ($template->config->get('nav_enabled')) {
+            $template->load_def_from_script_and_call('templates/inc/sidebar.php', 'render', $template, $placeholders);
+        }
+        $template->load_def_from_script_and_call('templates/inc/header-2.php', 'render', $template, $placeholders);
 ?>
         <h1>
             Seite nicht gefunden

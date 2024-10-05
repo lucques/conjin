@@ -1,9 +1,9 @@
 <?
     $render_target = function(Module $template, Target $target, string $content, array $placeholders_overrides = []) {
 
-        //////////////////////
-        // Determine titles //
-        //////////////////////
+        //////////////////////////
+        // Prepare placeholders //
+        //////////////////////////
 
         $title_for_head =
             $target->has_activated_module('title')
@@ -11,15 +11,11 @@
             : ($target->id ?? 'Unbenannt');
 
 
-        //////////////////////////
-        // Prepare placeholders //
-        //////////////////////////
+        ///////////////////////
+        // Make placeholders //
+        ///////////////////////
 
-        $placeholders_default = [
-            'css_url'        => $template->get_css_url(),
-            
-            'title_for_head' => $title_for_head,
-        ];
+        $placeholders_default = $template->load_def_from_script_and_call('templates/inc/default_placeholders.php', 'default_placeholders', $template, $title_for_head);
         $placeholders = array_merge($placeholders_default, $placeholders_overrides);
         
         

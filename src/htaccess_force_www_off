@@ -1,0 +1,3 @@
+# Force without www subdomain
+RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+RewriteRule ^(.*)$ %{REQUEST_SCHEME}://%1/$1 [L,R=301]

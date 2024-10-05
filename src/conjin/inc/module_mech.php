@@ -46,7 +46,7 @@
 
             assert(isset($defs[$def_name]),
                 "Module \"$this->name\" does not support def \"$def_name\" on path \"$script_path\"");
-            $defs[$def_name](...$args);
+            return $defs[$def_name](...$args);
         }
 
         public function run_preprocess_macro(PreprocessContext $c, string $name, array $args) {
@@ -55,7 +55,7 @@
 
             assert(isset($defs[$name]),
                 "Module \"$this->name\" does not support macro \"$name\" (def \"$name\" does not exist on path \"$script_path\")");
-            $defs[$name]($c, ...$args);
+            return $defs[$name]($c, ...$args);
         }
 
 
@@ -161,23 +161,29 @@
         ///////////////
 
         public function init_processing_syslet(Syslet $syslet, Target $target_root): void {
-            $defs = load_defs_from_script($this->get_path() . '/processing_syslet.php');
+            $defs = load_defs_from_script($this->get_path() . '/processing.php');
 
+            if (isset($defs['init_processing'])) {
+                $defs['init_processing']($this);
+            }
             if (isset($defs['init_processing_syslet'])) {
                 $defs['init_processing_syslet']($this, $syslet, $target_root);
             }
         }
 
         public function init_processing_target(Target $target): void {
-            $defs = load_defs_from_script($this->get_path() . '/processing_target.php');
+            $defs = load_defs_from_script($this->get_path() . '/processing.php');
 
+            if (isset($defs['init_processing'])) {
+                $defs['init_processing']($this);
+            }
             if (isset($defs['init_processing_target'])) {
                 $defs['init_processing_target']($this, $target);
             }
         }
 
-        public function render_login(Syslet $syslet, bool $logout_successful, bool $password_incorrect, array $placeholders_overrides = []): void {
-            $this->load_def_from_script_and_call('templates/login.php', 'render_login', $this, $syslet, $logout_successful, $password_incorrect, $placeholders_overrides);
+        public function render_login(Syslet $syslet, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []): void {
+            $this->load_def_from_script_and_call('templates/login.php', 'render_login', $this, $syslet, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names, $placeholders_overrides);
         }
 
         public function render_not_found(Syslet $syslet, ?array $target_ids, array $placeholders_overrides = []): void {

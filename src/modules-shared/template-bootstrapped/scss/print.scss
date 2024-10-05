@@ -1,8 +1,10 @@
-///////////////
-// Customize //
-///////////////
+/////////////////////////////////
+// Customize & Import Boostrap //
+/////////////////////////////////
 
-@import "./constants/maps_print";
+// Option A: See also README.md for more info on the Bootstrap customization process.
+
+@import "./constants/vars_print";
 
 
 ///////////////////////////////////////////
@@ -48,7 +50,8 @@ h6 { font-size: 12pt; }
 h4     { font-weight: bold; }
 h5, h6 { font-weight:$font_weight_bold; }
 
-@include basic-defs($margin_p, $margin_float, $margin_section);
+@include common-slices($margin_p, $margin_float, $margin_section);
+@include common-boxes($margin_p, $margin_float, $margin_section);
 
 // `pre` border becomes invisible in print, therefore eliminate space around it
 pre {

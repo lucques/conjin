@@ -5,7 +5,7 @@
 It is triggered explicitly by calling `/preprocess/`.
 
 It stores serialized objects in the cache:
-- `groups_2_userlist`: Reverse dictionary to map user names to groups (needed for authorization)
+- `groups_2_userlist_ser`: Reverse dictionary to map user names to groups (needed for authorization)
 - `target_root`: The root target obj which is a tree containing all targets
 - `syslet_*`: The syslet objs
 
@@ -26,7 +26,7 @@ The whole `content` directory tree is traversed top-down according to `add_subpa
     - Status: `CONSTRUCTED`.
 2. Retrieve the `preprocess SysletPreprocessContext -> ()` function from either
     1. `index.php` or
-    2. `system/target_default.php`
+    2. `system/target_default.php` (if not defined in the target)
     Execute it.
     - Gets provided with the `PreprocessingContext` obj which offers:
         - Add preprocessors via `add_preprocessor`

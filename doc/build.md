@@ -1,0 +1,38 @@
+# Building
+
+- Run [/build-tools/build](../build-tools/build) script to build a deployment.
+- This will...
+    - Populate the `target` dir within the deployment dir. Some are only present in certain types of deployment.
+        - Config files for docker-compose etc.
+            - `docker-compose.yml`
+            - `docker-compose-linkchecker.yml`
+            - `docker-compose-sync.yml`
+        - Bin files to run the app
+            - `bin/down`: Stops the web app
+            - `bin/linkchecker`: Runs the linkchecker
+            - `bin/preprocess`: Runs the preprocessing phase
+            - `bin/upload`: Uploads to the remote server
+            - `bin/up`: Starts the web app
+            - ...
+            - See also [deployment_local.md](./deployment_local.md) and [deployment_remote](./deployment_remote.md)
+        - Config files that are used by webserver
+            - `.htaccess`
+            - `config.json`
+            - `users.json`
+    - Optionally (through flags) perform checks and integrate with the environment.
+        - Check that the linked conjin version is compatible with the deployment.
+        - Create dirs for docker volumes, typically (but not necessarily at these locations):
+            - `docker_volumes/css`
+            - `docker_volumes/linkchecker`
+            - `docker_volumes/preprocess`
+            - `docker_volumes/store`
+            - `docker_volumes/logs/error`
+        - Check that all volume source paths exist
+        - Register passwords in the desktop, via the scripts given in the config
+            - Example: Store password of the preprocessing user via `secret-tool store --label='dummy-preprocess' password dummy-preprocess`, see also https://ict4g.net/adolfo/notes/admin/secret-tool.html
+        - Install symlinks to the generated scripts in `~/bin`
+        - Force build of the Docker images
+
+- Building does not...
+    - Render SCSS files
+    - Preprocess

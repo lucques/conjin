@@ -11,12 +11,13 @@ Some design decisions are taken as follows.
         - Good IDE support
         - In the future: Use additional external packages from Packagist
     - Disadvantages:
-        - Not as modular as other languages. When including content files (`index.php`), template files (e.g. `target.php`) or module files (`preprocessing.php`), the scoping mechanism is not very elegant -- at these few points things have been crafted with great care.
-- HTML & CSS
+        - Not as modular as other languages. When including content files (`index.php` or `content.php`) or module files, the scoping mechanism is not very elegant -- at these few points things have been crafted with great care.
+- HTML & SASS
     - Complete control of page layout and styles
-    - May also switch to Markdown on some sections and then generate HTML in the future
+    - May also switch to Markdown on some sections and then generate HTML
     - Good IDE support
     - Bootstrap CSS framework
+    - SASS is more declarative/programmable than CSS 
 - Docker
     - Easy deployment of orchestrated containers via docker-compose
 - Dhall configuration language

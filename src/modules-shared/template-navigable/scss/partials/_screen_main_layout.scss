@@ -23,6 +23,8 @@ $sidebar-footer-height: 45px;           // Bottom bar in sidebar
 // Sidebar //
 /////////////
 
+$breadcrumb-divider: quote(">");
+
 #sidebar {
   width: $sidebar-width;
   position: fixed;
@@ -33,28 +35,29 @@ $sidebar-footer-height: 45px;           // Bottom bar in sidebar
   background: $sidebar-background-color;
 }
 
-#sidebar-header, #nav, #sidebar-footer {
+#sidebar-header, #sidebar-nav, #sidebar-footer {
   width: $sidebar-width;
   position: fixed;
-
-  padding:10px;
 }
 
-#sidebar-header, #nav, #sidebar-footer {
+#sidebar-header, #sidebar-nav-breadcrumb, #sidebar-nav-tree, #sidebar-footer {
+  padding:10px;
   border-right: 1px solid $gray-800;
 }
 
-#nav, #sidebar-footer {
-  border-top: 1px solid $gray-800;
+#sidebar-header, #sidebar-nav-breadcrumb, #sidebar-nav {
+  border-bottom: 1px solid $gray-800;
 }
 
 #sidebar-header {
+  z-index: 999;
+
   display: flex;
+
+  background-color: $sidebar-background-color;
 
   align-items: center; // vertical
   justify-content: space-between; // horizontal
-
-  background-color: $sidebar-background-color;
 }
 
 // *Either* use a `.logo-img` *or* a `.logo-title` 
@@ -90,17 +93,31 @@ $sidebar-footer-height: 45px;           // Bottom bar in sidebar
   margin-right:3px;
 }
 
-#nav {
-  top:  $sidebar-header-height;
+#sidebar-nav {
+  top: $sidebar-header-height;
   left: 0;
   height: calc(100% - #{$sidebar-header-height} - #{$sidebar-footer-height});
-  z-index: 999;
+  z-index: 100;
+
+  display: flex;
+  flex-direction: column;
+}
+
+#sidebar-nav-breadcrumb .breadcrumb {
+  margin-top:0;
+  margin-bottom:0;
+}
+
+#sidebar-nav-tree {
+  height:100%;
   overflow-y: auto;
 }
 
 #sidebar-footer {
   top: calc(100% - #{$sidebar-footer-height});
+  z-index: 800;
 
+  background-color: $sidebar-background-color;
   text-align: center;
 }
 
@@ -123,7 +140,7 @@ body:not(.sidebar-active) {
     display:none;
   }
 
-  #nav,
+  #sidebar-nav,
   #sidebar-footer {
     display:none;
   }
@@ -140,24 +157,26 @@ body.sidebar-active {
 }
 
 
-////////////////////////
-// Show-top-level-nav //
-////////////////////////
-
-// The `show-top-level-nav` class can be set/unset. See also `res/script.js`
-body:not(.show-top-level-nav) {
-  // Hide top item
-  .item-level-0 > .caret, .item-level-0 > .bullet, .item-level-0 > .content > a {
-    display:none;
-  }
-}
-
-
 /////////////////
 // Reduced-nav //
 /////////////////
 
-// The `reduced-nav` class can be set/unset. See also `res/script.js`
+// The `reduced-nav` class can be set/unset. See also `res/library.js`
+
+body:not(.reduced-nav) #sidebar-nav-breadcrumb {
+  display: none;
+}
+
 body.reduced-nav .hide-on-reduced-nav {
   display: none !important;
+}
+
+body.reduced-nav .show-only-children-on-reduced-nav {
+  > .caret, > .bullet {
+    display: none !important;
+  }
+
+  > .nav-tree-item > :first-child {
+    display: none !important;
+  }
 }

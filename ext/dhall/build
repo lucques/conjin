@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+
+# Download from Github 
+
+# From 2023-03
+curl -L https://github.com/dhall-lang/dhall-lang/archive/fd057db9b3f89de44cdc77d9669e958b04ed416a.tar.gz | tar xz
+
+(
+    cd dhall-lang-fd057db9b3f89de44cdc77d9669e958b04ed416a/Prelude
+    dhall resolve --file ./package.dhall > ./package_resolved.dhall
+)
+
+# From 2024-08
+curl -L https://github.com/lucques/dhall-docker-compose/archive/f077072175ee1501e12efc9fd37963ae043596ab.tar.gz | tar xz
+
+(
+    cd dhall-docker-compose-f077072175ee1501e12efc9fd37963ae043596ab/compose/v3 && \
+    dhall resolve --file ./package.dhall > ./package_resolved.dhall
+)

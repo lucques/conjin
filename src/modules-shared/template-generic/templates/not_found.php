@@ -1,11 +1,25 @@
 <?
     $render_not_found = function(Module $template, Syslet $syslet, ?array $target_ids, $placeholders_overrides = []) {
-        // Placeholders: Merge default values with overrides
-        $placeholders_default = [
-            'title_for_head' => 'Seite nicht gefunden',
-        ];
+
+        //////////////////////////
+        // Prepare placeholders //
+        //////////////////////////
+
+        $title_for_head = 'Nicht gefunden';
+
+
+        ///////////////////////
+        // Make placeholders //
+        ///////////////////////
+        
+        $placeholders_default = $template->load_def_from_script_and_call('templates/inc/default_placeholders.php', 'default_placeholders', $title_for_head);
         $placeholders = array_merge($placeholders_default, $placeholders_overrides);
 
+        
+        ////////////
+        // Render //
+        ////////////
+        
         $module_doc_extensions_active = function_exists('doc_extensions_get_head_elements');
 ?>
 <!doctype html>
@@ -30,6 +44,11 @@
         <div style="width: 300px; margin:20px auto; border-radius:4px; padding:20px; background-color:white;">
             Die Seite konnte leider nicht gefunden werden.
         </div>
+<?
+        if ($module_doc_extensions_active) {
+            echo implode("\n", doc_extensions_get_body_bottom_elements());
+        }
+?>
     </body>
 </html>
 <?

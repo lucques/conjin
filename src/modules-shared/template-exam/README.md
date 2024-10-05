@@ -1,7 +1,11 @@
 # template-exam
 
-Template for tests and exams
+Template for tests and exams.
+
+Note: `print-mode` must be manually activated.
 
 
 ## Supported modules
-- `doc-extensions`
+- By extension, all modules supported by:
+    - `template-navigable`
+    - `template-bootstrapped`

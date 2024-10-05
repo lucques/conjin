@@ -33,11 +33,13 @@
                            : 'Unbenannt');
 
             // Create nav item
+            $view_action_ser = auth_aux_serialize_action(['tag' => 'View', 'contents' => []]);
+
             $this->nav_item = new TargetNavItem(
                 target_ids:        $this->ctx->target_ids,
                 has_content:       $this->ctx->content_location != ContentLocation::NONE,
                 title:             $title,
-                privileged_actors: $this->ctx->actions_ser_2_actorlist_ser[auth_aux_serialize_action(AUTH_VIEW_ACTION)]
+                privileged_actors: $this->ctx->actions_ser_2_actorlist_ser[$view_action_ser] ?? [],
             );
 
             // Recursively retrieve nav and add to nav item

@@ -9,18 +9,18 @@ It results in four components.
 4. **Progress bar**: Shows how many slots are already done (compare to current date)
 
 
-## Terminology:
+## Terminology
 
 - **Timetable**: List of slots
     - **Slot**:        A single lesson, consists of date + timeslot
     - **Date**:        Year + Month + Day
-    - **Weekday**:     0 = Monday, 1 = Tuesday, ...
+    - **Weekday**:     0 = Monday, 1 = Tuesday, ..., 6 = Sunday
     - **Timeslot**:    Time of day; 1, 2, 3, ...
     - **Week offset relative to current date**: 0 = current week, 1 = following week, ...
 
 - **Classlog**: List of logs (attached either to a date (only for convenience the timeslot may be omitted), or to a concrete slot)
     - **Log**:
-        - **Long log**: ID + Title + Content
+        - **Long log**:  ID + Title + Content
         - **Short log**: ID + Title + Content (optional)
 
 - **Syllabus**: List of units

@@ -31,8 +31,22 @@ All these extensions are independent of page layout / design etc., i.e. they onl
 ## Structure
 - All styles are based on Bootstrap which determines the structure of the main files
 - There are two main SCSS files, catered to the corresponding media types:
-    - `screen.scss`: Custom Bootstrap setup, since colors etc. are added
-    - `print.scss`: Simple Bootstrap setup (one-liner) 
+    - `screen.scss`: Setup option B (see below)
+    - `print.scss`: Setup option A (see below)
+- There are shared SCSS files
+    - `partials/_common.scss`: Common styles for both `screen` and `print`
+    - `partials/_acc_*.scss` files: Styling for the accordion component
+    - `partials/_module_*.scss`: Module-specific styles
+- There are SCSS files to modify the Bootstrap framework
+    - `constants/_maps_screen.scss`: To be included when setting up the maps
+    - `constants/_vars_screen.scss`: To be included when setting up the vars
+    - `constants/_vars_print.scss`: To be included when setting up the vars
+- Bootstrap setup:
+    - Option A (single-line):
+        - `@import "bootstrap_scss/bootstrap";`
+    - Option A (manual + fine-grained):
+        - Since we change some colors, we have to manually set up Bootstrap.
+        - See also https://getbootstrap.com/docs/5.3/customize/sass/#maps-and-loops.
 - See also the conventions for templates in the conjin docs
 
 
@@ -42,11 +56,12 @@ For content flowing top-down, the following notions of a **stack** consisting of
 1. **Stack**: A container with the `.stack` class denotes a container with multiple slices.
 2. **Slice**: A slice has `margin-top` and `margin-bottom`, how much varies.
 
-When slices are stacked upon each other, this works very fine as margins are merged, except for the first and last element of the stack By CSS rules, a `.stack` container eliminates the `margin-top` of the first and `margin-bottom` of the last slices. Sometimes the *visually* first / last element is not the *structurally* (DOM-wise) first / last element. In that case, manually use `first-child` or `last-child` classes. Some containers are made a `.stack` class by default, others can be explicitly made a stack by assigning the `.stack` class
+When slices are stacked upon each other, this works very fine as margins are merged, except for the first and last element of the stack. Any `.stack` container eliminates the `margin-top` of the first and `margin-bottom` of the last slice. Sometimes the *visually* first / last element is not the *structurally* (DOM-wise) first / last element. In that case, manually use `first-child` or `last-child` classes. Some containers are made a `.stack` class by default, others can be explicitly made a stack by assigning the `.stack` class
 
 - Stacks:
     - `<section>`, `.card-body`, `.list-group-item`, `<td>`, `.col`, ...
-    - Items of `.d-grid` and `.d-flex` containers... are stacks.
+        - See [scss/partials/_common.scss](scss/partials/_common.scss) for the full list
+    - The direct children of `.d-grid` and `.d-flex` containers
         - Use `display:grid` and `display:flex` if you don't need the stack behavior.
     - Any element can be made a stack by using the `.stack` class
 
@@ -60,6 +75,9 @@ When slices are stacked upon each other, this works very fine as margins are mer
         - `.ppp`: Behaves like 2 times `<p>`
         - ...
         - `.section`: Behaves like `<section>`
+
+- Anti-slices:
+    - Any element can be made an anti-slice by using the `.my-0` class
 
 
 ## Boxes
@@ -86,18 +104,20 @@ The concept of a **box** describes a container with borders, such as `.accordion
 Floating elements are typically used for images. Use `.float-left`, `.float-right` which come with a `margin` to the side and bottom to prevent text from sticking to the image.
 
 
-## Ordered lists: `<ol>` 
+## Lists
+
+### Ordered lists: `<ol>` 
 Next to the common `list-style-types`, there are the following of the form `decimal-circled`:
 - `decimal`, `lower-alpha`, `upper-alpha`, `lower-roman`
 - `circled`, `bracket`, `parens`
 
+### Problem with styling list markers
+There is a problem with styling list markers using CSS (e.g., it is impossible to position the markers on top instead of on baseline). Read more about using `::marker` vs. `::before`+counters. So whenever you want to use the custom markers (using `::before`+counters), there is a possibility:
+- `<ol>`: Just add `.ol-decimal-circled` to the `<ol>` element. There is one CSS class for each list-style-type.
+- `<ul>`: Just add `.ul-disc` or `.ul-square` to the `<ul>` element.
+Space between the list items is deactivated then. Each `<li>` is a stack. To enable spacing, add the `.list-gap` class to the `<ul>` or `<ol>` element.
 
-## Lists
-There is a problem with styling list markers using CSS (e.g., it is impossible to position the markers on top instead of on baseline). Read more about using `::marker` vs. `::before`+counters. So whenever you want to use the custom markers (using `::before`+counters), there is a possibility: Just add
-`.ol-decimal-circled` to the `<ol>` element. There is one CSS class for each list-style-type.
-
-
-## Ordered lists, Bootstrap-style: `.list-group.list-group-numbered`
+### Ordered lists, Bootstrap-style: `.list-group.list-group-numbered`
 There are two decorations available:
 - `.bold-list-markers`
 - `.first-child-p`
@@ -114,8 +134,7 @@ To keep things lightweight, we reuse the official theme colors...
 - `light`
 - `dark`
 
-...extended by only a few more (defined in [./_maps_screen.scss](./scss/constants/_maps_screen.scss)):
-- `orange`
+...extended by only a few more (defined in [./_maps_screen.scss](./scss/constants/_maps_screen.scss)), such as `orange`
 
 Treating all these just as colors without any semantic meaning is fine even if unintended by Bootstrap devs. We define though the new concept of a **variant** to take up that role of semantic meaning. Variants map semantic functions to before-discussed colors. Here they are:
 - Colors
