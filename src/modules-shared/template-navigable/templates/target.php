@@ -1,5 +1,5 @@
 <?
-    $render_target = function(Module $template, Target $target, string $content, array $placeholders_overrides = []) {
+    $render_target = function(ModuleLocation $template_self, Module $template, Target $target, string $content, array $placeholders_overrides = []) {
 
         //////////////////////////
         // Prepare placeholders //
@@ -17,7 +17,7 @@
         // Make placeholders //
         ///////////////////////
 
-        $placeholders_default = $template->load_def_from_script_and_call(
+        $placeholders_default = $template_self->load_def_from_script_and_call(
             'templates/inc/default_placeholders.php',
             'default_placeholders',
             $template,
@@ -31,13 +31,13 @@
         ////////////
         
         ob_start();
-        $template->load_def_from_script_and_call('templates/inc/header-1.php', 'render', $template, $target->get_ids(), $placeholders);
-        if ($template->config->get('nav_enabled')) {
-            $template->load_def_from_script_and_call('templates/inc/sidebar.php', 'render', $template, $placeholders);
+        $template_self->load_def_from_script_and_call('templates/inc/header-1.php', 'render', $template, $target->get_ids(), $placeholders);
+        if ($template->config->get('sidebar') !== null) {
+            $template_self->load_def_from_script_and_call('templates/inc/sidebar.php', 'render', $template, $placeholders);
         }
-        $template->load_def_from_script_and_call('templates/inc/header-2.php', 'render', $template, $placeholders);
+        $template_self->load_def_from_script_and_call('templates/inc/header-2.php', 'render', $template, $placeholders);
         echo $content;
-        $template->load_def_from_script_and_call('templates/inc/footer.php', 'render', $template, $placeholders);
+        $template_self->load_def_from_script_and_call('templates/inc/footer.php', 'render', $template, $placeholders);
         ob_end_flush();
     };
 ?>

@@ -216,12 +216,12 @@
 
         // Recursive case
         foreach ($a as $key => $value) {
-            if (isset($b[$key])) {
+            if (array_key_exists($key, $b)) {
                 $a[$key] = aux_nested_update($value, $b[$key]);
             }
         }
         foreach ($b as $key => $value) {
-            if (!isset($a[$key])) {
+            if (!array_key_exists($key, $a)) {
                 $a[$key] = $value;
             }
         }

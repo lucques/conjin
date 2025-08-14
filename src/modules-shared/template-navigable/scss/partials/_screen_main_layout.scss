@@ -118,8 +118,27 @@ $breadcrumb-divider: quote(">");
   z-index: 800;
 
   background-color: $sidebar-background-color;
-  text-align: center;
+
+  display: flex;
+  justify-content: center;
 }
+
+#sidebar-footer-user {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  flex: 0 1 auto;  /* grow = yes, shrink = yes */
+  min-width: 0;
+}
+
+#sidebar-footer-actions {
+  flex: 0 0 auto;  /* grow = no, shrink = no */
+  white-space: nowrap; /* optional: prevent wrapping */
+}
+
+
 
 // The `sidebar-active` class can be toggled. If turned on, the sidebar is
 // visible, otherwise not.
@@ -179,4 +198,15 @@ body.reduced-nav .show-only-children-on-reduced-nav {
   > .nav-tree-item > :first-child {
     display: none !important;
   }
+}
+
+
+//////////////////////////
+// Reducible login form //
+//////////////////////////
+
+// See also README.md
+
+body.reduced-login.multiple-login-providers #static-login-form {
+  display: none;
 }

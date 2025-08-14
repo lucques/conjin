@@ -8,4 +8,3 @@ Note: `print-mode` must be manually activated.
 ## Supported modules
 - By extension, all modules supported by:
     - `template-navigable`
-    - `template-bootstrapped`

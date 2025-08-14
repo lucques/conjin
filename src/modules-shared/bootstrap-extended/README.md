@@ -1,4 +1,4 @@
-# template-bootstrapped
+# bootstrap-extensions
 
 This template can be used in two ways:
 1. As a minimalistic template out-of-the-box

@@ -1,5 +1,5 @@
 <?
-    $render_target = function(Module $template, Target $target, string $content, array $placeholders_overrides = []) {
+    $render_target = function(ModuleLocation $template_self, Module $template, Target $target, string $content, array $placeholders_overrides = []) {
 
         //////////////////////////
         // Prepare placeholders //
@@ -27,21 +27,10 @@
         $placeholders = array_merge($placeholders_default, $placeholders_overrides);
 
 
-        ///////////////////////////////////////////////
-        // Prepare sub-template `template-navigable` //
-        ///////////////////////////////////////////////
+        ////////////////////
+        // Render content //
+        ////////////////////
 
-        $placeholders_for_subtemplate_default = $template->load_def_from_script_and_call('templates/inc/default_placeholders_for_subtemplate.php', 'default_placeholders', $template, $title_for_head);
-        $placeholders_for_subtemplate = array_merge($placeholders_for_subtemplate_default, $placeholders_overrides);
-
-        $sub_template = $target->activated_modules['template-navigable'];
-        
-
-        ////////////
-        // Render //
-        ////////////
-
-        // Render content
         ob_start();
 ?>
 <div id="eheader">
@@ -62,7 +51,25 @@
 <?
         $content = ob_get_clean() . $content;
 
-        // Render using sub-template
-        $sub_template->render_target($target, $content, $placeholders_for_subtemplate);
+
+        ///////////////////////////
+        // Sub-template: Prepare //
+        ///////////////////////////
+
+        $sub_template = new ModuleLocation('template-navigable');
+        $placeholders_for_subtemplate_default = $template_self->load_def_from_script_and_call(
+            'templates/inc/overridden_placeholders_for_subtemplate.php',
+            'default_placeholders',
+            template:       $template,
+            sub_template:   $sub_template
+        );
+        $placeholders_for_subtemplate = array_merge($placeholders_for_subtemplate_default, $placeholders_overrides);
+
+
+        //////////////////////////
+        // Sub-template: Render //
+        //////////////////////////
+
+        $sub_template->render_target_with_provided_template($template, $target, $content, $placeholders_for_subtemplate);
     };
 ?>

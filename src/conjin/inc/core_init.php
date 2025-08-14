@@ -133,20 +133,25 @@
 
         http_response_code(500);
 
+        echo 'Es ist ein Fehler auf dem Server aufgetreten. Wir bitten um Entschuldigung. ';
+        if (isset_global_config('errorlog_dir')) {
+            echo 'Der Fehler wurde aufgezeichnet und kann behoben werden.';
+        }
+        else {
+            echo 'Da der Fehler nicht aufgezeichnet wurde, kontaktieren Sie bitte den Administrator.';
+        }
+
+        echo "<br><br>\n\n";
+
         if (get_global_config('errorlog_display')) {
             echo $message;
         }
-        else {
-            echo 'Es ist ein Fehler auf dem Server aufgetreten. Wir bitten um Entschuldigung. ';
-            if (isset_global_config('errorlog_dir')) {
-                echo 'Der Fehler wurde aufgezeichnet und kann behoben werden.';
-            }
-            else {
-                echo 'Da der Fehler nicht aufgezeichnet wurde, kontaktieren Sie bitte den Administrator.';
-            }
-        }
 
         exit();
+    }
+
+    function log_error_silently($message) {
+        $GLOBALS['logger_error']->error($message);
     }
 
     function the_shutdown_function()

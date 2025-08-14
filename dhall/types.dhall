@@ -67,8 +67,9 @@ let OpenIdProvider = {
     , server: Text
     , clientId: Text
     , clientSecret: Text
-    , scopes: List Text     -- e.g. ["email", "openid"]
-    , idAttribute: Text     -- which attribute is used as user ID, e.g. "email"
+    , scopes: List Text             -- e.g. ["email", "openid"]
+    , idAttribute: Text             -- which attribute is used as user ID, e.g. "email"
+    , emailAttribute: Optional Text -- which attribute is used as email, e.g. "email"
     , markerAttributes: List MarkerAttribute
 }
 
@@ -133,6 +134,10 @@ let Authorization = {
 -- Deployment: Common --
 ------------------------
 
+let Mail = {
+    , senderEmail: Text
+}
+
  -- If `*PasswordInitCmd` is `Some`, then the password must have been configured
  -- in plaintext. That password is then fed into StdIn of that command which
  -- should register the password.
@@ -160,8 +165,6 @@ let DockerDepl = {
     , targetDir            : Text
     , cssVolDir            : Text
 
-    -- , mode                 : 
-
     , authentication       : Authentication.Type
     , authorization        : Authorization.Type
 
@@ -169,6 +172,7 @@ let DockerDepl = {
     , modules              : P.Map.Type Text Module
     , staticFiles          : P.Map.Type Text Text  -- Static files to be served by nginx
     , permanentRedirects   : P.Map.Type Text Text  -- Sends HTTP 301; Source is a regex pattern
+
     , desktopIntegration   : DesktopIntegration
 }
 
@@ -253,6 +257,7 @@ let RemoteDepl = {
     , wwwSubdomain        : WWWSubdomain
     , activateCompression : Bool
     , rcloneRemote        : RClone
+    , mail                : Optional Mail
     , errors              : RemoteErrors
     , db                  : Optional RemoteDb
     , store               : RemoteStore -- If `WithBackup`, then a `store` directory is created next to the `preprocess` directory
@@ -262,7 +267,7 @@ in
 
 { SharedModuleLocation, SharedBareModule, sharedBareModuleToLocation, sharedBareModuleToScssDeps,
   ModuleLocation, LocalBareModule, BareModule, Module, bareModuleToLocation, bareModuleToScssDeps,
-  Authentication, AuthenticationWithoutPasswords, Authorization, LocalDb, RemoteDb, LocalStore, RemoteStore, RClone, DockerDepl, DesktopIntegration,
+  Authentication, AuthenticationWithoutPasswords, Authorization, LocalDb, RemoteDb, LocalStore, RemoteStore, RClone, DockerDepl, Mail, DesktopIntegration,
   LocalErrors, RemoteErrors,
   HTTPS, WWWSubdomain,
   RemoteErrorLogging,

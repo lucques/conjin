@@ -3,6 +3,9 @@
 This template is very basic and centered around few features:
 - **Layout**:
     - `#sidebar` on the left with a navigation, therefore depending on the `nav` module
+        - Two toggle features are built-in via `dynamic-toggle` module:
+            - Open/close sidebar
+            - Reduce/expand navigation
     - `#content` pane on the right
 - **Support basic modules**: See also `Supported modules` below.
 
@@ -19,18 +22,21 @@ It forms the base of templates like `template-interbook` and `template-exam`.
 
 ## Supported modules
 - `doc-extensions`
+    - How? Various body classes, scripts etc. are properly inserted
+- `footnotes`
+    - How? Footnotes are rendered at the end of the page
 - `print-mode`
     - How?
         - The `.sheets` are properly included in DOM; toggle button is added
         - `sheets` are treated as stacks
-    - Requires there to be a `print-mode-print.scss` file
+    - If activated, a `print-mode-print.scss` file is required
 - `sol-mode`
     - How? Toggle button is added
-- `footnotes`
-    - How? Footnotes are rendered at the end of the page
+- `title`
+    - How? Titles are put together via this module
 - `references`
     - How? References are rendered at the end of the page
-    
+
 
 ## Main structure
 Without `print-mode` on, the DOM structure is as follows.

@@ -4,6 +4,11 @@
     ////////////////
 
     $init_processing_target = function(Module $module, Target $target) {
+        if ($module->config->get('import_standalone_css')) {
+            doc_extensions_add_head_element('<link rel="stylesheet" media="screen" href="' . $module->get_css_url() . '/screen.css">');
+            doc_extensions_add_head_element('<link rel="stylesheet" media="print" href="' . $module->get_css_url() . '/print.css">');
+        }
+
         load_def_from_script_and_call(__DIR__ . '/acc.php', 'init_processing_target', $module, $target);
         load_def_from_script_and_call(__DIR__ . '/carousel.php', 'init_processing_target', $module, $target);
         load_def_from_script_and_call(__DIR__ . '/modals.php', 'init_processing_target', $module, $target);
@@ -11,9 +16,9 @@
     };
 
 
-    //////////////////////
-    // Used by template //
-    //////////////////////
+    /////////////////////////////
+    // May be used by template //
+    /////////////////////////////
 
     function variant_to_color($variant) {
         // Colors *are* variants

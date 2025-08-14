@@ -440,6 +440,17 @@ let defaultUnsafeAuthentication = {
     , openIdProviders = P.List.empty T.OpenIdProvider
 }: T.Authentication.Type
 
+let defaultUnsafeAuthentication = {
+    , staticLoginWithoutUserName = True
+    , staticUsers2passwords = [
+        , assignUser2Password "root"        "asdf"
+        , assignUser2Password "preprocess"  "preprocess"
+        , assignUser2Password "linkchecker" "linkchecker"
+    ]
+    , openIdProviders = P.List.empty T.OpenIdProvider
+}: T.Authentication.Type
+
+
 -- The db module is added automatically.
 let makeDefaultLocalDepl = 
     \(name: Text) ->
@@ -535,6 +546,7 @@ let makeDefaultRemoteDepl =
         , wwwSubdomain           = T.WWWSubdomain.Off {=}
         , activateCompression    = True
         , rcloneRemote
+        , mail                   = None T.Mail
         , errors = makeDefaultRemoteErrors deplDir
         , db = (None T.RemoteDb)
         , store = if withStore then makeDefaultRemoteStore deplDir else T.RemoteStore.None {=}

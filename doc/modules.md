@@ -42,13 +42,13 @@
         - May init state that is needed by this module during the processing phase, e.g. a db connection. Such state should be managed by `$GLOBALS` var
 - `templates/`:
     - `target.php`
-        - `render_target: (Module, Target, $content: string, $placeholders_override: dict<string, mixed>) -> ()`
+        - `render_target: (ModuleLocation, Module, Target, $content: string, $placeholders_override: dict<string, mixed>) -> ()`
     - `login.php`
-        - `render_login: (Module, Syslet, $logout_sucessful: bool, $password_incorrect: bool, $openid_fail: mixed, $openid_provider_names: array, $placeholders_override: dict<string, mixed>) -> ()`
+        - `render_login: (ModuleLocation, Module, Syslet, $logout_sucessful: bool, $password_incorrect: bool, $openid_fail: mixed, $openid_provider_names: array, $placeholders_override: dict<string, mixed>) -> ()`
     - `notfound.php`
-        - `render_not_found: (Module, Syslet, $target_ids: ?array, $placeholders_override: dict<string, mixed>) -> ()`
+        - `render_not_found: (ModuleLocation, Module, Syslet, $target_ids: ?array, $placeholders_override: dict<string, mixed>) -> ()`
     - `unauthorized.php`
-        - `render_unauthorized: (Module, Syslet, $target_ids: ?array, $placeholders_override: dict<string, mixed>) -> ()`
+        - `render_unauthorized: (ModuleLocation, Module, Syslet, $target_ids: ?array, $placeholders_override: dict<string, mixed>) -> ()`
         - TODO: This is not implemented yet
 - `scss/`:
     - Contains SCSS files that are fed into the SCSS compiler
@@ -75,7 +75,8 @@ Two layers serve different purposes:
     - parameters
     - `placeholders_overrides` (explanation follows; only used when extending a base template)
 - This will cause the `$render_target`, `$render_login`, ... of `target.php`, `login.php`, ... to be called. They are provideded...
-    - the current **template** (module)
+    - the current module location
+    - a **template** (module). Note that this can be a derived template, e.g. `template-interbook` is based on `template-navigable`
     - the current **processable**
     - parameters
     - `placeholders_overrides`
@@ -87,7 +88,7 @@ Two layers serve different purposes:
 - The placeholders are an intermediate layer to provide the overriding mechanism
 
 What often happens is that templates are based on each other, e.g. `template-interbook` builds upon `template-navigable`. Some comments on this:
-- The config of `template-interbook` should be comprehensive and this module should *internally* configure its base template
+- The config of the derived template must extend the config of the base template.
 
 
 ## Conventions

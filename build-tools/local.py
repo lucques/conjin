@@ -136,7 +136,7 @@ def build_local_depl(
         }
     }
 
-    phase_build_dhall_artifacts(artifacts_config_files, config_path, 'artifactsDockerLocal.makeArtifacts')
+    phase_build_dhall_artifacts(artifacts_config_files, config_path, 'artifactsLocal.makeArtifacts')
 
 
     ########################################
@@ -144,7 +144,7 @@ def build_local_depl(
     ########################################
 
     if check_vol_source_paths_exist:
-        phase_check_volume_source_paths_exist(['docker-compose-app-yml-volume-sources'], config_path, 'artifactsDockerLocal.makeArtifacts')
+        phase_check_volume_source_paths_exist(['docker-compose-app-yml-volume-sources'], config_path, 'artifactsLocal.makeArtifacts')
 
 
     ############################
@@ -270,7 +270,7 @@ def build_local_depl(
                 #! /bin/bash
 
                 # Command to pass to db container
-                cmd="exec mysqldump -u root -p\"rutus\" --all-databases > /backup/backup-$(date '+%Y-%m-%d.%H-%M-%S').mysql.sql"
+                cmd="exec mysqldump -u root -p\"rutus\" --all-databases > /backup/snapshot-$(date '+%Y-%m-%d.%H-%M-%S').mysql.sql"
 
                 docker compose \\
                         --file         {artifacts_config_files['docker-compose-app-yml']['path']} \\
@@ -286,7 +286,7 @@ def build_local_depl(
                 #! /bin/bash
 
                 # Command to pass to container
-                backup_dir=backup-$(date '+%Y-%m-%d.%H-%M-%S')
+                backup_dir=snapshot-$(date '+%Y-%m-%d.%H-%M-%S')
                 cmd="mkdir /files/store-backup/${{backup_dir}} && cp -r /files/store/* /files/store-backup/${{backup_dir}}/"
 
                 docker compose \\

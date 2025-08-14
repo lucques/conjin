@@ -97,15 +97,6 @@
         core_save_file($path, $content);
     }
 
-    function core_load_store_file($filename) {
-        $path = path_store($filename);
-        if (!file_exists($path)) {
-            // fail('Error: Store file does not exist: ' . $path);  // TODO
-        }
-
-        return file_get_contents($path);
-    }
-
 
     ////////////////////////////
     // Save and load: General //
@@ -118,14 +109,6 @@
         }
 
         file_put_contents($path, $content);
-    }
-
-    function load_file($path) {
-        if (!file_exists($path)) {
-            // fail('Error: File does not exist.');  // TODO
-        }
-        
-        return file_get_contents($path);
     }
 
 
@@ -171,6 +154,7 @@
     // URLs //
     //////////
 
+    // This function really returns a root-relative URL, e.g. `/intro/res/img.jpg`
     function url($suffix = '') {
         return get_global_config('url_base') . $suffix;
     }
@@ -190,6 +174,27 @@
         }
     }
 
+    // This function returns the full URL, including protocol and host, e.g. `https://conjin.org/intro/res/img.jpg`
+    function url_full($suffix = ''): string {
+        $protocol = get_global_config('https') ? 'https' : 'http';
+
+        return $protocol . '://' . get_global_config('host') . get_global_config('url_base') . $suffix;
+    }
+
+    function url_full_collect($target_ids = [], $anchor_ids = []): string {
+        $suffix = '';
+        foreach ($target_ids as $id) {
+            $suffix .= $id . '/';
+        }
+
+        $anchor = anchor_collect($anchor_ids);
+        if ($anchor != '') {
+            return url_full($suffix . '#' . $anchor);
+        }
+        else {
+            return url_full($suffix);
+        }
+    }
 
     ////////////////
     // Unique ids //

@@ -59,6 +59,23 @@
         }
 
 
+        ///////////////
+        // Rendering //
+        ///////////////
+
+        public function render_login_with_provided_template(Module $template, Syslet $syslet, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []): void {
+            $this->load_def_from_script_and_call('templates/login.php', 'render_login', $this, $template, $syslet, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names, $placeholders_overrides);
+        }
+
+        public function render_not_found_with_provided_template(Module $template, Syslet $syslet, ?array $target_ids, array $placeholders_overrides = []): void {
+            $this->load_def_from_script_and_call('templates/not_found.php', 'render_not_found', $this, $template, $syslet, $target_ids, $placeholders_overrides);
+        }
+        
+        public function render_target_with_provided_template(Module $template, Target $target, string $content, array $placeholders_overrides = []): void {
+            $this->load_def_from_script_and_call('templates/target.php', 'render_target', $this, $template, $target, $content, $placeholders_overrides);
+        }
+
+
         /////////////
         // Helpers //
         /////////////
@@ -120,6 +137,7 @@
             $config_array = aux_nested_update($config_array, get_global_config_or_default(['module_2_config', $name], default: []));
 
             // Compose with client module config
+            
             $config_array = aux_nested_update($config_array, $config_client ?? []);
 
             return new Module(
@@ -156,9 +174,9 @@
         }
 
 
-        ///////////////
-        // Rendering //
-        ///////////////
+        ////////////////
+        // Processing //
+        ////////////////
 
         public function init_processing_syslet(Syslet $syslet, Target $target_root): void {
             $defs = load_defs_from_script($this->get_path() . '/processing.php');
@@ -182,16 +200,21 @@
             }
         }
 
+
+        ///////////////
+        // Rendering //
+        ///////////////
+
         public function render_login(Syslet $syslet, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []): void {
-            $this->load_def_from_script_and_call('templates/login.php', 'render_login', $this, $syslet, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names, $placeholders_overrides);
+            $this->load_def_from_script_and_call('templates/login.php', 'render_login', $this, $this, $syslet, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names, $placeholders_overrides);
         }
 
         public function render_not_found(Syslet $syslet, ?array $target_ids, array $placeholders_overrides = []): void {
-            $this->load_def_from_script_and_call('templates/not_found.php', 'render_not_found', $this, $syslet, $target_ids, $placeholders_overrides);
+            $this->load_def_from_script_and_call('templates/not_found.php', 'render_not_found', $this, $this, $syslet, $target_ids, $placeholders_overrides);
         }
         
         public function render_target(Target $target, string $content, array $placeholders_overrides = []): void {
-            $this->load_def_from_script_and_call('templates/target.php', 'render_target', $this, $target, $content, $placeholders_overrides);
+            $this->load_def_from_script_and_call('templates/target.php', 'render_target', $this, $this, $target, $content, $placeholders_overrides);
         }
 
 

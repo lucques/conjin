@@ -24,11 +24,6 @@ let htdocsDir = common.htdocsDir
 let makeHtdocsVols = common.makeHtdocsVols
 let makeTemplateSassCompilation = common.makeTemplateSassCompilation
 
--- config.json
-let artifactsHtdocs = ./artifacts-htdocs.dhall
-let ConfigJsonFile = artifactsHtdocs.ConfigJsonFile
-let ConfigJsonFileT = artifactsHtdocs.ConfigJsonFileT
-let tagConfigJsonFile = artifactsHtdocs.tagConfigJsonFile
 
 -----------------------------
 -- docker-compose Services --
@@ -262,94 +257,7 @@ let makeLinkCheckerCompose =
     in Compose.Config::{ services = Some services }
 
 
--------------
--- Helpers --
--------------
-
-let stripPasswordsOffAuthentication = 
-    \(authentication: T.Authentication.Type) ->
-    {
-        , staticLoginWithoutUserName = authentication.staticLoginWithoutUserName
-        , openIdProviders = authentication.openIdProviders
-    }: T.AuthenticationWithoutPasswords
-
-
---------------------------------------------------------------------
--- Extract all Docker volume sources from a Docker compose config --
---------------------------------------------------------------------
-
-let extractDockerVolumeSources =
-    \(config: Compose.Config.Type) ->
-        let extractFromServiceVolumeLong = 
-            \(v: Compose.ServiceVolumeLong.Type) ->
-                merge {
-                    , None = empty Text
-                    , Some = \(src: Text) -> [src]
-                } v.source
-        : List Text
-
-        let extractFromServiceVolume = 
-            \(v: Compose.ServiceVolume) ->
-                merge {
-                    , Long = extractFromServiceVolumeLong
-                    , Short = \(s: Text) -> [s]
-                } v
-        : List Text
-
-        let extractFromService =
-            \(s: Compose.Service.Type) ->
-                merge {
-                    , None = empty Text
-                    , Some = \(vols: List Compose.ServiceVolume) ->
-                        P.List.concatMap Compose.ServiceVolume Text extractFromServiceVolume vols
-                } s.volumes
-        : List Text
-        
-        let extractFromServices = 
-            \(s: Compose.Services) ->
-                P.List.concatMap Compose.Service.Type Text extractFromService (P.Map.values Text Compose.Service.Type s)
-        : List Text
-
-        in merge {
-            , None = empty Text
-            , Some = extractFromServices
-        } config.services
-: List Text
-
-
-
----------------------------------------------------
--- All config files bundled together in a record --
----------------------------------------------------
-
-let makeArtifacts =
-    \(config: T.LocalDepl) ->
-    {
-        , docker-compose-app-yml
-            = makeLocalDeplCompose config
-            : Compose.ComposeConfig     
-        , docker-compose-app-yml-volume-sources
-            = extractDockerVolumeSources (makeLocalDeplCompose config)
-            : List Text
-        , docker-compose-linkchecker-yml
-            = makeLinkCheckerCompose config
-            : Compose.ComposeConfig
-        , config-json
-            = tagConfigJsonFile {
-                path_base = "..",
-                path_preprocess = "../../preprocess",
-                path_store = P.Optional.map T.LocalStore Text (\(_: T.LocalStore) -> "../../store") config.store,
-                url_base = "/",
-                authentication = stripPasswordsOffAuthentication config.depl.authentication,
-                authorization = config.depl.authorization,
-                module_2_location = P.Map.map Text T.BareModule T.ModuleLocation T.bareModuleToLocation config.depl.bareModules,
-                module_2_config = P.Map.map Text T.Module P.JSON.Type (\(m: T.Module) -> m.config) config.depl.modules,
-                errorlog_display = config.errors.display,
-                errorlog_dir = P.Optional.map Text Text (\(_: Text) -> "../../logs/error") config.errors.logToVolDir
-            }
-            : ConfigJsonFileT
-    }
-
 in {
-    , makeArtifacts
+    , makeLocalDeplCompose
+    , makeLinkCheckerCompose
 }

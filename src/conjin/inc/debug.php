@@ -99,6 +99,10 @@
 
         echo generateUpToDateMimeArray(APACHE_MIME_TYPES_URL);
     }
+    elseif ($what == 'log') {
+        header('Content-Type: text/plain');
+        readfile('/var/log/mail.log');
+    }
     elseif ($what == 'htaccess') {
         header('Content-Type: text/plain');
         readfile('../.htaccess');

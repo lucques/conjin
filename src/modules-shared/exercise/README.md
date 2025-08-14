@@ -1,6 +1,6 @@
 # exercise
 
-This module offers to include exercises and solutions. It depends on the accordions of `template-bootstrapped`.
+This module offers to include exercises and solutions. It depends on the accordions of `bootstrap-extended`.
 
 
 ## Features

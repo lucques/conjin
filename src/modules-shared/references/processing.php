@@ -21,7 +21,7 @@
         // Read meta information
         $meta_file_path = ref_aux_change_file_extension($path, 'json');
         assert(file_exists($meta_file_path), "File path for meta information `$meta_file_path` does not exist");
-        $meta_json = json_decode(load_file($meta_file_path), associative: true);
+        $meta_json = json_decode(file_get_contents($meta_file_path), associative: true);
 
         // Add ref and get ref number
         $number = ref_add($meta_json);

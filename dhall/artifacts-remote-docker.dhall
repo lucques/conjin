@@ -25,12 +25,6 @@ let makeHtdocsVols = common.makeHtdocsVols
 let makeTemplateSassCompilation = common.makeTemplateSassCompilation
 let extractDockerVolumeSources = common.extractDockerVolumeSources
 
--- config.json
-let artifactsHtdocs = ./artifacts-htdocs.dhall
-let ConfigJsonFile = artifactsHtdocs.ConfigJsonFile
-let ConfigJsonFileT = artifactsHtdocs.ConfigJsonFileT
-let tagConfigJsonFile = artifactsHtdocs.tagConfigJsonFile
-
 
 -----------------------------
 -- docker-compose Services --
@@ -225,48 +219,10 @@ let makeRemoteDeplBackupStoreCompose =
         services = Some (toMap { job })
     }
 
--- If run as root, then privileges are dropped -- this causes problems when the mounted volume is mounted as root, but the file is then to be written as non-root
--- TODO: dir `linkchecker` must be created as non-root -- some way around this?
--- TODO: Needs env vars `USER_UID` and `USER_GID` to be set
--- cf. https://stackoverflow.com/questions/56844746/how-to-set-uid-and-gid-in-docker-compose
-let makeLinkCheckerCompose =
-    \(config: T.LocalDepl) ->
-
-    let linkchecker =
-    Compose.Service::{
-        , build        = Some (Compose.Build.String (config.depl.conjinDir ++ "/docker/images/conjin-linkchecker"))
-        , user         = Some "\${USER_UID}:\${USER_GID}"
-        , volumes      = Some ([ makeVol config.linkcheckerVolDir "/mnt" ])
-        , network_mode = Some "host"
-        , environment  = Some (Compose.ListOrDict.Dict [
-            -- Host and user are determined, but password needs to be passed by host
-            P.Map.keyText "LINKCHECKER_OUT_DIR" config.linkcheckerVolDir,
-            P.Map.keyText "LINKCHECKER_HOST" config.nginxVirtualHost,
-            P.Map.keyText "LINKCHECKER_USER" config.linkcheckerUser,
-            P.Map.keyText "LINKCHECKER_PASSWORD" "\${LINKCHECKER_PASSWORD}",
-            P.Map.keyText "LINKCHECKER_PREFIX" "\${LINKCHECKER_PREFIX}",
-        ])
-    }
-
-    let services
-        : Compose.Services
-        = toMap
-            { linkchecker = linkchecker
-            }
-
-    in Compose.Config::{ services = Some services }
-
 
 -------------
 -- Helpers --
 -------------
-
-let stripPasswordsOffAuthentication = 
-    \(authentication: T.Authentication.Type) ->
-    {
-        , staticLoginWithoutUserName = authentication.staticLoginWithoutUserName
-        , openIdProviders = authentication.openIdProviders
-    }: T.AuthenticationWithoutPasswords
 
 let isRemoteErrorLogging =
     \(s: T.RemoteErrorLogging) ->
@@ -296,54 +252,8 @@ let hasRemoteStoreWithBackup =
     : Bool
 
 
----------------------------------------------------
--- All config files bundled together in a record --
----------------------------------------------------
-
-let makeArtifacts =
-    \(config: T.RemoteDepl) ->
-    let upload         = makeRemoteDeplUploadCompose config False
-    let uploadOmitSass = makeRemoteDeplUploadCompose config True
-    let backupErrorLog =
-        merge {
-            , None          = \(_: {}) -> None Compose.ComposeConfig
-            , WithoutBackup = \(_: {}) -> None Compose.ComposeConfig
-            , WithBackup    = \(s: {backupDir: Text}) -> Some (makeRemoteDeplBackupErrorLogCompose s.backupDir config.rcloneRemote)
-        } config.errors.logging
-    let backupStore =
-        merge {
-            , None          = \(_: {}) -> None Compose.ComposeConfig
-            , WithoutBackup = \(_: {}) -> None Compose.ComposeConfig
-            , WithBackup    = \(s: {backupDir: Text}) -> Some (makeRemoteDeplBackupStoreCompose s.backupDir config.rcloneRemote)
-        } config.store
-    in
-    {
-        , docker-compose-upload-yml = upload
-            : Compose.ComposeConfig
-        , docker-compose-upload-omit-sass-yml = uploadOmitSass
-            : Compose.ComposeConfig
-        , docker-compose-upload-yml-volume-sources = extractDockerVolumeSources upload
-            : List Text
-        , docker-compose-backup-errorlog-yml = backupErrorLog
-            : Optional Compose.ComposeConfig
-        , docker-compose-backup-store-yml = backupStore
-            : Optional Compose.ComposeConfig
-        , config-json
-            = tagConfigJsonFile {
-                path_base = config.pathBase,
-                path_preprocess = config.pathBase ++ "/preprocess",
-                path_store = if (hasRemoteStore config.store) then Some (config.pathBase ++ "/store") else None Text,
-                url_base = config.urlBase,
-                authentication = stripPasswordsOffAuthentication config.depl.authentication,
-                authorization = config.depl.authorization,
-                module_2_location = P.Map.map Text T.BareModule T.ModuleLocation T.bareModuleToLocation config.depl.bareModules,
-                module_2_config = P.Map.map Text T.Module P.JSON.Type (\(m: T.Module) -> m.config) config.depl.modules,
-                errorlog_display = config.errors.display,
-                errorlog_dir = if (isRemoteErrorLogging config.errors.logging) then Some (config.pathBase ++ "/logs/error") else None Text
-            }
-            : ConfigJsonFileT
-    }
-
 in {
-    , makeArtifacts
+    , makeRemoteDeplUploadCompose
+    , makeRemoteDeplBackupErrorLogCompose
+    , makeRemoteDeplBackupStoreCompose
 }

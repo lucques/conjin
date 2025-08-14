@@ -139,7 +139,7 @@ def build_remote_depl(
         }
 
 
-    phase_build_dhall_artifacts(artifacts, config_path, 'artifactsDockerRemote.makeArtifacts')
+    phase_build_dhall_artifacts(artifacts, config_path, 'artifactsRemote.makeArtifacts')
 
 
     ########################################
@@ -147,7 +147,7 @@ def build_remote_depl(
     ########################################
 
     if check_vol_source_paths_exist:
-        phase_check_volume_source_paths_exist(['docker-compose-upload-yml-volume-sources'], config_path, 'artifactsDockerRemote.makeArtifacts')
+        phase_check_volume_source_paths_exist(['docker-compose-upload-yml-volume-sources'], config_path, 'artifactsRemote.makeArtifacts')
 
 
     ############################

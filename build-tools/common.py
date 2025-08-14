@@ -82,7 +82,7 @@ def phase_build_dirs(what, target_dirs):
 
 
 def phase_check_volume_source_paths_exist(path_artifacts, config_path, tools_function):
-    print('Checking volume source paths exist...')
+    print('Checking that volume source paths exist...')
 
     for key in path_artifacts:
         print('- ' + key + '...')

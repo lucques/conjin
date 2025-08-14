@@ -6,8 +6,8 @@
     , typesTagged             = ./types-tagged.dhall
 
     , artifactsDockerCommon   = ./artifacts-docker-common.dhall
-    , artifactsDockerLocal    = ./artifacts-docker-local.dhall
-    , artifactsDockerRemote   = ./artifacts-docker-remote.dhall
+    , artifactsLocal          = ./artifacts-local.dhall
+    , artifactsRemote         = ./artifacts-remote.dhall
     , artifactsHtdocs         = ./artifacts-htdocs.dhall
 
     , tools                   = ./tools.dhall

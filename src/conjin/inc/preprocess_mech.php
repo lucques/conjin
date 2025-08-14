@@ -28,6 +28,7 @@
 
         // @param $config: Nested assoc array (for convencience not wrapped with `ConfigTree`)
         public function activate_module(string $name, ?array $config = null): void {
+            
             $m = Module::construct_with_defaults($name, $config);
 
             if (!isset($this->activated_modules[$name]))

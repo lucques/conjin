@@ -21,6 +21,7 @@ let LocalStore = T.LocalStore
 let RemoteStore = T.RemoteStore
 let RClone = T.RClone
 let DockerDepl = T.DockerDepl
+let Mail = T.Mail
 let DesktopIntegration = T.DesktopIntegration
 let HTTPS = T.HTTPS
 let WWWSubdomain = T.WWWSubdomain
@@ -162,6 +163,7 @@ let RemoteDeplT = {
     , wwwSubdomain: WWWSubdomainT
     , activateCompression: Bool
     , rcloneRemote: RClone
+    , mail: Optional Mail
     , errors: RemoteErrorsT
     , db: Optional RemoteDb
     , store: RemoteStoreT

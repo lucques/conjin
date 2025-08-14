@@ -1,6 +1,7 @@
 # Process (How ordinary requests are handled)
 **Processing** means to take an HTTP request for a specific **target** or a **syslet** and produce an adequate HTTP response.
 
+
 ## Target URLs
 
 1. All requests are forwarded by `.htaccess` to `index.php`
@@ -13,6 +14,7 @@
 3. If not authenticated, forward e.g. `/page/subpage/` to `/login/?redirect=/page/subpage/` with `$_GET` param:
     - `req`      = `login`
     - `redirect` = `/page/subpage/`
+
 
 ## Target mechanism
 

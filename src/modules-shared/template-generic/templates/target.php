@@ -1,5 +1,5 @@
 <?
-    $render_target = function(Module $template, Target $target, string $content, array $placeholders_overrides = []) {
+    $render_target = function(ModuleLocation $template_self, Module $template, Target $target, string $content, array $placeholders_overrides = []) {
 
         //////////////////////////
         // Prepare placeholders //
@@ -15,7 +15,7 @@
         // Make placeholders //
         ///////////////////////
         
-        $placeholders_default = $template->load_def_from_script_and_call('templates/inc/default_placeholders.php', 'default_placeholders', $title_for_head);
+        $placeholders_default = $template_self->load_def_from_script_and_call('templates/inc/default_placeholders.php', 'default_placeholders', $title_for_head);
         $placeholders = array_merge($placeholders_default, $placeholders_overrides);
 
         
@@ -29,6 +29,7 @@
 <html lang="de">
     <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title><?= $placeholders['title_for_head'] ?></title>
 <?
         if ($module_doc_extensions_active) {

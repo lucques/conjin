@@ -24,9 +24,13 @@
             </main>
         </div>
         <script>
-            setupSidebar();
-            setupTooltips();
+            setupCommon();
 <?
+        if ($template->config->get('sidebar') !== null) {
+?>
+            setupSidebar();
+<?
+        }
         if ($module_doc_extensions_active) {
             array_map(function($extension) {
                 echo '            ' . str_replace("\n", "\n            ", $extension) . "\n";

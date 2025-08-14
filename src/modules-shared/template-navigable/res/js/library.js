@@ -1,13 +1,25 @@
+///////////////////////
+// Common components //
+///////////////////////
+
+// Idempotent; may be called again to reinitialize
+function setupCommon() {
+    // Initialize Bootstrap tooltips
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+}
+
+
 /////////////
 // Sidebar //
 /////////////
 
 /*
     Definitions / CSS classes:
-    - `<body>` classes:
+    - API: `<body>` classes
         - sidebar-active: Sidebar is visible
-        - reduced-nav (vs. full-nav): Prune some targets out of nav
-    - `.nav-tree-item` classes:
+        - reduced-nav: Prune some targets out of nav
+    - Internal `.nav-tree-item` classes:
         - hide-on-reduced-nav
             - On reduced-nav: Target is pruned
         - show-only-children-on-reduced-nav
@@ -18,16 +30,6 @@
 
 // Non-idempotent; therefore must only be called once
 function setupSidebar() {
-    // Setup button to activate/deactive sidebar
-    document.querySelector('#sidebar-collapse-button-activate').addEventListener('click', toggleSidebar);
-    document.querySelector('#sidebar-collapse-button-deactivate').addEventListener('click', toggleSidebar);
-
-    // Functionality to activate/deactivate reduced nav happened already in `header.php`
-
-    // Register initialized values (init has happened in `header.php`): Sidebar active, reduced nav
-    activateSidebar(document.querySelector('body').classList.contains('sidebar-active'));
-    reduceNav(document.querySelector('body').classList.contains('reduced-nav'));
-
 
     /////////////////////////
     // Setup the nav items //
@@ -86,55 +88,6 @@ function setupSidebar() {
             item.parentElement.parentElement.classList.toggle('unfolded');
         });
     });
-}
-
-function isSidebarActive() {
-    return document.querySelector('body').classList.contains('sidebar-active');
-}
-
-function isNavReduced() {
-    return document.querySelector('body').classList.contains('reduced-nav');
-}
-
-function activateSidebar(active) {
-    if (active) {
-        document.querySelector('body').classList.add('sidebar-active');
-        localStorage.setItem('sidebar-active', 'true');     
-    }
-    else {
-        document.querySelector('body').classList.remove('sidebar-active');
-        localStorage.setItem('sidebar-active', 'false');             
-    }
-}
-
-function reduceNav(reduce) {
-    if (reduce) {
-        document.querySelector('body').classList.add('reduced-nav');
-        localStorage.setItem('reduced-nav', 'true');     
-    }
-    else {
-        document.querySelector('body').classList.remove('reduced-nav');
-        localStorage.setItem('reduced-nav', 'false');             
-    }
-}
-
-function toggleSidebar() {
-    activateSidebar(!isSidebarActive());
-}
-
-function toggleReducedNav() {
-    reduceNav(!isNavReduced());
-}
-
-
-////////////////////////
-// Bootstrap Tooltips //
-////////////////////////
-
-// Idempotent; may be called again to reinitialize
-function setupTooltips() {
-    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-    [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 }
 
 

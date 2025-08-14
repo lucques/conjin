@@ -1,16 +1,17 @@
 # template-interbook
 
-This template provides the style of an "interactive" "book". The template is based on `template-bootstrapped`. Many modules are supported and there are some config options.
+This template provides the style of an "interactive" "book". The template is based on `template-navigable`. Many modules are supported and there are some config options.
 
+
+## Usage
 This template can be used in two ways:
 1. As a template out-of-the-box
 2. As the base of a more complex template
 
-See also the docs of the `template-bootstrapped` module.
+See also the docs of the `template-navigable` module.
 
 
 ## Supported modules
-- By extension all modules supported by `template-bootstrapped`
 - By extension all modules supported by `template-navigable`
 
 

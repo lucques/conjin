@@ -23,14 +23,6 @@
             'title_for_logo'                    => $title_for_logo,
             'title_for_head'                    => $title_for_head,
 
-            'nav_enabled'                       => $template->config->get('nav_enabled'),
-            'use_img_as_logo'                   => $template->config->get('use_img_as_logo'),
-            'link_logo_to_home'                 => $template->config->get('link_logo_to_home'),
-            'nav_active_sidebar_by_default'     => $template->config->get('nav_active_sidebar_by_default'),
-            'nav_reduce_by_default'             => $template->config->get('nav_reduce_by_default'),
-            'nav_reduce_toggleable_with_ctrl'   => $template->config->get('nav_reduce_toggleable_with_ctrl'),
-            'nav_reduce_breadcrumb_up_to_level' => $template->config->get('nav_reduce_breadcrumb_up_to_level'),
-
             'body_classes'                      => []  // Allows to add additional classes to the body element
         ];
     }

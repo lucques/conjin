@@ -36,7 +36,8 @@ td,
 .d-flex > *, // A flex item is a stack
 .box-large,  // A box is a stack
 .box-medium,
-.box-small
+.box-small,
+.alert,
 .clearfix
 {
   @extend .stack;

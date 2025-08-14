@@ -1,13 +1,18 @@
 <?
     use Jumbojett\OpenIDConnectClient;
 
-    //////////////////////////////
-    // Session management: Init //
-    //////////////////////////////
+    ///////////////////////////////////////////////
+    // Authentication & Session management: Init //
+    ///////////////////////////////////////////////
 
     // Gets called during app initialization.
-    // After return, `$GLOBALS['user']` is set, based on session etc.
+    // After return...
+    // - Session is started
+    // - `$GLOBALS['user']` is set, based on session etc.
     function auth_init() {
+        // Start session
+        session_start();
+
         // 1. Auth by cookie
         if (isset($_COOKIE['password'])) {
             // Assume the user or become "guest"
@@ -21,8 +26,6 @@
         }
         // 2. Auth by login session
         else {
-            session_start();
-
             // Become "guest" if session is new or resume otherwise
             if (!isset($_SESSION['user'])) {
                 $_SESSION['user'] = auth_aux_make_guest_user();
@@ -32,9 +35,9 @@
     }
 
 
-    //////////////////////////////////
-    // Session Management: Handlers //
-    //////////////////////////////////
+    //////////////////////////////
+    // Authentication: Handlers //
+    //////////////////////////////
 
     // Preconditions:
     // - User is not currently logged in
@@ -97,6 +100,10 @@
                 // Pick up after re-connect
                 $idAttribute = $oidc->requestUserInfo($provider['idAttribute']);
 
+                $emailAttribute = isset($provider['emailAttribute']) ? 
+                    $oidc->requestUserInfo($provider['emailAttribute']) : 
+                    null;
+
                 // Collect markers
                 $markers = [];
                 foreach ($provider['markerAttributes'] as $markerAttribute) {
@@ -123,7 +130,7 @@
                     }
                 }
 
-                $user = auth_aux_make_openid_marked_user($providerName, $idAttribute, $markers);
+                $user = auth_aux_make_openid_marked_user($providerName, $idAttribute, $emailAttribute, $markers);
 
                 // Establish login session
                 $_SESSION['user'] = $user;
@@ -195,9 +202,9 @@
     }
 
 
-    //////////////////////////////////////////////
-    // Session Management: Functions after init //
-    //////////////////////////////////////////////
+    ////////////////////////////////////////////////////
+    // Authentication: Functions available after init //
+    ////////////////////////////////////////////////////
 
     function auth_is_logged_in(): bool {
         return $GLOBALS['user'] != auth_aux_make_guest_user();
@@ -234,6 +241,51 @@
         }
 
         return null;
+    }
+
+
+    ////////////////////////////////////////////////////////
+    // Session management: Functions available after init //
+    ////////////////////////////////////////////////////////
+
+    // The following three functions are used to manage the deduplication of
+    // multiple POST requests. Any form that uses it must include a hidden
+    // UUID that identifies the current request, obtained by
+    // `auth_get_cur_postdedup_uuid()`. Then on receiving a POST request,
+    // first check that the UUID is set at all, using
+    // `auth_has_postdedup_uuid()`. If so, check whether under that UUID a POST
+    // request has already been registered, via
+    // `auth_register_check_postdedup_uuid()`.
+    // If yes: Duplicate POST request detected.
+    // If no: Register the UUID for future requests.
+
+    $GLOBALS['request_uuid'] = null;
+
+    function auth_get_cur_postdedup_uuid(): string {
+        if ($GLOBALS['request_uuid'] === null) {
+            $GLOBALS['request_uuid'] = bin2hex(random_bytes(16));
+        }
+        return $GLOBALS['request_uuid'];
+    }
+
+    function auth_has_postdedup_uuid(): bool {
+        return isset($_POST['request_uuid']);
+    }
+
+    function auth_register_check_postdedup_uuid(): bool {
+        if (!isset($_SESSION['postdedup_burned_uuids'])) {
+            $_SESSION['postdedup_burned_uuids'] = [];
+        }
+        
+        if (in_array($_POST['request_uuid'], $_SESSION['postdedup_burned_uuids'])) {
+            // Duplicate request detected
+            return false;
+        }
+        else {
+            // Register UUID for future requests
+            $_SESSION['postdedup_burned_uuids'][] = $_POST['request_uuid'];
+            return true;
+        }
     }
 
 
@@ -341,7 +393,7 @@
     // keys that point to the list of actors that are granted access to these
     // actions.
     //
-    // Two sources are used to build up the privileges; 1. gets overriden by 2.
+    // Two sources are used to build up the privileges; 1. gets overridden by 2.
     //
     // 1. Hierarchical rules ("allow" and "deny" is inherited down the target tree)
     // 2. Single privileges
@@ -712,15 +764,28 @@
         return auth_aux_make_static_user(get_global_config('authorization', 'staticRootUser'));
     }
 
-    function auth_aux_make_openid_marked_user(string $providerName, string $id, array $markers): array {
-        return [
-            'tag'      => 'OpenId',
-            'contents' => [
-                'providerName' => $providerName,
-                'id'           => $id,
-                'markers'      => $markers
-            ]
-        ];
+    function auth_aux_make_openid_marked_user(string $providerName, string $id, ?string $email, array $markers): array {
+        if ($email === null) {
+            return [
+                'tag'      => 'OpenId',
+                'contents' => [
+                    'providerName' => $providerName,
+                    'id'           => $id,
+                    'markers'      => $markers
+                ]
+            ];
+        }
+        else {
+            return [
+                'tag'      => 'OpenId',
+                'contents' => [
+                    'providerName' => $providerName,
+                    'id'           => $id,
+                    'email'        => $email,
+                    'markers'      => $markers
+                ]
+            ];
+        }
     }
 
     function auth_aux_merge_actions_ser_2_actorlist_sers(array $a, array $b): array {

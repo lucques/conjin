@@ -1,33 +1,14 @@
 <?
     $render = function(Module $template, array $placeholders) {
-        // If nav not enabled, do nothing
-        if (!$placeholders['nav_enabled']) {
-            return;
-        }
-
         $module_sol_mode_active   = function_exists('is_sol_mode_on');
         $module_print_mode_active = function_exists('is_print_mode_on');
-
-        // Initialize `sidebar-active` and `reduced-nav`
-        $conditionSidebarActive =
-            $placeholders['nav_active_sidebar_by_default'] ?
-            "localStorage.getItem('sidebar-active') !== 'false'" :
-            "localStorage.getItem('sidebar-active') === 'true'";
-        $conditionReducedNav = 
-            $placeholders['nav_reduce_by_default'] ?
-            "localStorage.getItem('reduced-nav') !== 'false'" :
-            "localStorage.getItem('reduced-nav') === 'true'";
 ?>
-        <script>
-            if (<?= $conditionSidebarActive ?>) { document.querySelector('body').classList.add('sidebar-active'); }
-            if (<?= $conditionReducedNav ?>) { document.querySelector('body').classList.add('reduced-nav'); }
-        </script>
         <div id="sidebar">
             <div id="sidebar-header">
 <?
         $logo = null;
         $logo_class = null;
-        if ($placeholders['use_img_as_logo']) {
+        if ($template->config->get('sidebar', 'use_img_as_logo')) {
             $logo .= '<img src="' . $placeholders['logo_url'] . '" alt="' . $placeholders['title_for_logo'] . '" height="200">';
             $logo_class = 'logo-img';
         }
@@ -36,7 +17,7 @@
             $logo_class = 'logo-text';
         }
 
-        if ($placeholders['link_logo_to_home']) {
+        if ($template->config->get('sidebar', 'link_logo_to_home')) {
            $logo = '<a id="logo" class="' . $logo_class . '" href="' . url_collect() . '">' . $logo . '</a>';
         }
         else {
@@ -84,33 +65,38 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-layout-sidebar" viewBox="0 0 16 16"><path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm5-1v12h9a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zM4 2H2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h2z"/></svg>
                     </button>
                     <button id="sidebar-collapse-button-deactivate" type="button" class="btn-close" aria-label="Close"></button>
+<?
+        // Setup button to activate/deactive sidebar
+        doc_extensions_add_js_after_dom_setup("document.querySelector('#sidebar-collapse-button-activate').addEventListener('click', event => { dtToggle('sidebar-active'); });");
+        doc_extensions_add_js_after_dom_setup("document.querySelector('#sidebar-collapse-button-deactivate').addEventListener('click', event => { dtToggle('sidebar-active'); });");
+?>
                 </div>
             </div>
             <div id="sidebar-nav">
 <?
-        nav_print('sidebar-nav-breadcrumb', 'sidebar-nav-tree', $placeholders['nav_reduce_breadcrumb_up_to_level']);
-?>
-            </div>
-<?
-        // Initialize toggleability of `reduced nav`
-        if ($placeholders['nav_reduce_toggleable_with_ctrl']) {
-?>
-            <script>
-                document.querySelector('#sidebar-nav').addEventListener('click', event => { if (event.ctrlKey) { toggleReducedNav(); } });
-            </script>
-<?
+        nav_print('sidebar-nav-breadcrumb', 'sidebar-nav-tree', $template->config->get('sidebar', 'reduce_breadcrumb_up_to_level'));
+
+        // Setup ctrl key to reduce nav
+        if ($template->config->get('sidebar', 'reduce_toggleable_with_ctrl')) {
+            doc_extensions_add_js_after_dom_setup("document.querySelector('#sidebar-nav').addEventListener('click', event => { if (event.ctrlKey) { dtToggle('reduced-nav'); } });");
         }
 ?>
+            </div>
             <div id="sidebar-footer">
 <?
         if (auth_is_logged_in()) {
 ?>
-                <?= auth_get_user_name() ?> | <a href="<?= auth_get_logout_url() ?>">Logout</a>
+                <span id="sidebar-footer-user"><?= auth_get_user_name() ?></span>
+                <span id="sidebar-footer-actions">
+                    &nbsp;| <a href="<?= auth_get_logout_url() ?>">Logout</a>
+                </span>
 <?
         }
         else {
 ?>
-                <a href="<?= auth_get_login_url_with_redirect() ?>">Login</a>
+                <span id="sidebar-footer-actions">
+                    <a href="<?= auth_get_login_url_with_redirect() ?>">Login</a>
+                </span>
 <?
         }
 ?>

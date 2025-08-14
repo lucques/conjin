@@ -12,11 +12,14 @@ let ConfigJsonFile = {
     , path_base: Text
     , path_preprocess: Text
     , path_store: Optional Text
+    , https: Bool
+    , host: Text
     , url_base: Text
     , authentication: T.AuthenticationWithoutPasswords
     , authorization: T.Authorization.Type
     , module_2_location: P.Map.Type Text T.ModuleLocation
     , module_2_config: P.Map.Type Text P.JSON.Type
+    , mail: Optional T.Mail
     , errorlog_display: Bool
     , errorlog_dir: Optional Text
 }
@@ -25,14 +28,28 @@ let ConfigJsonFileT = {
     , path_base: Text
     , path_preprocess: Text
     , path_store: Optional Text
+    , https: Bool
+    , host: Text
     , url_base: Text
     , authentication: T.AuthenticationWithoutPasswords
     , authorization: TT.AuthorizationT
     , module_2_location: P.Map.Type Text T.ModuleLocation
     , module_2_config: P.Map.Type Text P.JSON.Type
+    , mail: Optional T.Mail
     , errorlog_display: Bool
     , errorlog_dir: Optional Text
 }
+
+-------------
+-- Helpers --
+-------------
+
+let stripPasswordsOffAuthentication = 
+    \(authentication: T.Authentication.Type) ->
+    {
+        , staticLoginWithoutUserName = authentication.staticLoginWithoutUserName
+        , openIdProviders = authentication.openIdProviders
+    }: T.AuthenticationWithoutPasswords
 
 let tagConfigJsonFile = \(c: ConfigJsonFile) ->
     c // {
@@ -44,5 +61,6 @@ in
 {
     , ConfigJsonFile
     , ConfigJsonFileT
+    , stripPasswordsOffAuthentication
     , tagConfigJsonFile
 }

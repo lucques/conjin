@@ -1,41 +1,25 @@
 <?
-    $render_not_found = function(Module $template, Syslet $syslet, ?array $target_ids, $placeholders_overrides = []) {
+    $render_not_found = function(ModuleLocation $template_self, Module $template, Syslet $syslet, ?array $target_ids, $placeholders_overrides = []) {       
         
-        //////////////////////////
-        // Prepare placeholders //
-        //////////////////////////
-
-        $title_for_head = 'Seite nicht gefunden';
-        if ($template->config->get('title_for_head_contains_top_level')) {
-            $title_for_head .= ' − ';
-            $title_for_head .=
-                $syslet->has_activated_module('title')
-                ? get_top_level_plain_title()
-                : 'Unbenannt';
-        }
+        ///////////////////////////
+        // Sub-template: Prepare //
+        ///////////////////////////
         
-        
-        ///////////////////////////////////////////////
-        // Prepare sub-template `template-navigable` //
-        ///////////////////////////////////////////////
-        
-        $placeholders_for_subtemplate_default = $template->load_def_from_script_and_call(
-            'templates/inc/default_placeholders_for_subtemplate.php',
+        $sub_template = new ModuleLocation('template-navigable');
+        $placeholders_for_subtemplate_default = $template_self->load_def_from_script_and_call(
+            'templates/inc/overridden_placeholders_for_subtemplate.php',
             'default_placeholders',
             template:       $template,
-            title_for_head: $title_for_head,
+            sub_template:   $sub_template,
             content_width:  $template->config->get('content_width'),
         );
         $placeholders_for_subtemplate = array_merge($placeholders_for_subtemplate_default, $placeholders_overrides);
 
-        $sub_template = $syslet->activated_modules['template-navigable'];
 
+        //////////////////////////
+        // Sub-template: Render //
+        //////////////////////////
 
-        ////////////
-        // Render //
-        ////////////
-
-        // Render using sub-template
-        $sub_template->render_not_found($syslet, $target_ids, $placeholders_for_subtemplate);
+        $sub_template->render_not_found_with_provided_template($template, $syslet, $target_ids, $placeholders_for_subtemplate);
     };
 ?>
