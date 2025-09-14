@@ -32,7 +32,10 @@
             // Printed only if it cannot be determined from target id
             'date_default'                    => 'Unbekannt',
 
-            'title'                           => 'Unbenannt'
+            'title'                           => 'Unbenannt',
+
+            // If the exam is split into multiple parts, this target may not start at "Exercise 1", but at "Exercise n". Also, the header may be printed (for n=1) or not (for n != 1).
+            'exercise_start'                  => 1
         ];
     }
 ?>

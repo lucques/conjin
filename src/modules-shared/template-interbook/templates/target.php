@@ -19,17 +19,17 @@
         $placeholders = array_merge($placeholders_default, $placeholders_overrides);
 
 
-        ////////////////////
-        // Render content //
-        ////////////////////
+        /////////////////////
+        // Augment content //
+        /////////////////////
 
-        ob_start();
         if ($target->has_activated_module('title') && $target->activated_modules['title']->config->get('is_part_of_content')) {
+            ob_start();
 ?>
                 <h1><?= $placeholders['title_for_h1'] ?></h1>
 <?
+            $content = ob_get_clean() . $content;
         }
-        $content = ob_get_clean() . $content;
 
 
         ///////////////////////////

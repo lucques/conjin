@@ -139,42 +139,6 @@ def build_local_depl(
     phase_build_dhall_artifacts(artifacts_config_files, config_path, 'artifactsLocal.makeArtifacts')
 
 
-    ########################################
-    # Check that volume source paths exist #
-    ########################################
-
-    if check_vol_source_paths_exist:
-        phase_check_volume_source_paths_exist(['docker-compose-app-yml-volume-sources'], config_path, 'artifactsLocal.makeArtifacts')
-
-
-    ############################
-    # Generate password hashes #
-    ############################
-
-    users_2_hashes = phase_generate_password_hashes(config['depl']['authentication']['staticUsers2passwords'])
-
-
-    ######################
-    # Build `users.json` #
-    ######################
-
-    phase_build_users_json(target_dir, users_2_hashes)
-
-
-    ############################################################
-    # Register passwords for preprocess script and linkchecker #
-    ############################################################
-
-    if register_passwords:
-        users_2_commands = {}
-        if 'preprocessScriptPasswordRegisterCmd' in config['depl']['desktopIntegration']:
-            users_2_commands[config['depl']['desktopIntegration']['preprocessScriptUser']] = config['depl']['desktopIntegration']['preprocessScriptPasswordRegisterCmd']
-        if 'linkcheckerPasswordRegisterCmd' in config:
-            users_2_commands[config['linkcheckerUser']] = config['linkcheckerPasswordRegisterCmd']
-        
-        phase_register_passwords(config['depl']['authentication']['staticUsers2passwords'], users_2_commands)
-
-
     ############################
     # Build `htdocs/.htaccess` #
     ############################
@@ -191,6 +155,42 @@ def build_local_depl(
         activate_compression=False,
         permanent_redirects=config['depl']['permanentRedirects']
     )
+
+
+    ############################
+    # Generate password hashes #
+    ############################
+
+    users_2_hashes = phase_generate_password_hashes(config['depl']['authentication']['staticUsers2passwords'])
+
+
+    ######################
+    # Build `users.json` #
+    ######################
+
+    phase_build_users_json(target_dir, users_2_hashes)
+
+
+    ########################################
+    # Check that volume source paths exist #
+    ########################################
+
+    if check_vol_source_paths_exist:
+        phase_check_volume_source_paths_exist(['docker-compose-app-yml-volume-sources'], config_path, 'artifactsLocal.makeArtifacts')
+
+
+    ############################################################
+    # Register passwords for preprocess script and linkchecker #
+    ############################################################
+
+    if register_passwords:
+        users_2_commands = {}
+        if 'preprocessScriptPasswordRegisterCmd' in config['depl']['desktopIntegration']:
+            users_2_commands[config['depl']['desktopIntegration']['preprocessScriptUser']] = config['depl']['desktopIntegration']['preprocessScriptPasswordRegisterCmd']
+        if 'linkcheckerPasswordRegisterCmd' in config:
+            users_2_commands[config['linkcheckerUser']] = config['linkcheckerPasswordRegisterCmd']
+        
+        phase_register_passwords(config['depl']['authentication']['staticUsers2passwords'], users_2_commands)
     
 
     #######################
@@ -242,11 +242,13 @@ def build_local_depl(
                     LINKCHECKER_PREFIX="$LINKCHECKER_PREFIX$arg/"
                 done
 
-                export LINKCHECKER_PASSWORD=`{config['linkcheckerPasswordLookupCmd']}` &&
+                export LINKCHECKER_PASSWORD=`{config['linkcheckerPasswordLookupCmd']}`
+                export USER_UID=$(id -u)
+                export USER_GID=$(id -g)
+
                 docker compose \\
                         --file         {artifacts_config_files['docker-compose-linkchecker-yml']['path']} \\
                         --project-name {config['depl']['dockerProjName']} \\
-                        --user "$(id -u):$(id -g)" \\
                         up &&
 
                 echo "Results are output in {config['linkcheckerVolDir']}/linkchecker-output.html, launching web browser now..."

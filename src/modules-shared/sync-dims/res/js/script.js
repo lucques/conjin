@@ -103,3 +103,15 @@ function syncHeights() {
         });
     });
 }
+
+function setupAndSyncDims() {
+    setupSyncWidths();
+    setupSyncHeights();
+    syncWidths();
+    syncHeights();
+}
+
+function syncDims() {
+    syncWidths();
+    syncHeights();
+}

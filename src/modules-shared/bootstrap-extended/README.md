@@ -25,6 +25,8 @@ All these extensions are independent of page layout / design etc., i.e. they onl
     - How? Whenever accordions change the page layout, syncing is triggered
 - `timetable`
     - How? CSS styles
+- `exercise`
+    - How? CSS styles
 - `doc-extensions`
 
 
@@ -141,6 +143,7 @@ Treating all these just as colors without any semantic meaning is fine even if u
     - Every color is a variant
 - "Mathy" stuff
     - `definition`
+    - `explanation`
     - `example`
     - `theorem`
     - `proof`

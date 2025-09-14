@@ -635,16 +635,19 @@
             echo '<a href="res/' . date_to_iso($this->cur_long_date) . '/' . $file_name . '">' . $text . $suffix . '</a>';
         }
 
-        function daily_exercise(string $width = null, bool $with_solution = true, string $solution_caption = 'Lösungsvorschlag zur TÜ') {
+        function daily_exercise(?string $width = null, bool $with_solution = true, string $solution_caption = 'Lösungsvorschlag zur TÜ', ?string $file_base = null) {
             assert($this->cur_long_id !== null, 'There is no long entry.');
 
+            $file_name     = ($file_base !== null ? $file_base : 't_ue') . '.png';
+            $file_name_sol = ($file_base !== null ? $file_base : 't_ue') . '_loesung.pdf';
+
             $this->h(2, 'Tägliche Übung');
-            $this->img('t_ue.png', $width);
+            $this->img($file_name, $width);
             if ($with_solution) {
 ?>
                 <p>
 <?
-                $this->a_file('t_ue_loesung.pdf', $solution_caption);
+                $this->a_file($file_name_sol, $solution_caption);
 ?>
                 </p>
 <?

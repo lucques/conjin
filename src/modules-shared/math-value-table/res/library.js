@@ -159,7 +159,16 @@ class ValueTable {
             extendExpButton.innerHTML = '<i class="bi-plus-circle"></i>';
             extendExpButton.classList.add('btn');
             extendExpButton.classList.add('btn-link');
-            extendExpButton.onclick = () => { this.addExp(this.expExtension.defaultRawExp, this.expExtension.defaultEditMode, this.expExtension.defaultInitiallyInvisible, this.expExtension.defaultDesc); this.rerender(); };
+            extendExpButton.onclick = () => {
+                this.addExp(
+                    this.expExtension.defaultRawExp,
+                    this.expExtension.defaultEditMode,
+                    this.expExtension.defaultInitiallyInvisible,
+                    this.expExtension.defaultDesc,
+                    Boolean(this.expExtension.defaultTermInitiallyInvisible)
+                );
+                this.rerender();
+            };
             divWrapper.appendChild(extendExpButton);
         }
 
@@ -387,8 +396,10 @@ class ValueTable {
     }
 
     // editMode: 'always', 'clickable', 'never'
+    // initiallyInvisible: hide result cells until clicked
+    // termInitiallyInvisible: hide the term heading until clicked
 
-    addExp(rawExp, editMode, initiallyInvisible, desc) {
+    addExp(rawExp, editMode, initiallyInvisible, desc, termInitiallyInvisible = false) {
         const headingTr = document.getElementById(this.#makeHeadingRowId());
         const expId = headingTr.children.length;
 
@@ -456,7 +467,6 @@ class ValueTable {
 
         // Set and validate initially
         onNewValueUpdateMeta(rawExp);
-
         let div = document.createElement('div');
         div.classList.add('d-flex');
 
@@ -557,6 +567,16 @@ class ValueTable {
                     });
                 });
             }
+        }
+
+        if (termInitiallyInvisible) {
+            div.classList.add('opacity-0');
+            td.addEventListener('click', (event) => {
+                if (div.classList.contains('opacity-0')) {
+                    div.classList.remove('opacity-0');
+                    event.stopImmediatePropagation();
+                }
+            }, {capture: true});
         }
 
         td.appendChild(div);
@@ -845,11 +865,13 @@ class ValueTable {
                 texChunk = '$' + texChunk + '$';
             }
 
-            // Surround the chunk
-            texChunks[i] = '<span style="display:inline-block;" data-sync-width-id="' + this.#makeSyncWidthId(expId, i) + '">' + texChunk + '</span>';
+            // Surround the chunk. Chunks after the first one need real margin;
+            // otherwise wide rendered terms can visually collide with the equals sign.
+            const style = 'display:inline-block;' + (i === 0 ? '' : ' margin-left: 2em;');
+            texChunks[i] = '<span style="' + style + '" data-sync-width-id="' + this.#makeSyncWidthId(expId, i) + '">' + texChunk + '</span>';
         }
 
-        return texChunks.join('&nbsp;&nbsp;');
+        return texChunks.join('');
     }
 }
 

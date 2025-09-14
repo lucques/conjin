@@ -19,6 +19,9 @@
         // Track state
         assert($GLOBALS['exercise_last_macro'] == null, 'Exercise not finished yet');
 
+        // Add `exercise` class
+        $class .= ($class == '' ? '' : ' ') . 'exercise';
+
         // Start new acc set
         acc_start(only_one_open: $only_one_open, class: $class, style: $style);
 
@@ -61,7 +64,7 @@
         ex_item($title, variant: $variant, open: $open);
     }
 
-    function ex_sol($restrict_to_groups = [], $restrict_to_users = [], $title = 'Lösungsvorschlag', $variant = 'solution', $open = false, $hidden = false) {
+    function ex_sol($restrict_to_groups = [], $restrict_to_static_users = [], $title = 'Lösungsvorschlag', $variant = 'solution', $open = false, $hidden = false) {
         // Track state
         assert(in_array($GLOBALS['exercise_last_macro'], ['start', 'sol_print', 'sol_omit']));
 
@@ -72,11 +75,11 @@
         // Allowed if...
         $is_allowed =
             // 1. either no restriction is given or...
-            (count($restrict_to_groups) == 0 && count($restrict_to_users) == 0) ||
+            (count($restrict_to_groups) == 0 && count($restrict_to_static_users) == 0) ||
             // 2. current user is among the allowed actors 
-            auth_is_cur_user_among_authorized_groups_users(
+            auth_is_cur_user_among_authorized_groups_static_users(
                 groups: $restrict_to_groups,
-                users: $restrict_to_users
+                static_users: $restrict_to_static_users
             );
         
         $actually_hidden = $hidden || !$is_allowed;

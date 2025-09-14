@@ -150,7 +150,7 @@
         exit();
     }
 
-    function log_error_silently($message) {
+    function log_error_silently(string $message) {
         $GLOBALS['logger_error']->error($message);
     }
 
@@ -158,17 +158,36 @@
     {
         $last_error = error_get_last();
         
-        if ($last_error != null) {
+        if ($last_error !== null) {
             while (ob_get_level() > 0) {
                 ob_end_clean();
             }
-            fail("Error code: " . $last_error['type'] . "\n\nError message:\n\n" . $last_error['message'] . "\n\nError file: " . $last_error['file'] . "\n\nError line: " . $last_error['line']);
+
+            // Use an Exception object to format the stack trace nicely
+            $trace = (new Exception())->getTraceAsString();
+
+            fail(
+                "Error code: " . $last_error['type'] .
+                "\n\nError message:\n\n" . $last_error['message'] .
+                "\n\nError file: " . $last_error['file'] .
+                "\n\nError line: " . $last_error['line'] .
+                "\n\nStack trace:\n\n" . $trace
+            );
         }
     }
 
     function the_error_handler($error_code, $error_msg, $error_file, $error_line)
     {
-        fail("Error code: $error_code\n\nError message:\n\n$error_msg\n\nError file: $error_file\n\nError line: $error_line");
+        // Capture trace *excluding* this handler frame
+        $trace = (new Exception())->getTraceAsString();
+
+        fail(
+            "Error code: $error_code" .
+            "\n\nError message:\n\n$error_msg" .
+            "\n\nError file: $error_file" .
+            "\n\nError line: $error_line" .
+            "\n\nStack trace:\n\n" . $trace
+        );
     }
 
     // Register error handlers

@@ -16,7 +16,7 @@
     ////////////
 
     function source_start(
-        ?string $language = null,
+        ?string $lang = null,
         ?bool $line_numbers = null,
         ?int $first_line_number = null,
         ?string $highlight_lines = null,
@@ -28,8 +28,8 @@
 
         // Collect classes
         $classes = [$class];
-        if ($language !== null) {
-            $classes[] = 'language-' . $language;
+        if ($lang !== null) {
+            $classes[] = 'language-' . $lang;
         }
         if ($line_numbers !== null) {
             $classes[] = ($line_numbers ? '' : 'no-') . 'line-numbers';
@@ -62,7 +62,7 @@
 
     function source_listing(
         string $source,
-        ?string $language = null,
+        ?string $lang = null,
         ?bool $line_numbers = null,
         ?int $first_line_number = null,
         ?string $highlight_lines = null,
@@ -70,7 +70,7 @@
         $class = '',
         $style = ''
     ) {
-        source_start(language: $language, line_numbers: $line_numbers, first_line_number: $first_line_number, highlight_lines: $highlight_lines, id: $id, class: $class, style: $style);
+        source_start(lang: $lang, line_numbers: $line_numbers, first_line_number: $first_line_number, highlight_lines: $highlight_lines, id: $id, class: $class, style: $style);
         echo $source;
         source_end();
     }
@@ -80,14 +80,14 @@
      */
     function source_file(
         string $path,
-        ?string $language = null,
+        ?string $lang = null,
         ?bool $line_numbers = null,
         ?string $highlight_lines = null,
         ?string $id = null,
         $class = '',
         $style = ''
     ) {
-        source_listing(file_get_contents($path), language: $language, line_numbers: $line_numbers, highlight_lines: $highlight_lines, id: $id, class: $class, style: $style);
+        source_listing(file_get_contents($path), lang: $lang, line_numbers: $line_numbers, highlight_lines: $highlight_lines, id: $id, class: $class, style: $style);
     }
 
     /**
@@ -150,7 +150,7 @@
         int $skip_last_lines = 0,
         bool $strip_indentation = true,
         bool $line_numbers_from_file = true,
-        ?string $language = null,
+        ?string $lang = null,
         ?bool $line_numbers = null,
         ?string $highlight_lines = null,
         ?string $id = null,
@@ -213,7 +213,7 @@
         $first_line_number = $line_numbers_from_file ? $number_start + 1 : 1;
 
         // Print
-        source_start(language: $language, line_numbers: $line_numbers, first_line_number: $first_line_number, highlight_lines: $highlight_lines, id: $id, class: $class, style: $style);
+        source_start(lang: $lang, line_numbers: $line_numbers, first_line_number: $first_line_number, highlight_lines: $highlight_lines, id: $id, class: $class, style: $style);
         for ($i = $number_start; $i <= $number_end; $i++) {
             if ($strip_indentation) {
                 print(substr($lines[$i], strlen($indentation)) . "\n");
@@ -225,17 +225,17 @@
         source_end();
     }
 
-    function source_inline(
+    function source_in(
         string $source,
-        ?string $language = null,
+        ?string $lang = null,
         ?string $id = null,
         $class = '',
         $style = ''
     ) {
         // Collect classes
         $classes = [$class];
-        if ($language !== null) {
-            $classes[] = 'language-' . $language;
+        if ($lang !== null) {
+            $classes[] = 'language-' . $lang;
         }
         $classes_imploded = implode(' ', $classes);
 
@@ -250,12 +250,12 @@
      * Change the language and line numbering for defined scope
      */
     function source_scope_start(
-        ?string $language = null,
+        ?string $lang = null,
         ?bool $line_numbers = null
     ) {
         $classes = [];
-        if ($language !== null) {
-            $classes[] = 'language-' . $language;
+        if ($lang !== null) {
+            $classes[] = 'language-' . $lang;
         }
         if ($line_numbers !== null) {
             $classes[] = ($line_numbers ? '' : 'no-') . 'line-numbers';

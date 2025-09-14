@@ -7,6 +7,7 @@ This module offers to include exercises and solutions. It depends on the accordi
 Only the essentials. All other things like highlighting the solution in red etc. must be provided by extra-defined macros
 - Authorization: Restrict solutions to authorized actors
 - Multi-staged environment: `ex_start`, `ex_item`, `ex_hint`, `ex_sol`
+- All accordions are tagged with the `exercise` class
 
 
 ## `sol-mode` vs. `exercise` modules

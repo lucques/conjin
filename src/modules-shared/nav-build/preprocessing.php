@@ -37,7 +37,7 @@
 
             $this->nav_item = new TargetNavItem(
                 target_ids:        $this->ctx->target_ids,
-                has_content:       $this->ctx->content_location != ContentLocation::NONE,
+                has_content:       $this->ctx->content_location == ContentLocation::INLINE || $this->ctx->content_location == ContentLocation::EXTRA,
                 title:             $title,
                 privileged_actors: $this->ctx->actions_ser_2_actorlist_ser[$view_action_ser] ?? [],
             );

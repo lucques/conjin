@@ -9,4 +9,6 @@ Just attach a...
 - `data-sync-height-id="SOME_ID"` attribute
 to a DOM element and then those with the same given ID will be kept in sync.
 
-The sync mechanism is setup up initially and then syncing can be manually triggered by calling `syncWidths()` and `syncHeights()`. A module that supports this module will take care of re-syncing, e.g. the `bootstrap-extended` module will make sure accordions are resynced every time collapses changes the layout.
+The sync mechanism is setup up initially and then syncing can be manually triggered by calling `syncWidths()` and `syncHeights()` or the combined helpers `syncDims()` and `setupAndSyncDims()`. A module that supports this module will take care of re-syncing, e.g. the `bootstrap-extended` module will make sure accordions are resynced every time collapses changes the layout.
+
+If `mathjax-extensions` is active, `sync-dims` automatically registers a MathJax post-render hook via `window.mathJaxAfterRenderingHooks` to run setup and syncing again. If MathJax is not active, the hook array is harmlessly unused.

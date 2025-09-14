@@ -84,7 +84,7 @@ let TargetPrivilegeT      = { targetIds: List Text, action: ActionT }
 let TargetRuleTUntagged   = < Allow: TargetPrivilegeT | Deny: TargetPrivilegeT >
 let TargetRuleT           = P.JSON.Tagged TargetRuleTUntagged
 
-let PrivilegeTUntagged    = < Debug: {} | Preprocess: {} | LoginLogout: {} | Target: TargetPrivilegeT >
+let PrivilegeTUntagged    = < Debug: {} | Preprocess: {} | LoginLogout: {} | Custom: Text | Target: TargetPrivilegeT >
 let PrivilegeT            = P.JSON.Tagged PrivilegeTUntagged
 
 let UserXGroupT           = { user: UserT, group: Text }
@@ -105,7 +105,6 @@ let AuthorizationT = {
     , usersXgroups:         List UserXGroupT
     , actorsXprivileges:    List ActorXPrivilegeT
     , actorsXtargetRules:   List ActorXTargetRuleT
-    , openIdMarkersXgroups: List OpenIdMarkerXGroup
 }
 
 let HTTPST = P.JSON.Tagged HTTPS
@@ -213,6 +212,7 @@ let tagPrivilege = \(p: Privilege) ->
         , Debug = \(t: {}) -> PrivilegeTUntagged.Debug {=}
         , Preprocess = \(t: {}) -> PrivilegeTUntagged.Preprocess {=}
         , LoginLogout = \(t: {}) -> PrivilegeTUntagged.LoginLogout {=}
+        , Custom = \(name: Text) -> PrivilegeTUntagged.Custom name
         , Target = \(tp: TargetPrivilege) ->
             PrivilegeTUntagged.Target { targetIds = tp.targetIds, action = tagAction tp.action }
     } p)

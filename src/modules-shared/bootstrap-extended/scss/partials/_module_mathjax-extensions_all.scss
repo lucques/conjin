@@ -1,6 +1,7 @@
 // By default, there should be no top and bottom margin. The `text-align` should
 // be `center`.
 mjx-container {
+    margin-top: 0 !important;
     margin-bottom: 0 !important;
     padding: 1px 0 !important;
 }

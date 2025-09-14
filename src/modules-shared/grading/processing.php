@@ -105,23 +105,29 @@
     ]);
 
 
-    ///////////////////////////
-    // Create grading tables //
-    ///////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////
+    // API for Notentabellen (only needed to unit-test against official documents) //
+    /////////////////////////////////////////////////////////////////////////////////
 
-    function grading_min_points(array $grading_config, int $max) {
-        $result = array_map(function($relative) use ($grading_config, $max) {
-            // First rounding: 32.00125 -> 32.00
-            $finely_rounded = round($relative * $max, 2);
 
-            // Ceiling
-            // e.g.                                       ceil(2 * $finely_rounded) / 2
-            return ceil($grading_config['smallest_points_1_nth'] * $finely_rounded) / $grading_config['smallest_points_1_nth'];
-        }, $grading_config['min_relative']);
 
-        return $result;
-    }
 
+    //////////////////////////////////////////
+    // API for exams: Create grading tables //
+    //////////////////////////////////////////
+
+    // `$grading_config`: Constants like `GRADING_SEK_1_RAW`
+    // `max`:             Maximum points achievable in the exam
+    // Returns an array mapping grades to min and max points achievable
+    // E.g. for Sek. 1 raw and max=100:
+    // [
+    //     '1' => ['min' => 96, 'max' => 100],
+    //     '2' => ['min' => 80, 'max' => 95.5],
+    //     '3' => ['min' => 60, 'max' => 79.5],
+    //     '4' => ['min' => 40, 'max' => 59.5],
+    //     '5' => ['min' => 20, 'max' => 39.5],
+    //     '6' => ['min' => 0,  'max' => 19.5]
+    // ]
     function grading_table_points(array $grading_config, int $max) {
         $grading_min_points = grading_min_points($grading_config, $max);
 
@@ -132,6 +138,167 @@
             $result[$grade] = ['min' => $cur_min, 'max' => $cur_max];
             $cur_max = $cur_min - 1 / $grading_config['smallest_points_1_nth'];
         }
+
+        return $result;
+    }
+
+
+    ////////////////////////
+    // API for grade list //
+    ////////////////////////
+
+    class GradeList {
+        private array $entries; // array of GradListEntry
+
+        public function __construct(
+            readonly public array $grading_config,
+            readonly public array $max_points,                   // array of points for each exercise
+            readonly public int $converted_to_bonus_points = 0,  // How many regular points have been converted to bonus points?
+        ) {
+            $this->entries = [];
+        }
+
+        public function add(string $student_last, string $student_first, ?array $points = null, ?float $bonus_points = 0): void {
+            assert($points == null || count($points) === count($this->max_points), 'Number of points must coincide with number of exercises');
+
+            $this->entries[] = new GradeListEntry($student_last, $student_first, $points, $bonus_points);
+        }
+
+        public function print() {
+?>
+<table class="table table-bordered border-dark">
+    <thead>
+        <tr>
+            <th>Nachname</th>
+            <th>Vorname</th>
+<?
+            foreach ($this->max_points as $i => $max) {
+?>
+            <th>Nr. <?= $i + 1 ?></th>
+<?
+            }
+?>
+            <th>Davon Bonus</th>
+            <th>Summe</th>
+            <th>Note</th>
+        </tr>
+        <tr>
+            <th></th>
+            <th></th>
+<?
+            foreach ($this->max_points as $i => $max) {
+?>
+            <th><?= $max ?></th>
+<?
+            }
+?>
+            <th>− <?= $this->converted_to_bonus_points ?></th>
+            <th><?= $this->get_total_max_points() ?></th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+<?
+            foreach ($this->entries as $entry) {
+?>
+        <tr>
+            <td><?= $entry->student_last ?></td>
+            <td><?= $entry->student_first ?></td>
+<?
+                if ($entry->points != null) {
+                    foreach ($entry->points as $p) {
+?>
+            <td><?= $p ?></td>
+<?
+                    }
+?>
+            <td><?= $entry->bonus_points ?></td>
+            <td><?= $entry->get_total_points() ?></td>
+            <td><?= $entry->get_grade($this->grading_config, $this->get_total_max_points()) ?></td>
+<?
+                }
+                else {
+                    foreach ($this->max_points as $_) {
+?>
+            <td></td>
+<?
+                    }
+?>
+            <td></td>
+            <td></td>
+            <td></td>
+<?
+                }
+?>
+        </tr>
+<?
+            }
+?>
+    </tbody>
+</table>
+<?
+        }
+
+        private function get_total_max_points(): int {
+            return array_sum($this->max_points) - $this->converted_to_bonus_points;
+        }
+    }
+
+    class GradeListEntry {
+        public function __construct(
+            readonly public string $student_last,
+            readonly public string $student_first,
+            readonly public ?array $points,  // Points for each exercise
+            readonly public float $bonus_points = 0
+        ) {}
+
+        public function get_total_points(): float {
+            assert($this->points != null, 'Points not set for student: ' . $this->student_last . ', ' . $this->student_first);
+            return array_sum($this->points) + $this->bonus_points;
+        }
+
+        public function get_grade(array $grading_config, int $max_points): string {
+            assert($this->points != null, 'Points not set for student: ' . $this->student_last . ', ' . $this->student_first);
+
+            $total_points = $this->get_total_points();
+            $grading_min_points = grading_min_points($grading_config, $max_points);
+
+            foreach ($grading_min_points as $grade => $min_points) {
+                if ($total_points >= $min_points) {
+                    return $grade;
+                }
+            }
+
+            assert(false, 'No grade found for total points: ' . $total_points);
+        }
+    }
+
+
+    //////////////
+    // Internal //
+    //////////////
+
+    // `$grading_config`: Constants like `GRADING_SEK_1_RAW`
+    // `max`:             Maximum points achievable in the exam
+    // Returns an array mapping grades to minimum points achievable
+    // E.g. for Sek. 1 raw and max=100:
+    // [
+    //     '1' => 96,
+    //     '2' => 80,
+    //     '3' => 60,
+    //     '4' => 40,
+    //     '5' => 20,
+    //     '6' => 0
+    // ]
+    function grading_min_points(array $grading_config, int $max) {
+        $result = array_map(function($relative) use ($grading_config, $max) {
+            // First rounding to 2 decimal places: 32.00125 -> 32.00
+            $finely_rounded = round($relative * $max, 2);
+
+            // Ceiling
+            // e.g.                                       ceil(2 * $finely_rounded) / 2
+            return ceil($grading_config['smallest_points_1_nth'] * $finely_rounded) / $grading_config['smallest_points_1_nth'];
+        }, $grading_config['min_relative']);
 
         return $result;
     }

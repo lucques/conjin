@@ -43,4 +43,8 @@
     </p>
 <?
     }
+
+    function html_a_mailto(string $email) {
+        echo '<a href="mailto:' . $email . '">' . $email . '</a>';
+    }
 ?>

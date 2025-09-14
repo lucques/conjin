@@ -26,7 +26,9 @@
             - `docker_volumes/linkchecker`
             - `docker_volumes/preprocess`
             - `docker_volumes/store`
+                - See [Store](./store.md) for persistence, configuration, and backups.
             - `docker_volumes/logs/error`
+                - See [Error handling](./error_handling.md) for logging configuration and persistence.
         - Check that all volume source paths exist
         - Register passwords in the desktop, via the scripts given in the config
             - Example: Store password of the preprocessing user via `secret-tool store --label='dummy-preprocess' password dummy-preprocess`, see also https://ict4g.net/adolfo/notes/admin/secret-tool.html

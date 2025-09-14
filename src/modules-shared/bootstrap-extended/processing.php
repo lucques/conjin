@@ -11,6 +11,7 @@
 
         load_def_from_script_and_call(__DIR__ . '/acc.php', 'init_processing_target', $module, $target);
         load_def_from_script_and_call(__DIR__ . '/carousel.php', 'init_processing_target', $module, $target);
+        load_def_from_script_and_call(__DIR__ . '/tabs.php', 'init_processing_target', $module, $target);
         load_def_from_script_and_call(__DIR__ . '/modals.php', 'init_processing_target', $module, $target);
         load_def_from_script_and_call(__DIR__ . '/collapse.php', 'init_processing_target', $module, $target);
     };
@@ -33,14 +34,15 @@
 
         switch ($variant) {
             // Variants: "Mathy" stuff
-            case 'definition': return 'orange';
-            case 'example':    return 'info';
-            case 'theorem':    return 'dark';
-            case 'proof':      return 'dark';
-            case 'remark':     return 'light';
-            case 'exercise':   return 'primary';
-            case 'solution':   return 'success';
-            case 'hint':       return 'orange';
+            case 'definition':  return 'orange';
+            case 'explanation': return 'primary';
+            case 'example':     return 'info';
+            case 'theorem':     return 'dark';
+            case 'proof':       return 'dark';
+            case 'remark':      return 'light';
+            case 'exercise':    return 'primary';
+            case 'solution':    return 'success';
+            case 'hint':        return 'orange';
 
             // Layers
             case 'layer_1':    return 'primary';

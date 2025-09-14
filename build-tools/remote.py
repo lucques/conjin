@@ -132,7 +132,7 @@ def build_remote_depl(
             'format': 'yaml'
         }
 
-    if store_backup_dir != 'None':
+    if store_backup_dir != None:
         artifacts['docker-compose-backup-store-yml'] = {
             'path': target_dir / 'docker-compose-backup-store.yml',
             'format': 'yaml'
@@ -140,14 +140,22 @@ def build_remote_depl(
 
 
     phase_build_dhall_artifacts(artifacts, config_path, 'artifactsRemote.makeArtifacts')
+    
 
+    ############################
+    # Build `htdocs/.htaccess` #
+    ############################
 
-    ########################################
-    # Check that volume source paths exist #
-    ########################################
-
-    if check_vol_source_paths_exist:
-        phase_check_volume_source_paths_exist(['docker-compose-upload-yml-volume-sources'], config_path, 'artifactsRemote.makeArtifacts')
+    phase_build_htaccess(
+        target_dir,
+        conjin_dir,
+        config['urlBase'],
+        force_https=(config['https']['tag'] == 'Force'),
+        force_www_off=(config['wwwSubdomain']['tag'] == 'Off'),
+        force_www_on=(config['wwwSubdomain']['tag'] == 'On'),
+        activate_compression=config['activateCompression'],
+        permanent_redirects=config['depl']['permanentRedirects']
+    )
 
 
     ############################
@@ -164,9 +172,17 @@ def build_remote_depl(
     phase_build_users_json(target_dir, users_2_hashes)
 
 
-    ############################################################
-    # Register passwords for preprocess script and linkchecker #
-    ############################################################
+    ########################################
+    # Check that volume source paths exist #
+    ########################################
+
+    if check_vol_source_paths_exist:
+        phase_check_volume_source_paths_exist(['docker-compose-upload-yml-volume-sources'], config_path, 'artifactsRemote.makeArtifacts')
+
+
+    ############################################
+    # Register passwords for preprocess script #
+    ############################################
 
     if register_passwords:
         users_2_commands = {}
@@ -174,22 +190,6 @@ def build_remote_depl(
             users_2_commands[config['depl']['desktopIntegration']['preprocessScriptUser']] = config['depl']['desktopIntegration']['preprocessScriptPasswordRegisterCmd']
         
         phase_register_passwords(config['depl']['authentication']['staticUsers2passwords'], users_2_commands)
-
-
-    ############################
-    # Build `htdocs/.htaccess` #
-    ############################
-
-    phase_build_htaccess(
-        target_dir,
-        conjin_dir,
-        config['urlBase'],
-        force_https=(config['https']['tag'] == 'Force'),
-        force_www_off=(config['wwwSubdomain']['tag'] == 'Off'),
-        force_www_on=(config['wwwSubdomain']['tag'] == 'On'),
-        activate_compression=config['activateCompression'],
-        permanent_redirects=config['depl']['permanentRedirects']
-    )
     
 
     #######################

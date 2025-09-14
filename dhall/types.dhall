@@ -55,12 +55,14 @@ let bareModuleToLocation = \(id: BareModule) ->
 -- Auth --
 ----------
 
--- How to read the OpenID data. First, `key` is used to select an attribute.
--- If that attribute is a list (`isList`), all list items are used as markers.
--- If the list items are records, then the `subkey` is used to index into the
--- records.
+-- How to read the OpenID data. First, `attributeName` is used to select an
+-- attribute. If that attribute is a list (`isList`), all list items are used as
+-- markers If the list items are records, then the `subkey` is used to index
+-- into the records.
 -- Example: `{ key = "groups", isList = True, subkey = Some "act" }`
-let MarkerAttribute = { key: Text, isList: Bool, subkey: Optional Text }
+let OpenIdMarkerAttribute = { attributeName: Text, isList: Bool, subkey: Optional Text }
+let OpenIdMarker          = { attributeName: Text, markerName: Text }  -- the marker belongs to a specific OpenID provider and attribute, e.g. "groups"
+let OpenIdMarkerXGroup    = { marker: OpenIdMarker, group: Text }
 
 let OpenIdProvider = {
     , name: Text
@@ -70,7 +72,8 @@ let OpenIdProvider = {
     , scopes: List Text             -- e.g. ["email", "openid"]
     , idAttribute: Text             -- which attribute is used as user ID, e.g. "email"
     , emailAttribute: Optional Text -- which attribute is used as email, e.g. "email"
-    , markerAttributes: List MarkerAttribute
+    , markerAttributes: List OpenIdMarkerAttribute
+    , markersXgroups: List OpenIdMarkerXGroup
 }
 
 let Password             = < Hash: Text | Plain: Text >
@@ -81,15 +84,12 @@ let Actor                = < User: User | Group: Text >
 let Action               = < View: {} | Custom: Text >
 let TargetPrivilege      = { targetIds: List Text, action: Action }
 let TargetRule           = < Allow: TargetPrivilege | Deny: TargetPrivilege >
-let Privilege            = < Debug: {} | Preprocess: {} | LoginLogout: {} | Target: TargetPrivilege >
+let Privilege            = < Debug: {} | Preprocess: {} | LoginLogout: {} | Custom: Text | Target: TargetPrivilege >
 
 -- The `X` stands for "cartesian product"
 let UserXGroup           = { user: User, group: Text }
 let ActorXPrivilege      = { actor: Actor, privilege: Privilege }
 let ActorXTargetRule     = { actor: Actor, rule: TargetRule }
-
-let OpenIdMarker         = { providerName: Text, marker: Optional Text }
-let OpenIdMarkerXGroup   = { marker: OpenIdMarker, group: Text }
 
 let PasswordList         = P.Map.Type Text Password
 
@@ -117,7 +117,6 @@ let Authorization = {
         , usersXgroups:         List UserXGroup
         , actorsXprivileges:    List ActorXPrivilege
         , actorsXtargetRules:   List ActorXTargetRule
-        , openIdMarkersXgroups: List OpenIdMarkerXGroup
     },
     default = {
         , staticRootUser       = "root"
@@ -125,7 +124,6 @@ let Authorization = {
         , usersXgroups         = P.List.empty UserXGroup
         , actorsXprivileges    = P.List.empty ActorXPrivilege
         , actorsXtargetRules   = P.List.empty ActorXTargetRule
-        , openIdMarkersXgroups = P.List.empty OpenIdMarkerXGroup
     }
 }
 

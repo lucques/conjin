@@ -1,4 +1,8 @@
 <?
+    ///////////////
+    // Init defs //
+    ///////////////
+
     $init_processing_target = function(Module $module, Target $target) {
         $res_module = $module->config->get('res_module') === null
             ? $target->get_template()
@@ -14,6 +18,11 @@
 
         $module->load_def_from_script_and_call('processing.php', 'render', $res_module, $module->config->get('path'));
     };
+
+
+    /////////////
+    // Helpers //
+    /////////////
 
     $render = function(ModuleLocation $res_module, string $path) {
         $url_prefix = $res_module->get_url() . '/res' . $path . '/favicon-';

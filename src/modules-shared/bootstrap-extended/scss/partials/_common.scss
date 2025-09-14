@@ -206,6 +206,10 @@ ul > li > ol {
   padding-left: 0;
 }
 
+.ul-custom.list-gap, .ol-custom.list-gap {
+  gap: 10px;
+}
+
 .ol-custom {
   counter-reset: list-item;
 }
@@ -311,7 +315,7 @@ ol.list-group {
 // Code listings //
 ///////////////////
 
-pre {
+pre:has(> code) {
   @extend .border;
   @extend .border-secondary;
   @extend .rounded;

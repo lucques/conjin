@@ -16,9 +16,10 @@
     }
 
     enum ContentLocation: string {
-        case INLINE = 'inline';
-        case EXTRA  = 'extra';
-        case NONE   = 'none';
+        case INLINE   = 'inline';   // There is a `$process` def in `index.php`
+        case EXTRA    = 'extra';    // There is a separate `content.php` file
+        case REDIRECT = 'redirect'; // There is a `$redirect` def in `index.php` pointing to target ids
+        case NONE     = 'none';     // No content
     }
 
     // Immutable
@@ -38,7 +39,10 @@
         ) {
             parent::__construct($activated_modules, $template);
 
-            assert(!$this->content_location == ContentLocation::NONE || $template !== null, 'Contentful target with id `' . $id . '` must have a template');
+            // If content exists, template must have been set
+            if ($this->content_location == ContentLocation::INLINE || $this->content_location == ContentLocation::EXTRA) {
+                assert($template !== null, 'Contentful target with id `' . $id . '` must have a template');
+            }
 
             // Set to null pointer initially
             $null = null;
@@ -55,7 +59,7 @@
         }
         
         public function path($suffix = ''): string {
-            return path_collect($this->get_ids()) . $suffix;
+            return path_collect($this->get_ids(), $suffix);
         }
         
         public function get_css_slug(): string {

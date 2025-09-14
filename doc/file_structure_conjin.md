@@ -10,7 +10,7 @@
 - src
     - conjin                    Gets sym-linked into `htdocs/conjin`
     - modules-shared            Gets sym-linked into `htdocs/modules-shared`
-    - htaccess_*                Contains parts of the root `.htaccess`
+    - htaccess                  Contains parts of the root `.htaccess`
 - composer.json                 Composer dependencies (populates `vendor` dir)
 - composer.lock                 Composer lock file
 ```

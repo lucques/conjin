@@ -2,6 +2,18 @@
 
 This module mainly includes MathJax and adds some default configuration for it.
 
+It also exposes PHP helpers for aligned equation sets:
+
+```php
+mjax_eqset_start();
+mjax_eqset_line($left, $right, $transformation = null, $show_bar = true, $sign = '=', $margin_bottom_cm = null);
+mjax_eqset_end();
+```
+
+If `margin_bottom_cm` is set, the helper emits `\\[<margin_bottom_cm>cm]`, which adds extra vertical space after that row.
+
+When an equivalence transformation uses `\pm \sqrt{...}`, the result is two equations. End the active equation set with `mjax_eqset_end()` at that point and continue the two cases below, using separate equation sets if the cases need further transformations.
+
 
 ## Hooks
 If you want to trigger some function call as soon as MathJax is done rendering the document, you can install a hook as follows. It does not matter where in the DOM to put this code: Whenever MathJax is done rendering (this will happen very late, after the `DOMContentLoaded` event), it will pick up this global variable. The following is an example of installing the `setupPagedJs` function as a hook.

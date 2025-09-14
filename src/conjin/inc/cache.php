@@ -1,5 +1,5 @@
 <?
-    function check_whether_unmodified_and_handle($path) {
+    function check_whether_unmodified_and_handle_and_exit($path) {
         // Is response 304 even possible?
         if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) {
             $client_timestamp = strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']);

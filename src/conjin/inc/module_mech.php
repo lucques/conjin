@@ -70,6 +70,10 @@
         public function render_not_found_with_provided_template(Module $template, Syslet $syslet, ?array $target_ids, array $placeholders_overrides = []): void {
             $this->load_def_from_script_and_call('templates/not_found.php', 'render_not_found', $this, $template, $syslet, $target_ids, $placeholders_overrides);
         }
+
+        public function render_unauthorized_with_provided_template(Module $template, Syslet $syslet, ?array $target_ids, array $placeholders_overrides = []): void {
+            $this->load_def_from_script_and_call('templates/unauthorized.php', 'render_unauthorized', $this, $template, $syslet, $target_ids, $placeholders_overrides);
+        }
         
         public function render_target_with_provided_template(Module $template, Target $target, string $content, array $placeholders_overrides = []): void {
             $this->load_def_from_script_and_call('templates/target.php', 'render_target', $this, $template, $target, $content, $placeholders_overrides);
@@ -182,7 +186,7 @@
             $defs = load_defs_from_script($this->get_path() . '/processing.php');
 
             if (isset($defs['init_processing'])) {
-                $defs['init_processing']($this);
+                $defs['init_processing']($this, $syslet);
             }
             if (isset($defs['init_processing_syslet'])) {
                 $defs['init_processing_syslet']($this, $syslet, $target_root);
@@ -193,7 +197,7 @@
             $defs = load_defs_from_script($this->get_path() . '/processing.php');
 
             if (isset($defs['init_processing'])) {
-                $defs['init_processing']($this);
+                $defs['init_processing']($this, $target);
             }
             if (isset($defs['init_processing_target'])) {
                 $defs['init_processing_target']($this, $target);
@@ -211,6 +215,10 @@
 
         public function render_not_found(Syslet $syslet, ?array $target_ids, array $placeholders_overrides = []): void {
             $this->load_def_from_script_and_call('templates/not_found.php', 'render_not_found', $this, $this, $syslet, $target_ids, $placeholders_overrides);
+        }
+
+        public function render_unauthorized(Syslet $syslet, ?array $target_ids, array $placeholders_overrides = []): void {
+            $this->load_def_from_script_and_call('templates/unauthorized.php', 'render_unauthorized', $this, $this, $syslet, $target_ids, $placeholders_overrides);
         }
         
         public function render_target(Target $target, string $content, array $placeholders_overrides = []): void {

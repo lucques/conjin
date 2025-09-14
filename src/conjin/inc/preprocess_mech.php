@@ -156,12 +156,19 @@
 
             // Fixed during construction
             $this->target_ids = $target_ids;
+
+            $is_inline = isset(load_defs_from_script(path_collect($target_ids, 'index.php'))['process']);
+            $is_extra  = file_exists(path_collect($target_ids, 'content.php'));
+            $is_redirect = isset(load_defs_from_script(path_collect($target_ids, 'index.php'))['redirect']);
+            // Cannot have both redirect and content
+            assert($is_inline + $is_extra + $is_redirect <= 1, 'More than one content location');
+
             $this->content_location =
-                isset(load_defs_from_script(path_collect($target_ids) . '/index.php')['process'])
-                ? ContentLocation::INLINE
-                : (file_exists(path_collect($target_ids) . '/content.php')
-                    ? ContentLocation::EXTRA
-                    : ContentLocation::NONE);
+                $is_inline ? ContentLocation::INLINE
+                : ($is_extra ? ContentLocation::EXTRA
+                    : ($is_redirect ? ContentLocation::REDIRECT
+                        : ContentLocation::NONE));
+
             $this->actions_ser_2_actorlist_ser = auth_generate_actions_ser_2_actorlist_ser_for_target($target_ids);
 
             // Set during PASS-THROUGH
@@ -267,26 +274,33 @@
         // Pass-through //
         //////////////////
       
+        // The dir of the target must exist.
+        assert(file_exists(path_collect($c->target_ids)), 'Target dir does not exist: ' . path_collect($c->target_ids));
+
         // Preprocess!
-        $script_path = path_collect($c->target_ids) . '/index.php';
+        $script_path = path_collect($c->target_ids, 'index.php');
         $defs = load_defs_from_script($script_path);
 
         // If `preprocess` function is defined, run it
         if (isset($defs['preprocess'])) {
             load_def_from_script_and_call($script_path, 'preprocess', $c);
         }
-        // Else if defined, use default
+        // Else if not defined, try default
         else {
             $script_path = path('system/target_default.php');
             $defs = load_defs_from_script($script_path);
 
+            // If `preprocess` function is defined, run it
             if (isset($defs['preprocess'])) {
                 load_def_from_script_and_call($script_path, 'preprocess', $c);
             }
+            // Else, fine!
         }
 
         // If content exists, template must have been set
-        assert($c->content_location == ContentLocation::NONE || $c->template !== null, 'Template not set for ' . path_collect($c->target_ids));
+        if ($c->content_location == ContentLocation::INLINE || $c->content_location == ContentLocation::EXTRA) {
+            assert($c->template !== null, 'Template not set for ' . path_collect($c->target_ids));
+        }
 
         $c->change_phase(TargetPreprocessingPhase::CONSTRUCTED, TargetPreprocessingPhase::PASSED_THROUGH);
         

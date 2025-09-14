@@ -169,16 +169,16 @@ def phase_build_htaccess(
         ''')
     
     if force_https:
-        content += (conjin_dir / 'src/htaccess_force_https').read_text() + '\n\n'
+        content += (conjin_dir / 'src/htaccess/htaccess_force_https').read_text() + '\n\n'
 
     if force_www_off:
-        content += (conjin_dir / 'src/htaccess_force_www_off').read_text() + '\n\n'
+        content += (conjin_dir / 'src/htaccess/htaccess_force_www_off').read_text() + '\n\n'
 
     if force_www_on:
-        content += (conjin_dir / 'src/htaccess_force_www_on').read_text() + '\n\n'
+        content += (conjin_dir / 'src/htaccess/htaccess_force_www_on').read_text() + '\n\n'
 
     if activate_compression:
-        content += (conjin_dir / 'src/htaccess_activate_compression').read_text() + '\n\n'
+        content += (conjin_dir / 'src/htaccess/htaccess_activate_compression').read_text() + '\n\n'
 
     # Add permanent redirects
     if permanent_redirects:
@@ -187,7 +187,7 @@ def phase_build_htaccess(
             content += f'RewriteRule ^{source}$ {target} [R=301,L]\n'
         content += '\n\n'
 
-    content += (conjin_dir / 'src/htaccess_main').read_text()
+    content += (conjin_dir / 'src/htaccess/htaccess_main').read_text()
 
     (target_dir / 'htdocs/.htaccess').write_text(content)
 

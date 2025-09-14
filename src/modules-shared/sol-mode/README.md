@@ -26,7 +26,7 @@ If a template supports this module, it should:
 ## Authorization
 By default, everyone can view the solution
 - Option `restrict_to_groups`: Restrict access to groups
-- Option `restrict_to_users`: Restrict access to users
+- Option `restrict_to_static_users`: Restrict access to static users
 - If both options are used, then the restrictions are "OR"ed
 
 

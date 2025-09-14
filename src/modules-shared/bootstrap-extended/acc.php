@@ -81,7 +81,7 @@
     }
 
     // Parameter `$custom_color`: If to use another color outside of the variants as described in `README.md`
-    function acc_item_start($title, $variant = null, $custom_color = null, $hidden = false, $open = false, $id = null, $class = '', $style = '') {
+    function acc_item_start($title, $variant = null, $custom_color = null, $hidden = false, $open = false, $id = null, $class = '', $style = '', $header_actions = '') {
         // The last element must be of type 'acc'
         assert(count($GLOBALS['acc_stack']) > 0 && end($GLOBALS['acc_stack'])['type'] == 'acc', 'No accordion set started');
         // `$variant` and `$custom_color` must not be set together
@@ -111,7 +111,8 @@
         else {
 ?>
         <div id="<?= $html_accordion_item_id ?>" class="accordion-item<? if ($variant !== null) { echo ' accordion-item-' . variant_to_color($variant); } elseif ($custom_color !== null) { echo ' accordion-item-' . $custom_color; } if ($class != '') { echo ' ' . $class; } ?>"<?= $style != '' ? ' style="' . $style . '"' : '' ?>>
-            <span class="accordion-header" id="<?= $html_accordion_item_id . '-header' ?>">
+            <span class="accordion-header<?= $header_actions !== '' ? ' accordion-header-with-action' : '' ?>" id="<?= $html_accordion_item_id . '-header' ?>">
+                <?= $header_actions ?>
                 <button class="accordion-button<? if (!$open) { echo ' collapsed'; } ?>" type="button" data-bs-toggle="collapse" data-bs-target="#<?= $html_accordion_item_id . '-collapse' ?>" aria-expanded="true" aria-controls="<?= $html_accordion_item_id . '-collapse' ?>">
                     <span><?= $title ?></span>
                 </button>

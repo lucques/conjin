@@ -25,5 +25,13 @@
             }
         }
         $c->activate_module('dynamic-toggle', ['toggles' => $toggles]);
+
+
+        ///////////////////
+        // Exam-specific //
+        ///////////////////
+
+        $c->activate_module('sol-mode');
+        $c->activate_module('print-mode');
     };
 ?>

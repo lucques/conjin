@@ -75,3 +75,35 @@ window.MathJax = {
         ]},
     }
 };
+
+
+///////////
+// Utils //
+///////////
+
+// Replace decimal point with comma in a number for math mode
+// Replace trailing zeros by phantom zeros to ensure the same width for all numbers
+// If there is a trailing `,`, replace it by a phantom comma
+function mj_num(x, decimalPlaces=2) {
+    const strFixed = Number(x).toFixed(decimalPlaces);
+
+    // If ends with . and then trailing zeros, replace it by phantom chars
+    if (strFixed.endsWith('.' + '0'.repeat(decimalPlaces))) {
+        return strFixed.substring(0, strFixed.indexOf('.')) + '{\\phantom{,}}' + '{\\phantom{0}}'.repeat(decimalPlaces);
+    }
+    else {
+        const strNoTrailZeros = strFixed.replace(/0+$/, match => '{\\phantom{0}}'.repeat(match.length));
+        const strCommaFixed = strNoTrailZeros.replace(/\.$/, '{\\phantom{.}}');
+        return strCommaFixed.replace('.', '{,}');
+    }
+}
+
+// If the number is negative, put it in parentheses
+function mj_num_parens(x, decimalPlaces=2) {
+    if (x >= 0) {
+        return mj_num(x, decimalPlaces);
+    }
+    else {
+        return '(' + mj_num(x, decimalPlaces) + ')';
+    }
+}

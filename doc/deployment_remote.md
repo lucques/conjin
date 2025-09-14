@@ -29,8 +29,10 @@ The following scripts are generated in the `./target/bin` directory:
     - Just like `upload` but without rendering SASS files
 - `./target/bin/preprocess`
     - Alternatively this can be run by launching `https://host/preprocess/`.
+- `./target/bin/backup-errorlog` (only if configured)
+    - Uses `rclone` to copy the remote error log to a local backup location.
+    - See [Error handling](./error_handling.md) for logging modes, defaults, and backup behavior.
 - `./target/bin/backup-store` (only if configured)
     - Starts a docker compose project that includes a single service:
         - Runs an `rclone` command to copy the store directory to a backup location
-                    - `bin/backup-errorlog`: Backups error log from remote server
-            - `bin/backup-store`: Backups store from remote server
+    - See [Store](./store.md) for store persistence during uploads and backup behavior.

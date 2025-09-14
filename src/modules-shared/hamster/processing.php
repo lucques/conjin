@@ -3,13 +3,13 @@
     // Macros //
     ////////////
 
-    function hamster_source_file(string $path, ?string $language = null, ?bool $line_numbers = null, ?string $id = null, $class = '', $style = '') {
+    function hamster_source_file(string $path, ?string $lang = null, ?bool $line_numbers = null, ?string $id = null, $class = '', $style = '') {
         $source = file_get_contents($path);
 
         // Omit the first comment: /*imperative program*/
         $source = substr($source, 22);
 
-        source_listing(source: $source, language: $language, line_numbers: $line_numbers, id: $id, class: $class, style: $style);
+        source_listing(source: $source, lang: $lang, line_numbers: $line_numbers, id: $id, class: $class, style: $style);
     }
 
     function hamster_source($path, $line_numbers = true, $class = '', $style = '') {

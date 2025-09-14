@@ -48,8 +48,9 @@ def generate_password_hashes(password_list_path, out_path):
     passwords_dhall = ''.join([f', t.assignUser2PasswordHash "{user}" "{hash}"\n' for user, hash in users_2_hashes.items()])
 
     content = textwrap.dedent(f'''\
-        let t = ./DHALL_PACKAGE_PATH
-        let T = t.types
+        let p = ./DHALL_PACKAGE_PATH
+        let T = p.types
+        let t = p.tools
 
         in
         [

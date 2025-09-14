@@ -5,4 +5,5 @@ This is the most plain HTML template you can find. It has no dependencies, provi
 
 ## Supported modules
 - `doc-extensions`
+- `localization`
 - `title`

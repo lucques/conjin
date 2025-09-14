@@ -1,0 +1,6 @@
+.exercise {
+    // Default order for exercise lists
+    ol       { list-style: lower-alpha-bracket; }
+    ol ol    { list-style: lower-roman-parens; }
+    ol ol ol { list-style: decimal-circled; }
+}

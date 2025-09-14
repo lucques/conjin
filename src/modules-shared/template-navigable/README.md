@@ -25,6 +25,8 @@ It forms the base of templates like `template-interbook` and `template-exam`.
     - How? Various body classes, scripts etc. are properly inserted
 - `footnotes`
     - How? Footnotes are rendered at the end of the page
+- `localization`
+    - How? Language in meta data + Language switcher is added to the sidebar
 - `print-mode`
     - How?
         - The `.sheets` are properly included in DOM; toggle button is added

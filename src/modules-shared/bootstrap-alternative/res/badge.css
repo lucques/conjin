@@ -1,0 +1,16 @@
+.badge {
+    display: inline-block;
+    padding: .35em .65em;
+    border-radius: .375rem;
+    color: #fff;
+    font-size: .75em;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    vertical-align: baseline;
+    white-space: nowrap;
+}
+
+.badge:empty {
+    display: none;
+}

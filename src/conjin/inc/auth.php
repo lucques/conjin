@@ -107,25 +107,37 @@
                 // Collect markers
                 $markers = [];
                 foreach ($provider['markerAttributes'] as $markerAttribute) {
-                    $value = $oidc->requestUserInfo($markerAttribute['key']);
+                    $value = $oidc->requestUserInfo($markerAttribute['attributeName']);
 
                     if ($markerAttribute['isList']) {
                         foreach ($value as $marker) {
                             if (isset($markerAttribute['subkey'])) {
                                 $subkey = $markerAttribute['subkey'];
-                                $markers[] = $marker->$subkey;
+                                $markers[] = [
+                                    'attributeName' => $markerAttribute['attributeName'],
+                                    'markerName' => $marker->$subkey,
+                                ];
                             }
                             else {
-                                $markers[] = $marker;
+                                $markers[] = [
+                                    'attributeName' => $markerAttribute['attributeName'],
+                                    'markerName' => $marker,
+                                ];
                             }
                         }
                     }
                     else {
                         if (isset($markerAttribute['subkey'])) {
-                            $markers = [$value[$markerAttribute['subkey']]];
+                            $markers[] = [
+                                'attributeName' => $markerAttribute['attributeName'],
+                                'markerName' => $value[$markerAttribute['subkey']],
+                            ];
                         }
                         else {
-                            $markers = [$value];
+                            $markers[] = [
+                                'attributeName' => $markerAttribute['attributeName'],
+                                'markerName' => $value,
+                            ];
                         }
                     }
                 }
@@ -176,7 +188,7 @@
         $_SESSION['user']              = auth_aux_make_guest_user();
         $GLOBALS['user']               = $_SESSION['user'];
         
-        redirect_and_exit(url() . 'login/');
+        redirect_temporally_and_exit(url() . 'login/');
     }
 
 
@@ -187,17 +199,26 @@
         // 2. Redirect is in the session variable
         // 3. No redirect; go to home page
         if (isset($_GET['redirect'])) {
-            redirect_and_exit($_GET['redirect']);
+            redirect_temporally_and_exit($_GET['redirect']);
         }
         elseif (isset($_SESSION['redirect'])) {
             // Retrieve and remove from session var
             $redirect = $_SESSION['redirect'];
             unset($_SESSION['redirect']);
 
-            redirect_and_exit($redirect);
+            redirect_temporally_and_exit($redirect);
         }
         else {
-            redirect_and_exit(url());
+            redirect_temporally_and_exit(url());
+        }
+    }
+
+    function auth_handle_unauthorized_and_exit() {
+        if (!auth_is_logged_in()) {
+            redirect_temporally_and_exit(auth_get_login_url_with_redirect());
+        }
+        else {
+            process_unauthorized_and_exit(); // Unauthorized
         }
     }
 
@@ -284,6 +305,10 @@
         else {
             // Register UUID for future requests
             $_SESSION['postdedup_burned_uuids'][] = $_POST['request_uuid'];
+            // Limit the size of the burned UUIDs list to avoid memory issues
+            if (count($_SESSION['postdedup_burned_uuids']) > 20) {
+                $_SESSION['postdedup_burned_uuids'] = array_slice($_SESSION['postdedup_burned_uuids'], -20);
+            }
             return true;
         }
     }
@@ -382,8 +407,15 @@
     function auth_generate_groups_2_openidmarkerlist(): array {
         $groups_2_openidmarkerlist = [];
 
-        foreach (get_global_config('authorization', 'openIdMarkersXgroups') as $m_x_g) {
-            aux_array_set_add($groups_2_openidmarkerlist, $m_x_g['group'], $m_x_g['marker']);
+        foreach (get_global_config('authentication', 'openIdProviders') as $provider) {
+            foreach ($provider['markersXgroups'] as $m_x_g) {
+                $marker_enriched = [
+                    'providerName'  => $provider['name'],
+                    'attributeName'  => $m_x_g['marker']['attributeName'],
+                    'markerName'    => $m_x_g['marker']['markerName']
+                ];
+                aux_array_set_add($groups_2_openidmarkerlist, $m_x_g['group'], $marker_enriched);
+            }
         }
 
         return $groups_2_openidmarkerlist;
@@ -450,6 +482,26 @@
     // Authorization: AFTER preprocessing // 
     ////////////////////////////////////////
 
+    function auth_is_cur_user_privileged_for_custom_privilege(string $custom_privilege): bool {
+        $privileged_actors_ser = [];
+
+        foreach (get_global_config('authorization', 'actorsXprivileges') as $a_x_p) {
+            $privilege = $a_x_p['privilege'];
+
+            if ($privilege['tag'] !== 'Custom' ||
+                $privilege['contents'] !== $custom_privilege) {
+                continue;
+            }
+
+            $actor_ser = auth_aux_serialize_actor($a_x_p['actor']);
+            if (!in_array($actor_ser, $privileged_actors_ser, true)) {
+                $privileged_actors_ser[] = $actor_ser;
+            }
+        }
+
+        return auth_is_cur_user_among_authorized_actors($privileged_actors_ser);
+    }
+
     function auth_is_cur_user_privileged_for_view(Target $target): bool {
         $view_action_ser = auth_aux_serialize_action(['tag' => 'View', 'contents' => []]);
         $privileged_actors = $target->actions_ser_2_actorlist_ser[$view_action_ser] ?? [];
@@ -463,8 +515,8 @@
     }
 
     // $authorized_groups: list<string>
-    // $authorized_users:  list<user>
-    function auth_is_cur_user_among_authorized_groups_users(array $groups, array $users): bool {
+    // $authorized_users:  list<string>
+    function auth_is_cur_user_among_authorized_groups_static_users(array $groups, array $static_users): bool {
         $authorized_actors_ser = array_merge(
             array_map(function ($group) {
                 return auth_aux_serialize_actor([
@@ -475,9 +527,12 @@
             array_map(function ($user) {
                 return auth_aux_serialize_actor([
                     'tag'      => 'User',
-                    'contents' => $user
+                    'contents' => [
+                        'tag'      => 'Static',
+                        'contents' => $user
+                    ]
                 ]);
-            }, $users)
+            }, $static_users)
         );
 
         return auth_is_cur_user_among_authorized_actors($authorized_actors_ser);
@@ -561,15 +616,12 @@
                     isset($groups_2_openidmarkerlist[$cur_group]))
                 {
                     foreach ($groups_2_openidmarkerlist[$cur_group] as $marker) {
-                        if ($marker['providerName'] == $user['contents']['providerName'])
-                        {
-                            // If only the OpenID is used as marker
-                            if (!isset($marker['marker'])) {
-                                return true;
-                            }
-                            // If the marker is used, check on it.
-                            else if (in_array($marker['marker'], $user['contents']['markers'])) {
-                                return true;
+                        if ($marker['providerName'] == $user['contents']['providerName']) {
+                            foreach ($user['contents']['markers'] as $user_marker) {
+                                if ($marker['attributeName'] == $user_marker['attributeName'] &&
+                                    $marker['markerName'] == $user_marker['markerName']) {
+                                    return true;
+                                }
                             }
                         }
                     }
@@ -593,7 +645,7 @@
     ///////////////////
 
     // This function returns the url to a login page, with a redirection param
-    // pointing to the current target / resource.
+    // pointing to the current url.
     // Any query strings e.g. `?solution=true` are preserved.
     function auth_get_login_url_with_redirect(): string {
         if ($_SERVER['REQUEST_URI'] != '/') {

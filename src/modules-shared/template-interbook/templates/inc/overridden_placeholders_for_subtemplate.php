@@ -16,6 +16,8 @@
         return [
             'library_js_url' => $sub_template->get_url() . '/res/js/library.js',  // Keep the original URL
 
+            'css_print_mode_print_url' => $template->get_css_url() . '/print.css',
+
             'body_classes' => $content_width_classes,
         ];
     };

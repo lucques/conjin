@@ -39,7 +39,11 @@
             $template_self->load_def_from_script_and_call('templates/inc/sidebar.php', 'render', $template, $placeholders);
         }
         $template_self->load_def_from_script_and_call('templates/inc/header-2.php', 'render', $template, $placeholders);
-
+?>
+        <h1>
+            Login
+        </h1>
+<?
         if ($logout_successful) {
 ?>
         <div class="alert alert-success">
@@ -48,9 +52,6 @@
 <? 
         }
 ?>
-        <h1>
-            Login
-        </h1>
         <div class="card ppp" id="static-login-form">
             <div class="card-header">
                 Login mit Passwort
@@ -112,6 +113,7 @@
         </div>
 <?
         }
+        
         // Setup ctrl key to reduce login
         if ($template->config->get('login') !== null && $template->config->get('login', 'reduce_toggleable_with_ctrl')) {
             doc_extensions_add_js_after_dom_setup("document.querySelector('#content').addEventListener('click', event => { if (event.ctrlKey) { dtToggle('reduced-login'); } });");

@@ -34,24 +34,14 @@
         exit();
     }
 
-    function send_not_found_response_and_exit() {
-        // Throw away any buffered output
-        while (ob_get_level() > 0) {
-            ob_end_clean();
-        }
-
-        http_response_code(404);
-
-        $GET_target = $_GET['target'] ?? ''; // Coalesce to empty string
-        $requested_target_ids = target_query_to_target_ids($GET_target);
-        
-        process_not_found(core_load_obj('syslet_not_found'), $requested_target_ids);
-
+    function redirect_temporally_and_exit($url) {
+        http_response_code(303);
+        header('Location: ' . $url);
         exit();
     }
 
-    function redirect_and_exit($url) {
-        http_response_code(303);
+    function redirect_permanently_and_exit($url) {
+        http_response_code(301);
         header('Location: ' . $url);
         exit();
     }
@@ -117,6 +107,9 @@
     ///////////
 
     // Paths are always understood as absolute paths.
+    // `$suffix` given: Must not have a leading slash.
+    // `$suffix` not given: Returns path with trailing slash.
+
     function path($suffix = '') {
         return $GLOBALS['core_path_base'] . '/' . $suffix;
     }
@@ -130,12 +123,8 @@
     }
 
     // Get path based on target ids
-    function path_collect($target_ids = []) {
-        return path('content') . '/' . implode('/', $target_ids);
-    }
-
-    function to_url($path_absolute): string {
-        return url(substr($path_absolute, strlen(path_collect())));
+    function path_collect($target_ids = [], $suffix = '') {
+        return path('content') . implode('', array_map(fn($id) => '/' . $id, $target_ids)) . '/' . $suffix;
     }
 
     function path_to_target_ids($path_absolute): array {
@@ -154,9 +143,22 @@
     // URLs //
     //////////
 
+    function to_url($path_absolute): string {
+        // Call `realpath` to resolve things like `/content/..res/...` etc.
+        return url(substr($path_absolute, strlen(path_collect())));
+    }
+
     // This function really returns a root-relative URL, e.g. `/intro/res/img.jpg`
+    // `$suffix` must not start with a slash.
     function url($suffix = '') {
-        return get_global_config('url_base') . $suffix;
+        $url_base = get_global_config('url_base');
+        // Deal with root '/' being the only dir that has a trailing slash
+        if ($url_base === '/') {
+            return '/' . $suffix;
+        }
+        else {
+            return $url_base . '/' . $suffix;
+        }
     }
 
     function url_collect($target_ids = [], $anchor_ids = []) {
@@ -175,10 +177,17 @@
     }
 
     // This function returns the full URL, including protocol and host, e.g. `https://conjin.org/intro/res/img.jpg`
+    // `$suffix` must not start with a slash.
     function url_full($suffix = ''): string {
         $protocol = get_global_config('https') ? 'https' : 'http';
+        $url_base = get_global_config('url_base');
 
-        return $protocol . '://' . get_global_config('host') . get_global_config('url_base') . $suffix;
+        if ($url_base === '/') {
+            return $protocol . '://' . get_global_config('host') . '/' . $suffix;
+        }
+        else {
+            return $protocol . '://' . get_global_config('host') . $url_base . '/' . $suffix;
+        }
     }
 
     function url_full_collect($target_ids = [], $anchor_ids = []): string {
@@ -196,13 +205,40 @@
         }
     }
 
-    ////////////////
-    // Unique ids //
-    ////////////////
+    ////////////////////////
+    // Unique ids: Global //
+    ////////////////////////
 
+    // Produce globally unique id's for any purpose, e.g. CSS class names, JS var names etc.
     $GLOBALS['unique_id_counter'] = 0;
-
     function next_unique_id(): int {
         return $GLOBALS['unique_id_counter']++;
+    }
+
+
+    //////////////////////////////////////////
+    // Unique ids: Namespaces (stack-based) //
+    //////////////////////////////////////////
+
+    // Push and pop a namespace to create unique ids within that namespace.
+    $GLOBALS['namespace_stack'] = [];
+    
+    function ns_push() {
+        $GLOBALS['namespace_stack'][] = next_unique_id();
+    }
+    
+    function ns_pop() {
+        assert(count($GLOBALS['namespace_stack']) > 0, 'Namespace stack underflow');
+        array_pop($GLOBALS['namespace_stack']);
+    }
+    
+    // Get a unique id within the current namespace. The id is prefixed with 'ns_' and includes the namespace stack to ensure uniqueness.
+    function ns_id(string $id): string {
+        $stack = $GLOBALS['namespace_stack'];
+        if (count($stack) == 0) {
+            return $id;
+        }
+
+        return 'ns_' . implode('_', $stack) . '_' . $id;
     }
 ?>

@@ -2,7 +2,7 @@
 
 Template for tests and exams.
 
-Note: `print-mode` must be manually activated.
+Both `sol-mode` and `print-mode` modules are automatically activated.
 
 
 ## Supported modules

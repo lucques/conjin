@@ -1,10 +1,11 @@
 <?
     $render = function(Module $template, ?array $target_ids, array $placeholders) {
         $module_doc_extensions_active = function_exists('doc_extensions_get_head_elements');
+        $module_localization_active   = function_exists('get_language');
         $module_print_mode_active     = function_exists('is_print_mode_on');
 ?>
 <!doctype html>
-<html lang="de">
+<html lang="<?= $module_localization_active ? get_language() : 'en' ?>">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">

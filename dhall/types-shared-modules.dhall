@@ -4,22 +4,26 @@ let SharedModuleLocation = { dirName: Text, isExternal: Bool }
 
 let SharedBareModule = <
     Anchors: {} |
+    BootstrapAlternative: {} |
     BootstrapExtended: {} |
+    ChartJsHelpers: {} |
     DbMysql: {} |
     DocExtensions: {} |
     DynamicToggle: {} |
     Exercise: {} |
     Favicons: {} |
     Footnotes: {} |
+    GeogebraHelpers: {} |
     Grading: {} |
     Hamster: {} |
     Html: {} |
     IssueTracker: {} |
-    JavaWorldsDoc: {} |
+    JavaWorlds: {} |
     JsStandardLib: {} |
     JsxGraphHelpers: {} |
     KlipseWithTauProlog: {} |
     LocaleDe: {} |
+    Localization: {} |
     Markdown: {} |
     MathArith: {} |
     MathLogic: {} |
@@ -29,6 +33,7 @@ let SharedBareModule = <
     NavBuild: {} |
     NavCommon: {} |
     NavView: {} |
+    Nuggets: {} |
     PrintMode: {} |
     References: {} |
     SolMode: {} |
@@ -44,11 +49,14 @@ let SharedBareModule = <
     TemplateNavigable: {} |
     Timetable: {} |
     Title: {} |
+    GraphingTypes: {} |
 
     Bootstrap: {} |
     BootstrapIcons: {} |
+    ChartJs: {} |
     EskuelSuite: {} |
     Fullcalendar: {} |
+    Geogebra: {} |
     JsxGraph: {} |
     Mathjax: {} |
     Mathjs: {} |
@@ -65,21 +73,25 @@ let SharedBareModule = <
 let sharedBareModuleToLocation = \(id: SharedBareModule) ->
     merge {
         Anchors                = \(t: {}) -> { dirName = "anchors",                  isExternal = False },
+        BootstrapAlternative   = \(t: {}) -> { dirName = "bootstrap-alternative",    isExternal = False },
         BootstrapExtended      = \(t: {}) -> { dirName = "bootstrap-extended",       isExternal = False },
+        ChartJsHelpers         = \(t: {}) -> { dirName = "chart-js-helpers",         isExternal = False },
         DbMysql                = \(t: {}) -> { dirName = "db-mysql",                 isExternal = False },
         DocExtensions          = \(t: {}) -> { dirName = "doc-extensions",           isExternal = False },
         DynamicToggle          = \(t: {}) -> { dirName = "dynamic-toggle",           isExternal = False },
         Exercise               = \(t: {}) -> { dirName = "exercise",                 isExternal = False },
         Favicons               = \(t: {}) -> { dirName = "favicons",                 isExternal = False },
         Footnotes              = \(t: {}) -> { dirName = "footnotes",                isExternal = False },
+        GeogebraHelpers        = \(t: {}) -> { dirName = "geogebra-helpers",         isExternal = False },
         Grading                = \(t: {}) -> { dirName = "grading",                  isExternal = False },
         Hamster                = \(t: {}) -> { dirName = "hamster",                  isExternal = False },
         Html                   = \(t: {}) -> { dirName = "html",                     isExternal = False },
         IssueTracker           = \(t: {}) -> { dirName = "issue-tracker",            isExternal = False },
-        JavaWorldsDoc          = \(t: {}) -> { dirName = "java-worlds-doc",          isExternal = False },
+        JavaWorlds             = \(t: {}) -> { dirName = "java-worlds",              isExternal = False },
         JsStandardLib          = \(t: {}) -> { dirName = "js-standard-lib",          isExternal = False },
         JsxGraphHelpers        = \(t: {}) -> { dirName = "jsxgraph-helpers",         isExternal = False },
         LocaleDe               = \(t: {}) -> { dirName = "locale-de",                isExternal = False },
+        Localization           = \(t: {}) -> { dirName = "localization",             isExternal = False },
         Markdown               = \(t: {}) -> { dirName = "markdown",                 isExternal = False },
         MathArith              = \(t: {}) -> { dirName = "math-arith",               isExternal = False },
         MathLogic              = \(t: {}) -> { dirName = "math-logic",               isExternal = False },
@@ -89,6 +101,7 @@ let sharedBareModuleToLocation = \(id: SharedBareModule) ->
         NavBuild               = \(t: {}) -> { dirName = "nav-build",                isExternal = False },
         NavCommon              = \(t: {}) -> { dirName = "nav-common",               isExternal = False },
         NavView                = \(t: {}) -> { dirName = "nav-view",                 isExternal = False },
+        Nuggets                = \(t: {}) -> { dirName = "nuggets",                  isExternal = False },
         PrintMode              = \(t: {}) -> { dirName = "print-mode",               isExternal = False },
         References             = \(t: {}) -> { dirName = "references",               isExternal = False },
         SolMode                = \(t: {}) -> { dirName = "sol-mode",                 isExternal = False },
@@ -104,11 +117,14 @@ let sharedBareModuleToLocation = \(id: SharedBareModule) ->
         TemplateNavigable      = \(t: {}) -> { dirName = "template-navigable",       isExternal = False },
         Timetable              = \(t: {}) -> { dirName = "timetable",                isExternal = False },
         Title                  = \(t: {}) -> { dirName = "title",                    isExternal = False },
+        GraphingTypes          = \(t: {}) -> { dirName = "graphing-types",           isExternal = False },
 
         Bootstrap              = \(t: {}) -> { dirName = "bootstrap",                isExternal = True },
         BootstrapIcons         = \(t: {}) -> { dirName = "bootstrap-icons",          isExternal = True },
+        ChartJs                = \(t: {}) -> { dirName = "chart-js",                 isExternal = True },
         EskuelSuite            = \(t: {}) -> { dirName = "eskuel-suite",             isExternal = True },
         Fullcalendar           = \(t: {}) -> { dirName = "fullcalendar",             isExternal = True },
+        Geogebra               = \(t: {}) -> { dirName = "geogebra",                 isExternal = True },
         KlipseWithTauProlog    = \(t: {}) -> { dirName = "klipse-with-tau-prolog",   isExternal = True },
         Mathjax                = \(t: {}) -> { dirName = "mathjax",                  isExternal = True },
         Mathjs                 = \(t: {}) -> { dirName = "mathjs",                   isExternal = True },
@@ -128,24 +144,28 @@ let sharedBareModuleToLocation = \(id: SharedBareModule) ->
 let sharedBareModuleToScssDeps = \(id: SharedBareModule) ->
     merge {
         Anchors                = \(t: {}) -> P.List.empty SharedModuleLocation,
+        BootstrapAlternative   = \(t: {}) -> P.List.empty SharedModuleLocation,
         BootstrapExtended      = \(t: {}) -> [
                                      , sharedBareModuleToLocation (SharedBareModule.Bootstrap {=})
                                  ],
+        ChartJsHelpers         = \(t: {}) -> P.List.empty SharedModuleLocation,
         DbMysql                = \(t: {}) -> P.List.empty SharedModuleLocation,
         DocExtensions          = \(t: {}) -> P.List.empty SharedModuleLocation,
         DynamicToggle          = \(t: {}) -> P.List.empty SharedModuleLocation,
         Exercise               = \(t: {}) -> P.List.empty SharedModuleLocation,
         Favicons               = \(t: {}) -> P.List.empty SharedModuleLocation,
         Footnotes              = \(t: {}) -> P.List.empty SharedModuleLocation,
+        GeogebraHelpers        = \(t: {}) -> P.List.empty SharedModuleLocation,
         Grading                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Hamster                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Html                   = \(t: {}) -> P.List.empty SharedModuleLocation,
         IssueTracker           = \(t: {}) -> P.List.empty SharedModuleLocation,
-        JavaWorldsDoc          = \(t: {}) -> P.List.empty SharedModuleLocation,
+        JavaWorlds             = \(t: {}) -> P.List.empty SharedModuleLocation,
         JsStandardLib          = \(t: {}) -> P.List.empty SharedModuleLocation,
         JsxGraphHelpers        = \(t: {}) -> P.List.empty SharedModuleLocation,
         KlipseWithTauProlog    = \(t: {}) -> P.List.empty SharedModuleLocation,
         LocaleDe               = \(t: {}) -> P.List.empty SharedModuleLocation,
+        Localization           = \(t: {}) -> P.List.empty SharedModuleLocation,
         Markdown               = \(t: {}) -> P.List.empty SharedModuleLocation,
         MathArith              = \(t: {}) -> P.List.empty SharedModuleLocation,
         MathLogic              = \(t: {}) -> P.List.empty SharedModuleLocation,
@@ -155,6 +175,7 @@ let sharedBareModuleToScssDeps = \(id: SharedBareModule) ->
         NavBuild               = \(t: {}) -> P.List.empty SharedModuleLocation,
         NavCommon              = \(t: {}) -> P.List.empty SharedModuleLocation,
         NavView                = \(t: {}) -> P.List.empty SharedModuleLocation,
+        Nuggets                = \(t: {}) -> P.List.empty SharedModuleLocation,
         PrintMode              = \(t: {}) -> P.List.empty SharedModuleLocation,
         References             = \(t: {}) -> P.List.empty SharedModuleLocation,
         SolMode                = \(t: {}) -> P.List.empty SharedModuleLocation,
@@ -180,10 +201,13 @@ let sharedBareModuleToScssDeps = \(id: SharedBareModule) ->
                                  ],
         Timetable              = \(t: {}) -> P.List.empty SharedModuleLocation,
         Title                  = \(t: {}) -> P.List.empty SharedModuleLocation,
+        GraphingTypes          = \(t: {}) -> P.List.empty SharedModuleLocation,
         Bootstrap              = \(t: {}) -> P.List.empty SharedModuleLocation,
         BootstrapIcons         = \(t: {}) -> P.List.empty SharedModuleLocation,
+        ChartJs                = \(t: {}) -> P.List.empty SharedModuleLocation,
         EskuelSuite            = \(t: {}) -> P.List.empty SharedModuleLocation,
         Fullcalendar           = \(t: {}) -> P.List.empty SharedModuleLocation,
+        Geogebra               = \(t: {}) -> P.List.empty SharedModuleLocation,
         Mathjax                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Mathjs                 = \(t: {}) -> P.List.empty SharedModuleLocation,
         Nerdamer               = \(t: {}) -> P.List.empty SharedModuleLocation,

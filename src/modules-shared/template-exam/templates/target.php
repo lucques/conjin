@@ -32,6 +32,7 @@
         ////////////////////
 
         ob_start();
+        if ($template->config->get('exercise_start') === 1) {
 ?>
 <div id="eheader">
     <div id="eheader-left">
@@ -49,6 +50,7 @@
     <h1><?= $placeholders['title'] ?></h1>
 </div>
 <?
+        }
         $content = ob_get_clean() . $content;
 
 

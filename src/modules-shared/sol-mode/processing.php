@@ -7,17 +7,17 @@
         $is_requested  = isset($_GET['solution']) && $_GET['solution'] === '1';
 
         // Read allowed groups from config
-        $restrict_to_groups = $module->config->get('restrict_to_groups');
-        $restrict_to_users  = $module->config->get('restrict_to_users');
+        $restrict_to_groups       = $module->config->get('restrict_to_groups');
+        $restrict_to_static_users = $module->config->get('restrict_to_static_users');
 
         // Allowed if...
         $is_allowed =
             // 1. either no restriction is given or...
-            (count($restrict_to_groups) == 0 && count($restrict_to_users) == 0) ||
+            (count($restrict_to_groups) == 0 && count($restrict_to_static_users) == 0) ||
             // 2. current user is among the allowed actors 
-            auth_is_cur_user_among_authorized_groups_users(
-                groups: $restrict_to_groups,
-                users: $restrict_to_users
+            auth_is_cur_user_among_authorized_groups_static_users(
+                groups:       $restrict_to_groups,
+                static_users: $restrict_to_static_users
             );
 
 

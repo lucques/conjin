@@ -10,7 +10,6 @@
     // Core //
     //////////
 
-    // Parameter `$custom_color`: If to use another color outside of the variants as described in `README.md`
     function carousel_start($with_controls = true, $id = null, $class = '', $style = '') {
         assert($GLOBALS['carousel_cur_id'] === null, 'A carousel is already started');
 

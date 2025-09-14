@@ -26,12 +26,15 @@ RewriteRule ^logout/$                                           conjin/index.php
 
 # Open ID Connect
 RewriteRule ^login/openid/(.+)$                                 conjin/index.php?req=login&openid=$1 [QSA,L]
+RewriteRule ^debug/openid/(.+)$                                 conjin/index.php?req=debug&what=openid&openid=$1 [QSA,L]
 
 # Content
 # Explanation: QSA = query string appL; further GET attributes are kept
 # Explanation: B = escape special characters in the target URL
-RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)$                           conjin/index.php?req=show&target=$1 [QSA,L]
-RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)res/(.+)$                   conjin/index.php?req=res&target=$1&res=$2 [B,L]
+RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)$                                    conjin/index.php?req=show&target=$1 [QSA,L]
+RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)inc/((?:[a-zA-Z0-9-_.]+/)*)res/(.+)$ conjin/index.php?req=res&target=$1&inc=$2&res=$3 [B,L]
+RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)res/(.+)$                            conjin/index.php?req=res&target=$1&res=$2 [B,L]
+
 
 # Other (anything else)
 # If the requested file or directory does NOT exist...

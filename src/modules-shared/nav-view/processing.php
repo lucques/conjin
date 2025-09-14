@@ -17,21 +17,25 @@
     // Used by template //
     //////////////////////
 
+    function nav_is_tree_empty(): bool {
+        // 1. Find highest ancestor that current user is still privileged to view.
+        $cur_root_target_ids = nav_aux_find_highest_privileged_ancestor($GLOBALS['nav_view_target_ids']);
+        $root_target = core_load_obj('nav')->find($cur_root_target_ids);
+
+        // Tree is empty if either
+        // (i)  not privileged to view the root target, or
+        // (ii) root target has no children
+        return
+               !auth_is_cur_user_among_authorized_actors($root_target->privileged_actors)
+            || $root_target->get_number_of_children() == 0;
+    }
+
     function nav_print($id_breadcrumb, $id_tree, int $breadcrumb_up_to_level) {
         // 1. Find highest ancestor that current user is still privileged to view.
-        $cur_root_target_ids = $GLOBALS['nav_view_target_ids'];
+        $cur_root_target_ids = nav_aux_find_highest_privileged_ancestor($GLOBALS['nav_view_target_ids']);
 
-        while (count($cur_root_target_ids) > 0) {
-            $next_root_target_ids = array_slice($cur_root_target_ids, 0, -1);
-            $next_privileged_actors = core_load_obj('nav')->find($next_root_target_ids)->privileged_actors;
-            
-            if (!auth_is_cur_user_among_authorized_actors($next_privileged_actors)) {
-                break;
-            }
-            
-            array_pop($cur_root_target_ids);
-        }
-
+        // The current user may or may not be privileged to view the new
+        // "root target".
         $root_target = core_load_obj('nav')->find($cur_root_target_ids);
 
         // 2. Print breadcrumb
@@ -46,7 +50,7 @@
             echo '</nav>' . "\n";
         }
 
-        // 2. Print everything from `$cur_root_target_ids` on.
+        // 3. Print everything from `$cur_root_target_ids` on.
         echo '<nav id="' . $id_tree . '">' . "\n";
         nav_aux_print_tree_rec($root_target, surround_with_li: false);
         echo '</nav>' . "\n";
@@ -56,6 +60,27 @@
     /////////////
     // Helpers //
     /////////////
+
+    // Returns the targets ids (array) of the highest ancestor of `$target_ids`
+    // that the current user is still privileged to view.
+    // The ancestor may also be the target itself.
+    // If there is no such ancestor, the root target is returned (empty array).
+    function nav_aux_find_highest_privileged_ancestor(array $target_ids): array {
+        $cur_target_ids = $target_ids;
+
+        while (count($cur_target_ids) > 0) {
+            $next_target_ids = array_slice($cur_target_ids, 0, -1);
+            $next_privileged_actors = core_load_obj('nav')->find($next_target_ids)->privileged_actors;
+            
+            if (!auth_is_cur_user_among_authorized_actors($next_privileged_actors)) {
+                break;
+            }
+            
+            array_pop($cur_target_ids);
+        }
+
+        return $cur_target_ids;
+    }
 
     function nav_aux_get_breadcrumb_items_rec(int $breadcrumb_up_to_level, NavItem $item): array {
         $res = [];

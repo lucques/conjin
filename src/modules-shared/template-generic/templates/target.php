@@ -24,9 +24,10 @@
         ////////////
 
         $module_doc_extensions_active = $target->has_activated_module('doc-extensions');
+        $module_localization_active   = $target->has_activated_module('localization');
 ?>
 <!doctype html>
-<html lang="de">
+<html lang="<?= $module_localization_active ? get_language() : 'en' ?>">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">

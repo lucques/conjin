@@ -8,9 +8,12 @@ Documentation is spread out over multiple files.
     - [Deployment using Docker + Nginx](./deployment_local.md): Deploy by running your own server
     - [Deployment using Docker + sync](./deployment_remote.md): Deploy by syncing to an external server
 - [Building](./build.md)
+- [Linkchecker](./linkchecker.md)
+- [Store](./store.md): Persistent application data, deployment behavior, and backups
+- [Error handling](./error_handling.md): Error responses, logging, and backups
 - File structures:
-    - [Conjin repo](./file_structure_conjin.md): File file structure of *this* repo
-    - [Content repo](./file_structure_content.md): The file structure of the content repo
+    - [Conjin repo](./file_structure_conjin.md): File structure of *this* repo
+    - [Content repo](./file_structure_app.md): The file structure of the content repo
     - [`/htdocs` dir](./file_structure_htdocs.md): The file structure of the `htdocs` dir as established via Docker
 - Preprocessing + Processing:
     - [Preprocess](./preprocess.md)
@@ -23,6 +26,7 @@ Documentation is spread out over multiple files.
 - [Changelog](./changelog.md)
 - [Ideas](./ideas.md): Ideas for future development
 - [Known bugs + limitations](./known_bugs_limitations.md)
+- [MIME types](./mime_types.md): Reference list
 
 
 ## Definitions
@@ -31,8 +35,8 @@ Documentation is spread out over multiple files.
     - Is the result of a preprocessing step
     - **Target**
         - Targets are organized in a tree structure, where each node...
-            - is represented by a `Target` obj 
-            - has a target id (only a list of target id's therefore specifies the path to a specific target)
+            - is represented by a `Target` object
+            - has a target ID (a list of target IDs therefore specifies the path to a specific target)
         - Usually contains content, three types:
             - **Inline**: In `index.php`, there is a `process` function
             - **Extra**: In `content.php`, the content is hardcoded (no function)
@@ -41,6 +45,7 @@ Documentation is spread out over multiple files.
         - External view: A webpage that fulfills a pre-defined system function such as "login", "not found" etc.
         - Internal view: A file `login.php`, `not_found.php` etc. within the `system` dir
 - **Building phase**
+    - Generates the deployment files in the target directory from the deployment configuration
 - **Preprocessing phase**
     - Main idea: Collect all "meta information" (target title, config etc.) to build a navigation etc.
     - Gets triggered explicitly, which results in a target tree and the syslets
@@ -48,7 +53,7 @@ Documentation is spread out over multiple files.
     - Not needed when just changing some content of a target
 - **Processing phase**
     - Triggered by the typical HTTP request
-    - Inits modules, template and renders the target / syslet.
+    - Initializes modules and the template, then renders the target or syslet.
 - **Module**: See [Modules](./modules.md)
 - **User**, **Group**, **Actor**, **Privilege**, **Target Action**, **Custom Target Action**: See [Authorization](./auth_authorization.md)
 - **Path**: Internal file system; root points to `htdocs` folder path
@@ -67,4 +72,3 @@ Documentation is spread out over multiple files.
     - A mode is a flag that can be set by the user when requesting a target, typically by adding the `?print=1` param to the URL.
     - Modes are always introduced by modules as they are not a built-in concept.
     - Examples: `print-mode` and `sol-mode`.
-- **Module**: See [Modules](./modules.md)

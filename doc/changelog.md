@@ -1,5 +1,8 @@
 # Changelog
 
+## [2.7.0] - 2026-07-16
+- Updated many modules and more
+
 ## [2.6.0] - 2025-08-19
 - Updated template mechnanism, added `issue-tracker` module
 

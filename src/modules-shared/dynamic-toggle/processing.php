@@ -1,5 +1,5 @@
 <?
-    $init_processing = function(Module $module) {
+    $init_processing = function(Module $module, Processable $processable) {
         // Add JS library
         doc_extensions_add_head_element('<script src="' . $module->get_url() . '/res/js/library.js"></script>');
 

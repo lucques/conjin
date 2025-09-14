@@ -36,9 +36,9 @@
 - `processing.php`
     - Always included; therefore: Processing macros (= top level PHP functions) can be defined here
     - `init_*` defs:
-        - `init_processing:           (Module) -> ()`                 always called
-        - `init_processing_target:    (Module, Target $target) -> ()` only called for target
-        - `init_processing_syslet:    (Module, Syslet $syslet) -> ()` only called for target
+        - `init_processing:           (Module, Processable $processable) -> ()` always called
+        - `init_processing_target:    (Module, Target      $target)      -> ()` only called for target
+        - `init_processing_syslet:    (Module, Syslet      $syslet)      -> ()` only called for target
         - May init state that is needed by this module during the processing phase, e.g. a db connection. Such state should be managed by `$GLOBALS` var
 - `templates/`:
     - `target.php`
@@ -49,7 +49,6 @@
         - `render_not_found: (ModuleLocation, Module, Syslet, $target_ids: ?array, $placeholders_override: dict<string, mixed>) -> ()`
     - `unauthorized.php`
         - `render_unauthorized: (ModuleLocation, Module, Syslet, $target_ids: ?array, $placeholders_override: dict<string, mixed>) -> ()`
-        - TODO: This is not implemented yet
 - `scss/`:
     - Contains SCSS files that are fed into the SCSS compiler
 - `res/`:

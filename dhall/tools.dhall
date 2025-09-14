@@ -49,19 +49,11 @@ let addOpenIdUserToGroup =
     }
 : T.UserXGroup
 
-let addOpenIdProviderToGroup = 
-    \(providerName: Text) ->
-    \(group: Text) -> {
-        , marker = { providerName, marker = None Text }
-        , group
-    }
-: T.OpenIdMarkerXGroup
-
 let addOpenIdMarkerToGroup = 
-    \(providerName: Text) ->
-    \(marker: Text) ->
+    \(attributeName: Text) ->
+    \(markerName: Text) ->
     \(group: Text) -> {
-        , marker = { providerName, marker = Some marker }
+        , marker = { attributeName, markerName }
         , group
     }
 : T.OpenIdMarkerXGroup
@@ -77,6 +69,31 @@ let grantDebugPrivToStaticUser =
     \(user: Text) -> {
         actor = T.Actor.User (T.User.Static user),
         privilege = T.Privilege.Debug {=}
+    }
+: T.ActorXPrivilege
+
+let grantCustomPrivToGroup =
+    \(privilege: Text) ->
+    \(group: Text) -> {
+        actor = T.Actor.Group group,
+        privilege = T.Privilege.Custom privilege
+    }
+: T.ActorXPrivilege
+
+let grantCustomPrivToStaticUser =
+    \(privilege: Text) ->
+    \(user: Text) -> {
+        actor = T.Actor.User (T.User.Static user),
+        privilege = T.Privilege.Custom privilege
+    }
+: T.ActorXPrivilege
+
+let grantCustomPrivToOpenIdUser =
+    \(privilege: Text) ->
+    \(providerName: Text) ->
+    \(userId: Text) -> {
+        actor = T.Actor.User (T.User.OpenId {providerName, id = userId}),
+        privilege = T.Privilege.Custom privilege
     }
 : T.ActorXPrivilege
 
@@ -115,9 +132,9 @@ let grantViewActionToOpenIdUser =
 : T.ActorXPrivilege
 
 let grantCustomActionToGroup = 
+    \(action: Text) ->
     \(targetIds: List Text) ->
-    \(group: Text) ->
-    \(action: Text) -> {
+    \(group: Text) -> {
         actor = T.Actor.Group group,
         privilege = T.Privilege.Target ({
             , targetIds
@@ -365,8 +382,8 @@ let makeStaticFile =
 ------------------------------------
 
 let makePermanentRedirect = 
-    \(from: Text) ->
-    \(to: Text) -> {
+    \(from: Text) ->         -- Regex
+    \(to: Text) -> {         -- Replacement
         , mapKey   = from
         , mapValue = to
     }
@@ -494,7 +511,7 @@ let makeDefaultLocalDepl =
       , nginxVirtualHost  = name ++ ".localhost"
       , linkcheckerVolDir = makeDefaultDockerVolDir deplDir ++ "/linkchecker"
       , preprocessVolDir  = makeDefaultDockerVolDir deplDir ++ "/preprocess"
-      , errors          = defaultLocalErrors
+      , errors            = defaultLocalErrors
       , store             = if withStore then Some (makeDefaultLocalStore deplDir) else None T.LocalStore
       , db
       , linkcheckerUser                = "linkchecker"
@@ -560,11 +577,13 @@ in {
     , addStaticUserToGroup
     , addOpenIdUserToGroup
 
-    , addOpenIdProviderToGroup
     , addOpenIdMarkerToGroup
     
     , grantPreprocPrivToStaticUser
     , grantDebugPrivToStaticUser
+    , grantCustomPrivToGroup
+    , grantCustomPrivToStaticUser
+    , grantCustomPrivToOpenIdUser
 
     , grantViewActionToGroup
     , grantViewActionToStaticUser

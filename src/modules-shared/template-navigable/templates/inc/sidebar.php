@@ -1,7 +1,8 @@
 <?
     $render = function(Module $template, array $placeholders) {
-        $module_sol_mode_active   = function_exists('is_sol_mode_on');
-        $module_print_mode_active = function_exists('is_print_mode_on');
+        $module_localization_active = function_exists('get_language');
+        $module_sol_mode_active     = function_exists('is_sol_mode_on');
+        $module_print_mode_active   = function_exists('is_print_mode_on');
 ?>
         <div id="sidebar">
             <div id="sidebar-header">
@@ -28,6 +29,26 @@
 
                 <div id="sidebar-buttons">
 <?
+        ///////////////////////
+        // Language switcher //
+        ///////////////////////
+
+        if ($module_localization_active) {
+            $alternatives = get_language_alternatives(get_language_alternatives(['de', 'en']));
+            if (count($alternatives) > 1 || $template->config->get('sidebar', 'show_language_switcher_always')) {
+                foreach ($alternatives as $lang => $target_ids) {
+?>
+                    <a href="<?= url_collect($target_ids) ?>" class="btn btn-primary<?= $lang === get_language() ? ' active' : '' ?>" data-bs-toggle="tooltip" data-bs-title="<?= language_to_text($lang) ?>" data-bs-placement="bottom"><?= language_to_flag($lang) ?></a>
+<?
+                }
+            }
+        }
+
+
+        ///////////////////
+        // Solution mode //
+        ///////////////////
+
         if ($module_sol_mode_active && is_sol_mode_allowed()) {
             if (is_sol_mode_on()) {
 ?>
@@ -44,6 +65,11 @@
                     </button>
 <?
         }
+
+        ////////////////
+        // Print mode //
+        ////////////////
+
         if ($module_print_mode_active && !is_print_mode_always_on()) {
             if (is_print_mode_on()) {
 ?>

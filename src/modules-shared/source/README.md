@@ -11,7 +11,7 @@ This module offers to include source code and to format it nicely. The formattin
     - `source_file`
     - `source_file_block`: Extract a code block from a file
 - Inline code
-    - `source_inline`
+    - `source_in`
 - Scopes
     - Used to define the language and line numbering of the code
     - `source_scope_start`, `source_scope_end`

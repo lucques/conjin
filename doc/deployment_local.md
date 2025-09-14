@@ -44,8 +44,10 @@ The following scripts are generated in the `./target/bin` directory:
     - Script that execs via the existing database container the `mysqldump` command.
 - `./target/bin/backup-store` (if configured)
     - Script that execs via the existing webserver container some copy operations.
+    - See [Store](./store.md) for store configuration and backup behavior.
+- Error logging is configured separately and has no generated local backup command.
+    - See [Error handling](./error_handling.md) for configuration and runtime behavior.
 - `./target/bin/linkchecker`
     - Starts a docker compose project that runs a linkchecker service
     - The args given to this script are passed as the target id prefix to check.
     - E.g., `./target/bin/linkchecker first second` will check all URLs that start with `http://host/first/second/`.
-    

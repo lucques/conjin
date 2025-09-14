@@ -3,7 +3,8 @@
         // State
         $GLOBALS['mathjax_eqset_number_of_lines'] = -1;  // -1 means no eqset is active
 
-        doc_extensions_add_head_element('<script src="' . $module->get_url() . '/res/mathjax-extensions.js"></script>');
+        // Use `prepend` instead of `add` because the config must be loaded before the mathjax library itself
+        doc_extensions_prepend_head_element('<script src="' . $module->get_url() . '/res/mathjax-extensions.js"></script>');
     };
 
 
@@ -38,6 +39,12 @@
     // Equation sets //
     ///////////////////
 
+    // Example:
+    //
+    //     2x + 2 = 4   | -2
+    // <=> 2x     = 2   | :2
+    // <=>  x     = 1
+
     function mjax_eqset_start($align_lhs = 'l', $align_rhs = 'l') {
         // There must not be an active eqset
         assert($GLOBALS['mathjax_eqset_number_of_lines'] == -1, 'An equation set is already active');
@@ -60,7 +67,7 @@
 <?
     }
 
-    function mjax_eqset_line(?string $left, string $right, ?string $transformation = null) {
+    function mjax_eqset_line(?string $left, string $right, ?string $transformation = null, $show_bar = true, $sign = '=', $margin_bottom_cm = null) {
         // There must be an active eqset
         assert($GLOBALS['mathjax_eqset_number_of_lines'] != -1, 'No equation set is active');
 
@@ -75,17 +82,23 @@
         }
 
         // Main part
-        $line .= ' ' . $left . ' &~= ' . $right;
+        $line .= ' ' . $left . ' &\,\,' . $sign . '~ ' . $right;
 
         // Transformation
-        if ($transformation !== null) {
+        if ($transformation !== null && $show_bar) {
             $line .= ' &\qquad |\,' . $transformation;
+        }
+        else if ($transformation !== null && !$show_bar) {
+            $line .= ' &\qquad ' . $transformation;
         }
         else {
             $line .= ' &';
         }
 
         $line .= '\\\\';
+        if ($margin_bottom_cm !== null) {
+            $line .= '[' . $margin_bottom_cm . 'cm]';
+        }
         
         echo $line . "\n";
 
@@ -94,9 +107,15 @@
     }
 
 
-    // & 300 &~= t(x) &\\
-    // \Leftrightarrow~& 300 &~= 55x &\qquad |:55\\
-    // \Leftrightarrow~& 5{,}5 &~= x &
+    /////////////
+    // Vectors //
+    /////////////
 
+    function mjax_vec_2d($x, $y): string {
+        return '\begin{pmatrix}' . $x . '\\\\' . $y . '\end{pmatrix}';
+    }
 
+    function mjax_vec_3d($x, $y, $z): string {
+        return '\begin{pmatrix}' . $x . '\\\\' . $y . '\\\\' . $z . '\end{pmatrix}';
+    }
 ?>

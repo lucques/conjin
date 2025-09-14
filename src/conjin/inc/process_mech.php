@@ -12,7 +12,14 @@
         $syslet->get_template()->render_login($syslet, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names);
     }
 
-    function process_not_found(Syslet $syslet, ?array $target_ids) {
+    function process_not_found_and_exit() {
+        http_response_code(404);
+
+        $GET_target = $_GET['target'] ?? ''; // Coalesce to empty string
+        $requested_target_ids = target_query_to_target_ids($GET_target);
+        
+        $syslet = core_load_obj('syslet_not_found');
+    
         // Init modules
         foreach ($syslet->activated_modules as $name => $module) {
             ob_start();
@@ -21,11 +28,34 @@
         }
 
         // Render
-        $syslet->get_template()->render_not_found($syslet, $target_ids);
+        $syslet->get_template()->render_not_found($syslet, $requested_target_ids);
+
+        exit();
+    }
+
+    function process_unauthorized_and_exit() {
+        http_response_code(401);
+
+        $GET_target = $_GET['target'] ?? ''; // Coalesce to empty string
+        $requested_target_ids = target_query_to_target_ids($GET_target);
+        
+        $syslet = core_load_obj('syslet_unauthorized');
+    
+        // Init modules
+        foreach ($syslet->activated_modules as $name => $module) {
+            ob_start();
+            $module->init_processing_syslet($syslet, core_load_obj('target_root'));
+            ob_end_clean();
+        }
+
+        // Render
+        $syslet->get_template()->render_unauthorized($syslet, $requested_target_ids);
+
+        exit();
     }
 
     function process(Target $target): void {
-        assert($target->content_location != ContentLocation::NONE, 'Cannot process contentless target');
+        assert($target->content_location == ContentLocation::INLINE || $target->content_location == ContentLocation::EXTRA, 'Can only process targets with inline or extra content location');
 
         //////////////////
         // Init modules //
@@ -43,7 +73,7 @@
         //////////////////
 
         if ($target->content_location == ContentLocation::INLINE) {
-            $script_path = $target->path('/index.php');
+            $script_path = $target->path('index.php');
             $defs = load_defs_from_script($script_path);
             assert($defs['process'] !== null, 'Missing `$process` function');
 
@@ -54,7 +84,7 @@
         }
         else // ContentLocation::EXTRA
         {
-            $script_path = $target->path('/content.php');
+            $script_path = $target->path('content.php');
 
             // Process
             ob_start();

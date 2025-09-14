@@ -33,6 +33,8 @@
     require('inc/auth.php');
     auth_init();
     require('inc/target.php');
+    // Require always since also needed for "not found" and "unauthorized"
+    require('inc/process_mech.php');
 
 
     ///////////////////////
@@ -49,7 +51,7 @@
             require('inc/debug.php');
         }
         else {
-            send_response_and_exit(403); // Unauthorized
+            auth_handle_unauthorized_and_exit(); // Unauthorized
         }
     }
     elseif ($req == Req::Preprocess) {
@@ -60,7 +62,7 @@
 
         // Check privilege
         if (!auth_is_user_privileged_to_preprocess()) {
-            send_response_and_exit(403); // Unauthorized
+            auth_handle_unauthorized_and_exit();
         }
 
         // Libraries
@@ -71,10 +73,11 @@
         // 2. Targets:     `target_root`
         // 3. Syslets:     `syslet_*`
         core_save_obj('groups_2_userlist_ser',       auth_generate_groups_2_userlist_ser());
-        core_save_obj('groups_2_openidmarkerlist', auth_generate_groups_2_openidmarkerlist());
+        core_save_obj('groups_2_openidmarkerlist',   auth_generate_groups_2_openidmarkerlist());
         core_save_obj('target_root',                 preprocess_target_root());
         core_save_obj('syslet_login',                preprocess_syslet('login'));
         core_save_obj('syslet_not_found',            preprocess_syslet('not_found'));
+        core_save_obj('syslet_unauthorized',         preprocess_syslet('unauthorized'));
 
         // Render response
         send_response_and_exit(message: 'Preprocessing done.');
@@ -85,9 +88,6 @@
         if (!core_obj_exists('target_root')) {
             send_response_and_exit(status_code: 500, message: "Preprocessing not done.");
         }
-
-        // Lbraries
-        require('inc/process_mech.php');
 
         if ($req == Req::Login) {
 
@@ -115,7 +115,7 @@
                 auth_handle_logout_and_exit();
             }
             else {
-                send_response_and_exit(403); // Unauthorized
+                auth_handle_unauthorized_and_exit();
             }
             
         }
@@ -133,35 +133,36 @@
             $requested_target_ids = target_query_to_target_ids($GET_target);
             
             if ($requested_target_ids === null) {
-                send_not_found_response_and_exit(); // Not Found
+                process_not_found_and_exit(); // Not Found
             }
     
             $target = core_load_obj('target_root')->find_child($requested_target_ids);
     
             // If target does not exist, send "not found"
             if ($target == null) {
-                send_not_found_response_and_exit(); // Not Found
+                process_not_found_and_exit(); // Not Found
             }
-            
+
+            // If target's content consists of a redirect, send "moved permanently"
+            if ($target->content_location == ContentLocation::REDIRECT) {
+                $redirect_target_ids = load_def_from_script_and_get(path_collect($requested_target_ids, 'index.php'), 'redirect');
+                redirect_permanently_and_exit(url_collect($redirect_target_ids)); // Moved permanently
+            }
+
             // If target has no content, send "not found"
             if ($target->content_location == ContentLocation::NONE) {
-                send_not_found_response_and_exit(); // Not Found
+                process_not_found_and_exit(); // Not Found
             }
     
             // If user is not privileged to view target, either redirect to
             // login page or send "unauthorized"
             if (!auth_is_cur_user_privileged_for_view($target)) {
-                if (!auth_is_logged_in()) {
-                    redirect_and_exit(auth_get_login_url_with_redirect());
-                }
-                else {
-                    send_response_and_exit(403); // Unauthorized
-                }
+                auth_handle_unauthorized_and_exit();
             }
     
             // Respond "not modified", i.e. file cached by browser?
-            $requested_path = path_collect($requested_target_ids) . '/index.php';
-            check_whether_unmodified_and_handle($requested_path);
+            $requested_path = path_collect($requested_target_ids, 'index.php');
+            check_whether_unmodified_and_handle_and_exit($requested_path);
                 
             // Render response
             process($target);
@@ -180,58 +181,62 @@
     
             // Check up front that `res` query is not empty
             if (!isset($_GET['res'])) {
-                send_not_found_response_and_exit(); // Not Found
+                process_not_found_and_exit(); // Not Found
             }
-    
+
             // 1. Interpret `target` part of the request
             $GET_target = $_GET['target'] ?? ''; // Coalesce to empty string
             $requested_target_ids = target_query_to_target_ids($GET_target);
     
             if ($requested_target_ids === null) {
-                send_not_found_response_and_exit(); // Not Found
+                process_not_found_and_exit(); // Not Found
             }
     
             $target = core_load_obj('target_root')->find_child($requested_target_ids);
                 
             // If target does not exist, send "not found"
             if ($target == null) {
-                send_not_found_response_and_exit(); // Not Found
+                process_not_found_and_exit(); // Not Found
             }
     
-            // 2. Interpret `res` part of the request
-            $path = path('content') . '/' . $GET_target . 'res/' . $_GET['res'];
+            // 2. Interpret `inc` and `res` part of the request
+            $path = null;
+
+            if (isset($_GET['inc'])) {
+                // `inc` part present
+                $path = path('content') . '/' . $GET_target . 'inc/' . $_GET['inc'] . 'res/' . $_GET['res'];
+            }
+            else {
+                // `inc` part absent
+                $path = path('content') . '/' . $GET_target . 'res/' . $_GET['res'];    
+            }
             $real_path = realpath($path);
     
             // If resource does not exist, send "not found"
             if ($real_path === false) {
-                send_not_found_response_and_exit(); // Not Found
+                process_not_found_and_exit(); // Not Found
             }
     
             // If user is not privileged to view target, either redirect to
             // login page or send "unauthorized"
             if (!auth_is_cur_user_privileged_for_view($target)) {
-                if (!auth_is_logged_in()) {
-                    redirect_and_exit(auth_get_login_url_with_redirect());
-                }
-                else {
-                    send_response_and_exit(403); // Unauthorized
-                }
+                auth_handle_unauthorized_and_exit();
             }
             
-            // If resource outside of `content` dir, deny permission.
+            // If resource outside of `content` dir, treat it as non-existing.
             if (!str_starts_with($real_path, realpath(path('content')))) {
-                send_response_and_exit(403); // Unauthorized
+                process_not_found_and_exit(); // Not Found
             }
     
             // Respond "not modified", i.e. file cached by browser?
-            check_whether_unmodified_and_handle($path);
+            check_whether_unmodified_and_handle_and_exit($path);
     
-            // Send file
+            // If not handled already away by now: Send file
             header('Content-Type: ' . get_mime($path));
             readfile($real_path);
         }
         elseif ($req == Req::Other) {
-            send_not_found_response_and_exit(); // Not Found            
+            process_not_found_and_exit(); // Not Found            
         }
     }
 ?>

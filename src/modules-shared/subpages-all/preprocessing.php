@@ -9,7 +9,7 @@
             // Ignore the special directories "." and ".."
             if ($item != "." && $item != "..") {
                 // Check if the item is a directory but not called 'res'
-                if (is_dir($path . '/' . $item) && $item != 'res') {
+                if (is_dir($path . '/' . $item) && $item != 'res' && $item != 'inc') {
                     $c->add_subpage($item);
                 }
             }

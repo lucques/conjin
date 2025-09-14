@@ -12,6 +12,7 @@
                 'reduce_by_default'             => true,
                 'reduce_toggleable_with_ctrl'   => true,
                 'reduce_breadcrumb_up_to_level' => 1,
+                'show_language_switcher_always' => false,  // Show even if there is only one alternative?
             ],
 
             // Type:

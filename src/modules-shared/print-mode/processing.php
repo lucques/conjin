@@ -111,5 +111,5 @@
         <p class="text-center" style="margin-top: <?= $margin_top ?>cm;<?= $style !== '' ? ' ' . $style : '' ?>"><em><?= $text ?></em></p>
 <?
         page_break();
-    }    
+    }
 ?>

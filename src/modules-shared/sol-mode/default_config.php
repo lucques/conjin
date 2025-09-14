@@ -4,7 +4,7 @@
             'always_on' => false,
             'always_off' => false,
             'restrict_to_groups' => [],
-            'restrict_to_users' => []
+            'restrict_to_static_users' => []
         ];
     }
 ?>
