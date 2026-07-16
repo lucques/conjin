@@ -1,0 +1,9 @@
+# Local paths
+APP_DIR
+CONJIN_DIR
+DEPLOYMENTS_DIR
+*/PLAYWRIGHT_TESTS_DIR
+
+# Backup dirs
+conjin-test-web/backup
+lcd/backup

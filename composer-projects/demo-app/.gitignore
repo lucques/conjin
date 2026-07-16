@@ -1,0 +1,10 @@
+deployments/*/docker_volumes
+deployments/*/target
+deployments/APP_DIR
+deployments/CONJIN_DIR
+deployments/DEPLOYMENTS_DIR
+deployments/*/TEST_ARTIFACTS_DIR
+/vendor/
+
+# Config files
+.vscode/*

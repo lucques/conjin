@@ -28,7 +28,7 @@ used in a deployment where the store is configured.
 
 ## Accessing the store from PHP
 
-Use the helpers in `src/conjin/inc/core_effectful.php`:
+Use the helpers in `composer-projects/conjin/src/conjin/inc/core_effectful.php`:
 
 ```php
 $path = path_store('example.sqlite');
@@ -62,6 +62,7 @@ For a local deployment, `store` is an optional `LocalStore` value:
 ```dhall
 {
 , volDir : Text
+, initFilesDir : Optional Text
 , backupDir : Optional Text
 }
 ```
@@ -69,6 +70,10 @@ For a local deployment, `store` is an optional `LocalStore` value:
 `volDir` is mounted into the web-server container at `/files/store`. The
 generated application configuration points `path_store` to this mount. The
 build tooling can create the host directory and makes it writable by all users.
+
+When `initFilesDir` is set, it is mounted read-only at `/files/store-init`. The generated `target/bin/up` copies the initialization files into the store only when the store is empty. Existing store data is never overlaid during ordinary startup.
+
+The generated `target/bin/reset-store` stops the webserver, deletes every file and directory in the store, copies the configured initialization files if present, and starts the deployment again. It requires confirmation unless called with `--yes`. Store backups are not affected.
 
 If `backupDir` is set, the build generates `target/bin/backup-store`. Running
 that command copies the current store into a timestamped `snapshot-*`

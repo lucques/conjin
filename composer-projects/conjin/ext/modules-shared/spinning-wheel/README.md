@@ -1,0 +1,4 @@
+- Project info
+    - spin-wheel 4.3.2
+    - https://github.com/CrazyTim/spin-wheel
+    - License: MIT

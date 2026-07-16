@@ -1,0 +1,73 @@
+@import "/modules-shared/bootstrap-extended/scss/screen";
+@import "/modules-shared/template-navigable/scss/partials/screen_main_layout";
+@import "/modules-shared/template-navigable/scss/partials/screen_module_nav";
+
+
+////////////////////////////
+// Global Layout & Design //
+////////////////////////////
+
+$background-color: $gray-800;
+$main-background-color: white;
+
+body {
+  background-color:$background-color;
+}
+
+#content > main {
+  @extend .box-large;
+
+  @extend .rounded;
+  margin: 30px auto 30px auto;
+
+  background-color: $main-background-color;
+
+  min-width: 300px;
+}
+
+// Widths correspond to Bootstrap breakpoint sizes, minus 30px
+body.content-min-width-sm  #content > main { min-width: 546px; }
+body.content-min-width-md  #content > main { min-width: 738px; }
+body.content-min-width-lg  #content > main { min-width: 962px; }
+body.content-min-width-xl  #content > main { min-width: 1170px; }
+body.content-min-width-xxl #content > main { min-width: 1370px; }
+
+body.content-max-width-sm  #content > main { max-width: 546px; }
+body.content-max-width-md  #content > main { max-width: 738px; }
+body.content-max-width-lg  #content > main { max-width: 962px; }
+body.content-max-width-xl  #content > main { max-width: 1170px; }
+body.content-max-width-xxl #content > main { max-width: 1370px; }
+
+
+
+
+/////////////
+// Content //
+/////////////
+
+// No styles defined here yet. Anyway, leave the main part of this to the underlying `theme-bootstrap-extended` since most of this syling should be universal.
+
+
+///////////////////
+// Miscellaneous //
+///////////////////
+
+// Hide anchors
+a.anchor {
+  display: block; 
+  position: relative;
+  top: 0px;
+  visibility: hidden;
+}
+
+
+////////////////////////
+// Print-mode wrapper //
+////////////////////////
+
+body.print-mode-wrapper {
+  #content > main {
+    min-width: 0;
+    max-width: none;
+  }
+}

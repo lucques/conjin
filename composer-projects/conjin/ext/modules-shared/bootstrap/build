@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/../_build-lib.sh"
+dependency_build_init "${script_dir}"
+
+clear_outputs res scss
+copy_file "${repository_dir}/node_modules/bootstrap/dist/js/bootstrap.bundle.min.js" "res/bootstrap.bundle.min.js"
+copy_file "${repository_dir}/node_modules/bootstrap/dist/css/bootstrap.min.css" "res/bootstrap.min.css"
+copy_tree "${repository_dir}/node_modules/bootstrap/scss" "scss"

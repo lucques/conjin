@@ -1,0 +1,9 @@
+@import "./page.css";
+
+@page {
+  margin-top: 15mm;
+  margin-right: 12mm;
+  margin-bottom: 15mm;
+  margin-left: 12mm;
+  size: A5 portrait;
+}

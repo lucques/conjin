@@ -1,0 +1,51 @@
+@page a4-portrait {
+  margin-top: 15mm;
+  margin-right: 12mm;
+  margin-bottom: 15mm;
+  margin-left: 12mm;
+  size: A4 portrait;
+}
+
+@page a4-landscape {
+  margin-top: 15mm;
+  margin-right: 12mm;
+  margin-bottom: 15mm;
+  margin-left: 12mm;
+  size: A4 landscape;
+}
+
+@page a5-portrait {
+  margin-top: 15mm;
+  margin-right: 12mm;
+  margin-bottom: 15mm;
+  margin-left: 12mm;
+  size: A5 portrait;
+}
+
+@page a5-landscape {
+  margin-top: 15mm;
+  margin-right: 12mm;
+  margin-bottom: 15mm;
+  margin-left: 12mm;
+  size: A5 landscape;
+}
+
+.sheet {
+  page-break-after: always;
+}
+
+.sheet.a4-portrait {
+  page: a4-portrait;
+}
+
+.sheet.a4-landscape {
+  page: a4-landscape;
+}
+
+.sheet.a5-portrait {
+  page: a5-portrait;
+}
+
+.sheet.a5-landscape {
+  page: a5-landscape;
+}

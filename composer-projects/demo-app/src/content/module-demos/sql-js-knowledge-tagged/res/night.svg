@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-labelledby="title description">
+    <title id="title">Night sky</title>
+    <desc id="description">A crescent moon and stars in a dark blue sky.</desc>
+    <rect width="800" height="450" fill="#172554"/>
+    <circle cx="610" cy="135" r="78" fill="#fde68a"/>
+    <circle cx="646" cy="105" r="78" fill="#172554"/>
+    <g fill="#f8fafc">
+        <circle cx="115" cy="90" r="5"/>
+        <circle cx="235" cy="155" r="4"/>
+        <circle cx="355" cy="75" r="6"/>
+        <circle cx="485" cy="190" r="4"/>
+        <circle cx="720" cy="245" r="5"/>
+    </g>
+    <path d="M0 375 Q180 290 360 375 T800 330 V450 H0Z" fill="#1e3a5f"/>
+</svg>

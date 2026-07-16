@@ -1,5 +1,8 @@
 # Changelog
 
+## [2.8.0] - 2026-07-30
+- Restructured the repository; added demo-app and tests
+
 ## [2.7.0] - 2026-07-16
 - Updated many modules and more
 

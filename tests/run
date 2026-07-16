@@ -1,0 +1,328 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import os
+import shlex
+import subprocess
+import sys
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+
+
+@dataclass
+class TestDeployment:
+    name: str
+    app_dir: Path
+    deployment_dir: Path
+    project_name: str
+    environment: dict[str, str]
+
+    def compose_command(self) -> list[str]:
+        return [
+            "docker",
+            "compose",
+            "--file",
+            str(self.deployment_dir / "target" / "docker-compose-test.yml"),
+            "--project-name",
+            self.project_name,
+        ]
+
+    def run(self, *arguments: str, check: bool = True, **options) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [*self.compose_command(), *arguments],
+            check=check,
+            env=self.environment,
+            **options,
+        )
+
+    def output(self, *arguments: str) -> str:
+        result = self.run(*arguments, stdout=subprocess.PIPE, text=True)
+        return result.stdout
+
+    def build(self) -> None:
+        subprocess.run(
+            [
+                str(self.app_dir / "vendor" / "bin" / "depl"),
+                "build",
+                "test",
+                str(self.deployment_dir / "src" / "config.dhall"),
+            ],
+            check=True,
+            env=self.environment,
+        )
+
+
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run repository tests in isolated Docker Compose projects.")
+    parser.add_argument(
+        "target",
+        choices=("demo-linkchecker", "integration-linkchecker", "integration-playwright", "all"),
+        help="test target to run",
+    )
+    parser.add_argument(
+        "path",
+        nargs="?",
+        help=(
+            "optional LinkChecker target or Playwright suite path, for example "
+            "'bootstrap-alternative' or '/expect-success/module-tests/anchors.spec.ts'; "
+            "valid only for a single test target"
+        ),
+    )
+    parser.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="reuse the generated test deployment instead of rebuilding it",
+    )
+    arguments = parser.parse_args()
+    if arguments.target == "all" and arguments.path is not None:
+        parser.error("all does not accept a target or suite path")
+    return arguments
+
+
+def normalize_path(raw_path: str | None) -> str:
+    if raw_path is None:
+        return ""
+
+    path = raw_path.strip("/")
+    if any(component in (".", "..") for component in path.split("/")):
+        raise ValueError("target and suite paths must not contain '.' or '..' components")
+    return path
+
+
+def create_artifacts_dir(artifacts_root: Path) -> Path:
+    started_at = datetime.now().astimezone()
+    timestamp = started_at.strftime("%Y-%m-%d.%H-%M")
+    artifacts_root.mkdir(parents=True, exist_ok=True)
+
+    candidate = artifacts_root / timestamp
+    suffix = 2
+    while candidate.exists():
+        candidate = artifacts_root / f"{timestamp}.{suffix}"
+        suffix += 1
+
+    candidate.mkdir()
+    invocation = {
+        "command": sys.argv,
+        "commandLine": shlex.join(sys.argv),
+        "workingDirectory": str(Path.cwd()),
+        "startedAt": started_at.isoformat(),
+    }
+    (candidate / "invocation.json").write_text(
+        json.dumps(invocation, indent=4) + "\n",
+        encoding="utf-8",
+    )
+    return candidate
+
+
+def write_compose_logs(deployment: TestDeployment, log_file: Path) -> None:
+    with log_file.open("w") as output:
+        deployment.run("logs", "--no-color", check=False, stdout=output, stderr=subprocess.STDOUT, text=True)
+
+
+def run_sass_builds(deployment: TestDeployment, services: set[str]) -> None:
+    for service in sorted(services):
+        if service.startswith("sass-build-"):
+            deployment.run("run", "--rm", "--no-deps", service)
+
+
+def run_preprocessing(deployment: TestDeployment) -> None:
+    php = """
+$options = ['http' => [
+    'method' => 'GET',
+    'header' => "Cookie: user=preprocess; password=preprocess\r\n",
+    'ignore_errors' => true,
+]];
+$body = @file_get_contents('http://127.0.0.1/preprocess/', false, stream_context_create($options));
+$status = $http_response_header[0] ?? '';
+if ($body === false || !str_contains($status, ' 200 ')) {
+    fwrite(STDERR, $status . "\n" . ($body === false ? '' : $body) . "\n");
+    exit(1);
+}
+echo $body;
+"""
+    deployment.run("exec", "-T", "webserver", "php", "-r", php)
+
+
+def stop_project(deployment: TestDeployment) -> None:
+    if os.environ.get("CONJIN_TEST_KEEP") == "1":
+        print(f"Keeping Compose project {deployment.project_name} for inspection.", file=sys.stderr)
+    else:
+        deployment.run(
+            "down",
+            "--volumes",
+            "--remove-orphans",
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+
+def start_deployment(deployment: TestDeployment) -> set[str]:
+    services = set(deployment.output("config", "--services").splitlines())
+    run_sass_builds(deployment, services)
+    if "volume-init" in services:
+        deployment.run("run", "--rm", "--no-deps", "volume-init")
+
+    infrastructure = [service for service in ("db", "webserver") if service in services]
+    deployment.run(
+        "up",
+        "--detach",
+        "--build",
+        "--wait",
+        "--wait-timeout",
+        "90",
+        *infrastructure,
+    )
+    return services
+
+
+def run_linkchecker(deployment: TestDeployment, services: set[str], target_path: str) -> None:
+    if "linkchecker" not in services:
+        raise RuntimeError("The test deployment does not provide LinkChecker")
+
+    prefix = f"{target_path}/" if target_path else ""
+    deployment.run("build", "linkchecker")
+    deployment.run(
+        "run",
+        "--rm",
+        "--no-deps",
+        "--env",
+        f"LINKCHECKER_PREFIX={prefix}",
+        "linkchecker",
+    )
+
+
+def run_playwright(deployment: TestDeployment, services: set[str], suite_path: str) -> None:
+    if "playwright" not in services:
+        raise RuntimeError("The test deployment does not provide Playwright")
+
+    deployment.run("build", "playwright")
+    command = ["run", "--rm", "--no-deps", "playwright"]
+    if suite_path:
+        command.extend(["npm", "test", "--", f"specs/{suite_path}"])
+    deployment.run(*command)
+
+
+def run_deployment(
+    deployment: TestDeployment,
+    capabilities: list[tuple[str, str]],
+    invocation_artifacts_dir: Path,
+    skip_build: bool,
+) -> None:
+    current_artifacts_dir = invocation_artifacts_dir / capabilities[0][0]
+    current_artifacts_dir.mkdir(parents=True, exist_ok=True)
+    deployment.environment["TEST_ARTIFACTS_DIR"] = str(current_artifacts_dir)
+
+    try:
+        if skip_build:
+            compose_file = deployment.deployment_dir / "target" / "docker-compose-test.yml"
+            if not compose_file.is_file():
+                raise RuntimeError(
+                    f"Cannot use --skip-build because {compose_file} does not exist; "
+                    "run the test once without --skip-build."
+                )
+        else:
+            deployment.build()
+        services = start_deployment(deployment)
+        for capability, path in capabilities:
+            current_artifacts_dir = invocation_artifacts_dir / capability
+            current_artifacts_dir.mkdir(parents=True, exist_ok=True)
+            deployment.environment["TEST_ARTIFACTS_DIR"] = str(current_artifacts_dir)
+            if capability == "linkchecker":
+                run_preprocessing(deployment)
+                run_linkchecker(deployment, services, path)
+                (current_artifacts_dir / "linkchecker-output.html").rename(
+                    current_artifacts_dir / f"{deployment.name}.html"
+                )
+            else:
+                run_playwright(deployment, services, path)
+    except (subprocess.CalledProcessError, RuntimeError, KeyboardInterrupt):
+        log_file = current_artifacts_dir / f"{deployment.name}-compose.log"
+        write_compose_logs(deployment, log_file)
+        print(f"{deployment.name} test deployment failed; logs were written to {log_file}", file=sys.stderr)
+        raise
+    finally:
+        stop_project(deployment)
+
+
+def run_tests(target: str, raw_path: str | None, skip_build: bool) -> int:
+    script_dir = Path(__file__).resolve().parent
+    repo_dir = script_dir.parent
+    path = normalize_path(raw_path)
+    artifacts_root = repo_dir / "tests" / "artifacts"
+    invocation_artifacts_dir = create_artifacts_dir(artifacts_root)
+    project_base = os.environ.get("CONJIN_TEST_PROJECT", f"conjin-test-{os.getpid()}")
+
+    environment = os.environ.copy()
+    environment.setdefault("XDG_CACHE_HOME", "/tmp/conjin-test-dhall-cache")
+    Path(environment["XDG_CACHE_HOME"]).mkdir(parents=True, exist_ok=True)
+    environment["USER_UID"] = str(os.getuid())
+    environment["USER_GID"] = str(os.getgid())
+
+    demo_app_dir = repo_dir / "composer-projects" / "demo-app"
+    integration_app_dir = repo_dir / "composer-projects" / "integration-test-app"
+    demo = TestDeployment(
+        "demo",
+        demo_app_dir,
+        demo_app_dir / "deployments" / "test",
+        f"{project_base}-demo",
+        environment.copy(),
+    )
+    integration = TestDeployment(
+        "integration",
+        integration_app_dir,
+        integration_app_dir / "deployments" / "test",
+        f"{project_base}-integration",
+        environment.copy(),
+    )
+
+    targets = {
+        "demo-linkchecker": (demo, [("linkchecker", path)]),
+        "integration-linkchecker": (integration, [("linkchecker", path)]),
+        "integration-playwright": (integration, [("playwright", path)]),
+    }
+    selected_targets = list(targets) if target == "all" else [target]
+    failures = []
+
+    for selected_target in selected_targets:
+        deployment, capabilities = targets[selected_target]
+        try:
+            run_deployment(
+                deployment,
+                capabilities,
+                invocation_artifacts_dir,
+                skip_build,
+            )
+        except subprocess.CalledProcessError as error:
+            failures.append((selected_target, error.returncode or 1))
+        except (RuntimeError, OSError) as error:
+            print(error, file=sys.stderr)
+            failures.append((selected_target, 1))
+        except KeyboardInterrupt:
+            return 130
+
+    if failures:
+        failed_targets = ", ".join(name for name, _ in failures)
+        print(
+            f"{target} failed ({failed_targets}). Artifacts: {invocation_artifacts_dir}",
+            file=sys.stderr,
+        )
+        return failures[0][1]
+
+    print(f"{target} passed. Artifacts: {invocation_artifacts_dir}")
+    return 0
+
+
+def main() -> int:
+    arguments = parse_arguments()
+    try:
+        return run_tests(arguments.target, arguments.path, arguments.skip_build)
+    except ValueError as error:
+        print(error, file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

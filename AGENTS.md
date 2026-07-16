@@ -15,7 +15,15 @@
 ## Shared Modules
 
 - Shared modules live in:
-  - `src/modules-shared/`
-  - `ext/modules-shared/`
+  - `composer-projects/conjin/src/modules-shared/`
+  - `composer-projects/conjin/ext/modules-shared/`
 - When work touches a shared module, inspect that module directory for any local `AGENTS.md` or `agents.md` file and load it if present.
 - Module-local agent instructions apply only when working in that specific module.
+
+## Code Style
+
+- Use generally indentation of 4 spaces.
+
+### PHP
+
+- Use short PHP opening tags `<?` instead of `<?php`.

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/../_build-lib.sh"
+dependency_build_init "${script_dir}"
+
+clear_outputs res
+copy_file "${repository_dir}/node_modules/tau-prolog/modules/core.js" "res/tau-prolog.js"
+copy_file "${repository_dir}/node_modules/@conjin/tau-prolog-interface-assets/tau-prolog-interface.js" "res/tau-prolog-interface.js"

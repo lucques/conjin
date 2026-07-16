@@ -1,0 +1,26 @@
+{
+    "name": "lucques/conjin-integration-test-app",
+    "description": "Deterministic integration-test fixture for Conjin",
+    "type": "project",
+    "license": "GPL-3.0-or-later",
+    "config": {
+        "platform": {
+            "php": "8.3.0",
+            "ext-curl": "8.0.0"
+        }
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../conjin",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "ext-curl": "*",
+        "lucques/conjin": "^2.7"
+    }
+}

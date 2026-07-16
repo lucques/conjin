@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/../_build-lib.sh"
+dependency_build_init "${script_dir}"
+
+package_dir="${repository_dir}/node_modules/@conjin/eskuel-suite-assets"
+clear_outputs res
+copy_tree "${package_dir}/shared" "res"
+copy_file "${package_dir}/eskuel-suite.js" "res/eskuel-suite.js"

@@ -3,11 +3,13 @@
 Documentation is spread out over multiple files.
 
 - [Design decisions](./design_decisions.md): Problem description, motivation, advantages, disadvantages of chosen technologies
-- [Dependencies](./dependencies.md)
+- [Setup](./setup.md): System requirements and project dependencies
+- [Demo app](../composer-projects/demo-app/README.md): Human-facing module and template examples
+- [Integration-test app](../composer-projects/integration-test-app/README.md): Deterministic automated-test fixture
+- [Tests](./tests.md): Integration test toolchain, commands, coverage, reports, and debugging
 - [Deployment](./deployment.md)
     - [Deployment using Docker + Nginx](./deployment_local.md): Deploy by running your own server
     - [Deployment using Docker + sync](./deployment_remote.md): Deploy by syncing to an external server
-- [Building](./build.md)
 - [Linkchecker](./linkchecker.md)
 - [Store](./store.md): Persistent application data, deployment behavior, and backups
 - [Error handling](./error_handling.md): Error responses, logging, and backups
@@ -69,6 +71,6 @@ Documentation is spread out over multiple files.
         - Separate parts by `_` when semantic ids are involved, to avoid clashing with `-`
         - This may result in a weird combination like `first-order_second-order`, but that's fine
 - **Mode**
-    - A mode is a flag that can be set by the user when requesting a target, typically by adding the `?print=1` param to the URL.
+    - A mode is a flag that can be set by the user when requesting a target.
     - Modes are always introduced by modules as they are not a built-in concept.
-    - Examples: `print-mode` and `sol-mode`.
+    - Example: `sol-mode`.

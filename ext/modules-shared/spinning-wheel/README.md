@@ -1,4 +1,0 @@
-- Project info
-    - spin-wheel, commit 9a3864e
-    - https://github.com/CrazyTim/spin-wheel
-    - License: MIT

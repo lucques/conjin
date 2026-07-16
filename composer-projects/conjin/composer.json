@@ -1,0 +1,31 @@
+{
+    "name": "lucques/conjin",
+    "description": "PHP framework for rapid content generation",
+    "version": "2.8.0",
+    "type": "library",
+    "license": "GPL-3.0-or-later",
+    "bin": [
+        "deployment/depl"
+    ],
+    "authors": [
+        {
+            "name": "lucques",
+            "email": "lucques@users.noreply.github.com"
+        }
+    ],
+    "config": {
+        "platform": {
+            "php": "8.3.0",
+            "ext-curl": "8.0.0"
+        }
+    },
+    "require": {
+        "php": "^8.3",
+        "ext-curl": "*",
+        "phpseclib/phpseclib": "~3.0",
+        "jumbojett/openid-connect-php": "^1.0",
+        "monolog/monolog": "^3.9",
+        "phpmailer/phpmailer": "^6.10",
+        "erusev/parsedown": "^1.8"
+    }
+}

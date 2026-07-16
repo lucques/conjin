@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-labelledby="title description">
+    <title id="title">Sunrise</title>
+    <desc id="description">A yellow sun rising above orange hills.</desc>
+    <rect width="800" height="450" fill="#f7c873"/>
+    <circle cx="400" cy="245" r="105" fill="#fff3b0"/>
+    <path d="M0 340 Q180 220 370 350 T800 310 V450 H0Z" fill="#e76f51"/>
+    <path d="M0 390 Q210 285 420 390 T800 345 V450 H0Z" fill="#9c6644"/>
+</svg>

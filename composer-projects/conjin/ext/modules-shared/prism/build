@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/../_build-lib.sh"
+dependency_build_init "${script_dir}"
+
+prism_dir="${repository_dir}/node_modules/prismjs"
+clear_outputs res
+
+cat \
+    "${prism_dir}/prism.js" \
+    "${prism_dir}/components/prism-java.min.js" \
+    "${prism_dir}/components/prism-sql.min.js" \
+    "${prism_dir}/plugins/line-highlight/prism-line-highlight.min.js" \
+    "${prism_dir}/plugins/line-numbers/prism-line-numbers.min.js" \
+    "${prism_dir}/plugins/file-highlight/prism-file-highlight.min.js" \
+    "${prism_dir}/plugins/toolbar/prism-toolbar.min.js" \
+    "${prism_dir}/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js" \
+    "${prism_dir}/plugins/download-button/prism-download-button.min.js" \
+    > "${script_dir}/res/prism.js"
+
+cat \
+    "${prism_dir}/themes/prism.min.css" \
+    "${prism_dir}/plugins/line-highlight/prism-line-highlight.min.css" \
+    "${prism_dir}/plugins/line-numbers/prism-line-numbers.min.css" \
+    "${prism_dir}/plugins/toolbar/prism-toolbar.min.css" \
+    > "${script_dir}/res/prism.css"

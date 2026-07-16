@@ -36,11 +36,13 @@ Some design decisions are taken as follows. See more details and comments on dis
 
 
 ## Architecture
-If you decide to use conijn, then the resulting app consists of three components (= repos):
+If you decide to use conjin, the resulting app consists of three components:
 
-1. **Conjin** (this repo): The conjin framework provides the infrastracture, i.e. the entrypoint to the webserver, libraries, macros, CSS styles and more.
+1. **Conjin** (the `composer-projects/conjin/` Composer package): The Conjin framework provides the infrastructure, including the webserver entry point, libraries, macros, CSS styles, external runtime assets, and deployment tooling.
 2. **Content** (part of your repo): This is a buch of easy-to-write PHP files, hierarchically stored in a filesystem. They automatically get included and served by the conjin app.
 3. **Deployment** (part of your repo): This is essentially a single and small config file which ties 1. and 2. together. The built executable will orchestrate all necessary services via Docker.
+
+This repository is a monorepo containing three sibling projects under `composer-projects/`: the reusable framework package, a human-facing demo app, and a deterministic integration-test fixture. Both applications depend only on the framework package. The repository root holds setup, documentation, tests, and supporting orchestration. A real application normally keeps its content and deployment configuration in its own repository and installs Conjin as a Composer dependency.
 
 
 ## Deployment
@@ -52,7 +54,7 @@ See [./doc/main.md](./doc/main.md).
 
 
 ## Version + Changelog
-- **Versioning**: The current version is found in [./composer.json](./composer.json). See more here: [./doc/versioning.md](./doc/versioning.md).
+- **Versioning**: The current version is found in [composer-projects/conjin/composer.json](./composer-projects/conjin/composer.json). See more here: [doc/versioning.md](./doc/versioning.md).
 - **Changelog**: The changelog is found here: [./doc/changelog.md](./doc/changelog.md).
 
 

@@ -1,0 +1,243 @@
+////////////////////////////
+// Global Layout & Design //
+////////////////////////////
+
+$sidebar-background-color: white;
+
+$sidebar-width: 300px;
+$sidebar-width-collapsed: 60px;
+$sidebar-header-height: 60px;           // Top bar in sidebar
+$sidebar-footer-height: 45px;           // Bottom bar in sidebar
+
+#content {
+  position:absolute;
+  top:0;
+  right:0;
+  width: calc(100% - #{$sidebar-width});
+  padding-left:30px;
+  padding-right:30px;
+}
+
+
+/////////////
+// Sidebar //
+/////////////
+
+$breadcrumb-divider: quote(">");
+
+#sidebar {
+  width: $sidebar-width;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  z-index: 999;
+  background: $sidebar-background-color;
+}
+
+#sidebar-header, #sidebar-nav, #sidebar-footer {
+  width: $sidebar-width;
+  position: fixed;
+}
+
+#sidebar-header, #sidebar-nav-breadcrumb, #sidebar-nav-tree, #sidebar-footer {
+  padding:10px;
+  border-right: 1px solid $gray-800;
+}
+
+#sidebar-header, #sidebar-nav-breadcrumb, #sidebar-nav {
+  border-bottom: 1px solid $gray-800;
+}
+
+#sidebar-header {
+  z-index: 999;
+
+  display: flex;
+
+  background-color: $sidebar-background-color;
+
+  align-items: center; // vertical
+  justify-content: space-between; // horizontal
+}
+
+// *Either* use a `.logo-img` *or* a `.logo-title` 
+
+#logo.logo-img img {
+  height: 20px;
+  margin-top:10px;
+  margin-bottom:10px;
+  margin-right:10px;
+}
+
+#logo.logo-text {
+  @extend .me-2;
+  @extend .badge;
+  @extend .border;
+  @extend .border-primary;
+  // cursor: default;
+  user-select: text;
+  color:$primary;
+  font-family: monospace;
+  font-size: large;
+  line-height: 2;
+}
+
+#sidebar-buttons {
+  display: flex;
+  gap:8px;
+  align-items: center;
+}
+
+#sidebar-collapse-button-deactivate {
+  margin-left:5px;
+  margin-right:3px;
+}
+
+#sidebar-nav {
+  top: $sidebar-header-height;
+  left: 0;
+  height: calc(100% - #{$sidebar-header-height} - #{$sidebar-footer-height});
+  z-index: 100;
+
+  display: flex;
+  flex-direction: column;
+}
+
+#sidebar-nav-breadcrumb .breadcrumb {
+  margin-top:0;
+  margin-bottom:0;
+}
+
+#sidebar-nav-tree {
+  height:100%;
+  overflow-y: auto;
+}
+
+#sidebar-footer {
+  top: calc(100% - #{$sidebar-footer-height});
+  z-index: 800;
+
+  background-color: $sidebar-background-color;
+
+  display: flex;
+  justify-content: center;
+}
+
+#sidebar-footer-user {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  flex: 0 1 auto;  /* grow = yes, shrink = yes */
+  min-width: 0;
+}
+
+#sidebar-footer-actions {
+  flex: 0 0 auto;  /* grow = no, shrink = no */
+  white-space: nowrap; /* optional: prevent wrapping */
+}
+
+
+
+// The `sidebar-active` class can be toggled. If turned on, the sidebar is
+// visible, otherwise not.
+body:not(.sidebar-active) {
+  #sidebar {
+    margin-left: calc(#{$sidebar-width-collapsed} - #{$sidebar-width});
+    height:auto;
+  }
+
+  #sidebar-header {
+    border:1px solid gray;
+    border-bottom-right-radius: 10px;
+    border-top-width: 0;
+  }
+
+  #sidebar-buttons .btn:not(#sidebar-collapse-button-activate),
+  #sidebar-collapse-button-deactivate {
+    display:none;
+  }
+
+  #sidebar-nav,
+  #sidebar-footer {
+    display:none;
+  }
+
+  #content {
+    width:100%;
+  }
+}
+
+body.sidebar-active {
+  #sidebar-collapse-button-activate {
+    display:none;
+  }
+}
+
+////////////////////////
+// Print-mode wrapper //
+////////////////////////
+
+body.print-mode-wrapper {
+  overflow: hidden;
+
+  #content,
+  #content > main {
+    height: 100vh;
+  }
+
+  #content {
+    padding: 0;
+  }
+
+  #content > main {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  #print-mode-iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+}
+
+
+/////////////////
+// Reduced-nav //
+/////////////////
+
+// The `reduced-nav` class can be set/unset. See also `res/library.js`
+
+body:not(.reduced-nav) #sidebar-nav-breadcrumb {
+  display: none;
+}
+
+body.reduced-nav .hide-on-reduced-nav {
+  display: none !important;
+}
+
+body.reduced-nav .show-only-children-on-reduced-nav {
+  > .caret, > .bullet {
+    display: none !important;
+  }
+
+  > .nav-tree-item > :first-child {
+    display: none !important;
+  }
+}
+
+
+//////////////////////////
+// Reducible login form //
+//////////////////////////
+
+// See also README.md
+
+body.reduced-login.multiple-login-providers #static-login-form {
+  display: none;
+}

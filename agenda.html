@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conjin module documentation and test agenda</title>
+  <style>
+    :root { color-scheme: light dark; --bg: #f7f7f4; --panel: #fff; --text: #202124; --muted: #61666c; --line: #d9d9d4; --accent: #315c92; --good: #176b3a; --warn: #8a5700; --bad: #a12d2d; --info: #315c92; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #17191b; --panel: #202326; --text: #edf0f2; --muted: #aeb4ba; --line: #3b4147; --accent: #8fb9ed; --good: #76d69b; --warn: #e8bd68; --bad: #f09292; --info: #8fb9ed; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; }
+    main { max-width: 1800px; margin: 0 auto; padding: 2rem; }
+    h1 { margin: 0 0 .4rem; font-size: 2rem; }
+    h2 { margin-top: 2rem; }
+    p { max-width: 90rem; }
+    code { font-family: ui-monospace, monospace; }
+    .muted { color: var(--muted); }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .75rem; margin: 1.5rem 0; }
+    .summary div { padding: .9rem 1rem; border: 1px solid var(--line); border-radius: .5rem; background: var(--panel); }
+    .summary strong { display: block; font-size: 1.5rem; }
+    .legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin: 1rem 0; }
+    .controls { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0; }
+    input, select { padding: .55rem .7rem; border: 1px solid var(--line); border-radius: .4rem; background: var(--panel); color: var(--text); }
+    input { min-width: 20rem; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: .5rem; background: var(--panel); }
+    table { width: 100%; border-collapse: collapse; min-width: 1700px; }
+    th, td { padding: .65rem .7rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { position: sticky; top: 0; z-index: 2; background: var(--panel); font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
+    tbody tr:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+    .group-row th { position: static; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); font-size: 1rem; text-transform: none; }
+    .module a { color: var(--accent); font-weight: 700; text-decoration: none; }
+    .module small { display: block; color: var(--muted); font-family: ui-monospace, monospace; }
+    .badge { display: inline-block; border: 1px solid currentColor; border-radius: 999px; padding: .08rem .42rem; margin-bottom: .25rem; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+    .good { color: var(--good); } .warn { color: var(--warn); } .bad { color: var(--bad); } .info { color: var(--info); } .neutral { color: var(--muted); }
+    .empty { padding: 2rem; color: var(--muted); text-align: center; }
+    footer { margin-top: 1.25rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Conjin module documentation and test agenda</h1>
+  <p class="muted">Repository audit updated 2026-07-30. “API coverage” means that the local README explains the module’s primary public entry points and configuration, not merely its purpose or upstream project. “Reference integration” distinguishes intentional demos from incidental dependency loading. “JavaScript integration” records behavior asserted by Playwright; loading a script without checking its API or user-visible effect is only partial coverage. LinkChecker coverage alone is not counted as feature testing.</p>
+
+  <section class="summary" aria-label="Audit summary">
+    <div><strong>64</strong>module directories</div>
+    <div><strong>62</strong>configured in <code>full</code></div>
+    <div><strong>62</strong>with a README</div>
+    <div><strong>56</strong>intentionally demonstrated</div>
+    <div><strong>28</strong>shipping standalone JavaScript</div>
+    <div><strong>44</strong>focused integration spec files</div>
+  </section>
+
+  <p>The two unconfigured directories are the empty internal <code>chart-js-helpers</code> directory and the external <code>parsedown</code> directory, which contains only a <code>.gitignore</code>; Markdown currently uses the Composer package instead. Of the 28 module directories that ship standalone JavaScript, 26 have some focused browser coverage: 18 cover their present primary behavior, eight remain partial, and two have no focused integration coverage. Inline or generated JavaScript in other modules is tracked in the same table. No internal/local or external/local module directories exist in the demo app.</p>
+
+  <div class="legend">
+    <span><span class="badge good">Good</span> primary API documented</span>
+    <span><span class="badge warn">Partial</span> useful but incomplete</span>
+    <span><span class="badge bad">Minimal/Missing</span> agenda item</span>
+    <span><span class="badge info">Explicit</span> intentional reference demo</span>
+    <span><span class="badge good">Covered</span> primary JavaScript behavior asserted</span>
+    <span><span class="badge warn">Partial</span> JavaScript is exercised, but important paths remain</span>
+  </div>
+
+  <div class="controls">
+    <input id="search" type="search" placeholder="Filter module, documentation, integration…" aria-label="Filter modules">
+    <select id="integration-filter" aria-label="Filter reference integration">
+      <option value="">All integration states</option>
+      <option value="Explicit">Explicit demos</option>
+      <option value="Indirect">Dependency only</option>
+      <option value="Absent">Absent</option>
+      <option value="Unconfigured">Unconfigured</option>
+    </select>
+    <select id="browser-filter" aria-label="Filter browser requirement">
+      <option value="">All browser requirements</option>
+      <option value="Yes">Browser needed</option>
+      <option value="Useful">Browser useful</option>
+      <option value="No">Browser not needed</option>
+    </select>
+    <select id="javascript-filter" aria-label="Filter JavaScript integration coverage">
+      <option value="">All JavaScript states</option>
+      <option value="Covered">Covered JavaScript</option>
+      <option value="Partial">Partial JavaScript coverage</option>
+      <option value="Missing">Missing JavaScript coverage</option>
+      <option value="N/A">No module JavaScript</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Module</th><th>README</th><th>API documentation</th><th>Reference-app integration</th><th>Automated testing / important gaps</th><th>JavaScript integration</th><th>Browser test?</th><th>Agenda</th></tr></thead>
+      <tbody id="modules"></tbody>
+    </table>
+    <div id="empty" class="empty" hidden>No modules match the current filters.</div>
+  </div>
+
+  <footer>Sources: <code>composer-projects/conjin/src/modules-shared/</code>, <code>composer-projects/conjin/ext/modules-shared/</code>, <code>composer-projects/conjin/deployment/dhall/shared-module-collections.dhall</code>, demo content under <code>composer-projects/demo-app/src/content/</code>, focused fixtures under <code>composer-projects/integration-test-app/src/content/</code>, and Playwright specs under <code>tests/integration/specs/</code>.</footer>
+</main>
+
+<script>
+const rows = [
+  // scope, sharing, module, path, README, API state, integration state, integration detail, automated coverage, browser need, agenda
+  ["Internal","Shared","anchors","composer-projects/conjin/src/modules-shared/anchors","Yes · 77 lines","Good","Explicit","Dedicated demo covers explicit and title-derived IDs, nesting, sibling transitions, returning to a higher level, and permanent links.","Playwright asserts explicit and title-derived root/nested paths and collected IDs; request tests reject levels below two, skipped levels, and duplicate sibling IDs.","No","Add coverage for returning to a higher level after nesting and reusing an ID below different parents."],
+  ["Internal","Shared","bootstrap-alternative","composer-projects/conjin/src/modules-shared/bootstrap-alternative","Yes · 80 lines","Good","Explicit","Dedicated page demonstrates the alternative components and configured colors.","Playwright asserts all three script imports, CSS loading, exclusive accordions, standalone collapse lifecycle events, modal state, form reset, backdrop cleanup, Escape dismissal, and focus restoration.","Yes","Add focus-trap wrapping, backdrop dismissal, cancellable-event, nested accordion, print, sync-dims, and visual styling cases."],
+  ["Internal","Shared","bootstrap-extended","composer-projects/conjin/src/modules-shared/bootstrap-extended","Yes · 211 lines","Good","Explicit","Main and variants demos cover layout, components, exercises, and variants.","Collapse behavior is exercised indirectly; tabs, modal, carousel, and the resync hook are not focused.","Yes","Add direct tests for tabs, modal, carousel, stack/slice output, and collapse resynchronization."],
+  ["Internal","Shared","chart-js-helpers","composer-projects/conjin/src/modules-shared/chart-js-helpers","Missing","Missing","Unconfigured","The directory is empty and has no Dhall module definition.","No implementation or coverage.","No","Remove the empty directory or implement, register, document, demo, and test it."],
+  ["Internal","Shared","db-mysql","composer-projects/conjin/src/modules-shared/db-mysql","Yes · 2 lines","Minimal","Explicit","Single database query demo.","HTTP assertion verifies result text; error and empty-result paths untested.","No","Document connection/config API and add failure/result-shape tests."],
+  ["Internal","Shared","doc-extensions","composer-projects/conjin/src/modules-shared/doc-extensions","Yes · 26 lines","Good","Explicit","Demo and fixtures cover all document regions, CSS, and DOM-setup JavaScript.","Playwright checks placement, prepend/append ordering, and JavaScript order in two templates.","No","Add failure and escaping cases if collector inputs become less trusted."],
+  ["Internal","Shared","dynamic-toggle","composer-projects/conjin/src/modules-shared/dynamic-toggle","Yes · 54 lines","Good","Explicit","Dedicated demo and fixture exercise configured toggles.","Playwright asserts defaults, clicks, localStorage writes, and reload restoration.","Yes","Add multiple-control synchronization and corrupt storage cases."],
+  ["Internal","Shared","exercise","composer-projects/conjin/src/modules-shared/exercise","Yes · 63 lines","Good","Explicit","Dedicated exercise and variants pages exercise the primary macros.","Playwright covers markup, numbering, variants, authorization, accordion state, and malformed macro sequences.","Yes","Add authorized group/user solution cases and more variant combinations."],
+  ["Internal","Shared","favicons","composer-projects/conjin/src/modules-shared/favicons","Yes · 33 lines","Good","Explicit","Dedicated page configures shortcut and Apple touch icons.","Playwright asserts head links, served images, and intrinsic dimensions.","No","Add duplicate and invalid configuration cases."],
+  ["Internal","Shared","footnotes","composer-projects/conjin/src/modules-shared/footnotes","Yes · 41 lines","Good","Explicit","Dedicated page covers insertion and template rendering.","Playwright asserts numbering, position, backlinks, navigation, and no empty section.","No","Add repeated-reference and nested-markup cases."],
+  ["Internal","Shared","geogebra-helpers","composer-projects/conjin/src/modules-shared/geogebra-helpers","Yes · 65 lines","Good","Explicit","Dedicated 3D helper demo and focused applet fixture are present.","Playwright waits for generated actions and Apps API availability; the wider object/control API is untested.","Yes","Cover representative objects, slider updates, labels, colors, and action ordering."],
+  ["Internal","Shared","grading","composer-projects/conjin/src/modules-shared/grading","Yes · 64 lines","Good","Explicit","Dedicated grading and exam demonstrations are present.","Playwright checks grade-list totals and every configured threshold against reference tables.","No","Add invalid configuration, rounding edge, empty list, and serialization cases."],
+  ["Internal","Shared","graphing-types","composer-projects/conjin/src/modules-shared/graphing-types","Yes · 36 lines","Good","Indirect","Used by GeoGebra and JSXGraph helpers rather than demonstrated independently.","Helper tests instantiate a small subset; no direct type/serialization suite exists.","No","Unit-test every public type, mode, serialization path, and color conversion."],
+  ["Internal","Shared","hamster","composer-projects/conjin/src/modules-shared/hamster","Yes · 48 lines","Good","Explicit","Dedicated page renders representative Hamster/Java source workflows.","LinkChecker only; source selection, before/after output, and failure paths are unasserted.","No","Add structural/output tests for file, inline, before/after, language, and missing-source cases."],
+  ["Internal","Shared","html","composer-projects/conjin/src/modules-shared/html","Yes · 2 lines","Minimal","Explicit","Dedicated page and nav demo use HTML helpers.","Link crawl only.","No","Document helper signatures and assert escaping/attributes/output."],
+  ["Internal","Shared","issue-tracker","composer-projects/conjin/src/modules-shared/issue-tracker","Yes · 110 lines","Good","Explicit","Demo plus isolated writable-store fixtures cover lifecycle and unauthorized access.","Playwright exercises validation, tags, create/edit/close/reopen/delete, persistence, forged requests, and invalid configuration.","Yes","Add concurrent edits, resources, author override, time-window boundaries, and more role combinations."],
+  ["Internal","Shared","java-worlds","composer-projects/conjin/src/modules-shared/java-worlds","Yes · 22 lines","Partial","Explicit","Dedicated page demonstrates Java-world source presentation.","LinkChecker only; generated source, UML/download/variant links, and invalid inputs are unasserted.","No","Complete API documentation and add representative output/link tests."],
+  ["Internal","Shared","js-standard-lib","composer-projects/conjin/src/modules-shared/js-standard-lib","Yes · 33 lines","Good","Explicit","Dedicated page loads the global browser utilities.","Playwright asserts nextUniqueId() only.","Yes","Test assert(), URL parameter reads/updates, encoding, duplicates, hashes, and history behavior."],
+  ["Internal","Shared","jsxgraph-helpers","composer-projects/conjin/src/modules-shared/jsxgraph-helpers","Yes · 79 lines","Good","Explicit","Dedicated page demonstrates the helper plotting surface.","Playwright asserts one generated board initializes; most plot families and controls are untested.","Yes","Add 2D, sequence, dynamic 3D, cavalier, control-update, cleanup, and invalid-option assertions."],
+  ["Internal","Shared","locale-de","composer-projects/conjin/src/modules-shared/locale-de","Yes · 9 lines","Partial","Explicit","Dedicated locale page exists and timetable uses the locale.","Timetable renders a German event, but calendar labels and date/format helpers are not asserted directly.","No","Document the full locale contract and assert labels, dates, weekdays, and consumer integration."],
+  ["Internal","Shared","localization","composer-projects/conjin/src/modules-shared/localization","Yes · 36 lines","Good","Explicit","Multiple templates, languages, and nontranslation variants are demonstrated.","Playwright asserts hreflang metadata, switching, unavailable translations, and nontranslation handling.","No","Add deeper hierarchy, canonical URL, fallback, and authorization combinations."],
+  ["Internal","Shared","markdown","composer-projects/conjin/src/modules-shared/markdown","Yes · 11 lines","Partial","Explicit","Dedicated page renders Parsedown-backed Markdown.","Playwright asserts representative semantic HTML.","No","Document escaping/safe-mode policy and test unsafe HTML, malformed Markdown, nesting, and buffer misuse."],
+  ["Internal","Shared","math-arith","composer-projects/conjin/src/modules-shared/math-arith","Yes · 2 lines","Minimal","Explicit","Dedicated arithmetic-expression page.","Link crawl only; expression transformations untested.","Useful","Document expression API, unit-test transformations, and optionally assert MathJax render."],
+  ["Internal","Shared","math-logic","composer-projects/conjin/src/modules-shared/math-logic","Yes · 2 lines","Minimal","Explicit","Dedicated logic/truth-table page.","Link crawl only; evaluator and malformed-expression cases untested.","Useful","Document API and unit-test evaluation, formatting, and truth tables."],
+  ["Internal","Shared","math-probability","composer-projects/conjin/src/modules-shared/math-probability","Yes · 7 lines","Minimal","Explicit","Dedicated probability page demonstrates the current helpers.","LinkChecker only; randomness and formatting are not asserted.","No","Document the API and add seeded or invariant-based deterministic tests."],
+  ["Internal","Shared","math-value-table","composer-projects/conjin/src/modules-shared/math-value-table","Yes · 23 lines","Partial","Explicit","Dedicated interactive value-table page exists.","Playwright asserts MathJax output, recalculation, reveal, and dynamic row/column controls.","Yes","Document remaining configuration and test invalid expressions, limits, decimals, and keyboard interaction."],
+  ["Internal","Shared","mathjax-extensions","composer-projects/conjin/src/modules-shared/mathjax-extensions","Yes · 64 lines","Good","Explicit","Dedicated extension page plus print/sync examples.","Playwright asserts extension output, hooks, helper globals, formatted numbers, and no MathJax errors.","Yes","Add macro-option edge cases and repeated/dynamic typesetting."],
+  ["Internal","Shared","nav-build","composer-projects/conjin/src/modules-shared/nav-build","Yes · 22 lines","Good","Explicit","Dedicated heading-tree page and pervasive reference usage.","Preprocessing/link crawl only.","No","Assert persisted tree, anchor nesting, cut branches, and duplicate IDs."],
+  ["Internal","Shared","nav-common","composer-projects/conjin/src/modules-shared/nav-common","Yes · 2 lines","Minimal","Indirect","Used by nav-build/nav-view; no data-structure demo.","No direct assertions.","No","Document NavItem API and unit-test tree operations/serialization."],
+  ["Internal","Shared","nav-view","composer-projects/conjin/src/modules-shared/nav-view","Yes · 12 lines","Partial","Indirect","Rendered by navigable templates and the nav demo.","Playwright asserts visible-child structure, unauthorized filtering, and empty-tree detection.","Useful","Document rendering API and add active state, breadcrumbs, expansion, and mixed-privilege cases."],
+  ["Internal","Shared","nuggets","composer-projects/conjin/src/modules-shared/nuggets","Yes · 38 lines","Partial","Absent","No nugget pool/type demo.","No coverage.","No","Complete API documentation and demo raw, exercise, blog, nesting, resources, and printers."],
+  ["Internal","Shared","print-mode","composer-projects/conjin/src/modules-shared/print-mode","Yes · 71 lines","Good","Explicit","Demos cover navigable, interbook, exam, MathJax, and solution combinations.","Playwright covers wrapper/standalone HTML, stylesheets, iframe, Paged.js completion, and print invocation for three templates.","Yes","Add multi-page, orientation/page-size, pagination failure, and complex content cases."],
+  ["Internal","Shared","references","composer-projects/conjin/src/modules-shared/references","Yes · 7 lines","Partial","Explicit","Dedicated image/license/reference-list page.","Link crawl only.","No","Document macros and assert deduplication, license links, and list output."],
+  ["Internal","Shared","sol-mode","composer-projects/conjin/src/modules-shared/sol-mode","Yes · 35 lines","Good","Explicit","Normal, restricted, authorized, and print combinations exist.","Playwright asserts default/requested state, unauthorized requests, toggle visibility, user login, and query transitions.","No","Add group authorization, always-on/off configuration, logout, and malformed query cases."],
+  ["Internal","Shared","source","composer-projects/conjin/src/modules-shared/source","Yes · 24 lines","Partial","Explicit","Dedicated inline/file/listing demo.","Playwright asserts Prism integration, escaping, options, scoped defaults, files, block extraction, highlighting, and line numbers.","Yes","Document all helpers and add missing-file/block failures plus copy-button interaction."],
+  ["Internal","Shared","sql-js-extensions","composer-projects/conjin/src/modules-shared/sql-js-extensions","Yes · 32 lines","Partial","Explicit","Substantial query/schema demo and deterministic fixture exist.","Playwright covers all database initializers, rendering, truncation, schema toggles, escaping, and query errors.","Yes","Complete API docs and add failed fetch/WASM, empty result, NULL/type, and concurrent-query cases."],
+  ["Internal","Shared","sql-js-knowledge-history","composer-projects/conjin/src/modules-shared/sql-js-knowledge-history","Yes · 2 lines","Minimal","Explicit","Dedicated history demo and fixture exist.","Playwright asserts date granularities, HTML descriptions, stored tags, empty state, and browser health.","Yes","Document API and add filtering, ordering, invalid dates, escaping, and larger datasets."],
+  ["Internal","Shared","sql-js-knowledge-tagged","composer-projects/conjin/src/modules-shared/sql-js-knowledge-tagged","Yes · 4 lines","Minimal","Explicit","Dedicated tagged knowledge-base demo and fixture exist.","Playwright asserts tags/counts, URL filtering, reset, and expand/collapse-all interactions.","Yes","Document API and add gallery rendering, escaping, SQL edge cases, and invalid tags."],
+  ["Internal","Shared","subpages-all","composer-projects/conjin/src/modules-shared/subpages-all","Yes · 5 lines","Minimal","Explicit","Module-demo index exercises automatic subpage discovery.","Playwright asserts name ordering and exclusion of inc/res directories.","No","Document eligibility rules and test hidden, unauthorized, malformed, and non-directory entries."],
+  ["Internal","Shared","sync-dims","composer-projects/conjin/src/modules-shared/sync-dims","Yes · 13 lines","Good","Explicit","Dedicated width/height and MathJax page.","Playwright measures equal initial heights and widths.","Yes","Test resize, late content, MathJax completion, accordion changes, and repeated setup."],
+  ["Internal","Shared","template-exam","composer-projects/conjin/src/modules-shared/template-exam","Yes · 13 lines","Partial","Explicit","Rich exam demo covers tasks, grading, page breaks, solutions, and images.","Print-mode specs assert its wrapper/standalone contract; exam-specific structure is otherwise untested.","Useful","Assert task numbering, points, first-page handling, overflow, solutions, and print structure."],
+  ["Internal","Shared","template-generic","composer-projects/conjin/src/modules-shared/template-generic","Yes · 8 lines","Partial","Explicit","Dedicated generic and bootstrap-extended pages.","Link crawl only.","Useful","Document rendering contract and assert normal/error/login layouts."],
+  ["Internal","Shared","template-interbook","composer-projects/conjin/src/modules-shared/template-interbook","Yes · 40 lines","Good","Explicit","Dedicated page and most internal demos use it.","Print-mode validates wrapper integration; sheets, widths, sidebar states, and special pages lack assertions.","Useful","Assert sheets, width, sidebar, breadcrumbs, title variants, and special layouts."],
+  ["Internal","Shared","template-navigable","composer-projects/conjin/src/modules-shared/template-navigable","Yes · 83 lines","Good","Explicit","Dedicated page and localization variants cover common layouts.","Nav-view, localization, sol-mode, and print-mode specs cover selected contracts, not the full shell.","Yes","Test sidebar toggles/persistence, responsive states, login/error layouts, and breadcrumbs directly."],
+  ["Internal","Shared","timetable","composer-projects/conjin/src/modules-shared/timetable","Yes · 47 lines","Partial","Explicit","Calendar, classlog, and syllabus demos cover three major views.","Playwright initializes a deterministic calendar and asserts one event.","Yes","Assert cancellations, repeats, navigation, locale labels, callbacks, logs, syllabus, progress, and error data."],
+  ["Internal","Shared","title","composer-projects/conjin/src/modules-shared/title","Yes · 2 lines","Minimal","Explicit","Used throughout demos for titles and hierarchy.","No title/head assertions.","No","Document config/getters and assert parent composition, short titles, and head output."],
+
+  ["External","Shared","bootstrap","composer-projects/conjin/ext/modules-shared/bootstrap","Yes · 15 lines","Partial","Explicit","Dedicated Bootstrap and combined FullCalendar demos exist.","Playwright asserts CSS, bundle, the global Collapse API, and a collapse interaction.","Yes","Test imported-SCSS mode plus modal, dropdown, tabs, and focus/keyboard behavior."],
+  ["External","Shared","bootstrap-icons","composer-projects/conjin/ext/modules-shared/bootstrap-icons","Yes · 8 lines","Upstream","Explicit","Dedicated icon gallery and template dependency.","Playwright asserts stylesheet/font loading and a representative computed glyph.","Useful","Add missing-asset/config cases; broad visual coverage is optional."],
+  ["External","Shared","chart-js","composer-projects/conjin/ext/modules-shared/chart-js","Yes · 3 lines","Upstream","Explicit","Dedicated chart demo and focused fixture exist.","Playwright asserts runtime, Chart API, attached instance, dataset, and non-zero canvas size.","Yes","Document version/source and add update/destroy, responsiveness, plugin, and invalid-data cases."],
+  ["External","Shared","eskuel-suite","composer-projects/conjin/ext/modules-shared/eskuel-suite","Yes · 4 lines","Upstream","Absent","No widget demo.","No coverage.","Yes","Add browser demo and assert widget initialization/query interaction."],
+  ["External","Shared","fullcalendar","composer-projects/conjin/ext/modules-shared/fullcalendar","Yes · 2 lines","Upstream","Explicit","Default and Bootstrap demos plus timetable integration exist.","Playwright asserts both themes render; timetable asserts one event.","Yes","Extend coverage to navigation, locale labels, callbacks, repeated events, and failures."],
+  ["External","Shared","geogebra","composer-projects/conjin/ext/modules-shared/geogebra","Yes · 47 lines","Upstream","Explicit","Dedicated raw applet and helper demos exist.","Playwright checks runtime response, readiness, Apps API, command success, and created object type.","Yes","Add 2D mode, multiple applets, teardown, offline failures, and configuration variants."],
+  ["External","Shared","jsxgraph","composer-projects/conjin/ext/modules-shared/jsxgraph","Yes · 8 lines","Upstream","Explicit","Dedicated raw board and helper demos exist.","Playwright checks assets, JXG API, and a rendered SVG board.","Yes","Add interaction, resize, teardown, multiple boards, and asset-failure cases."],
+  ["External","Shared","klipse-with-tau-prolog","composer-projects/conjin/ext/modules-shared/klipse-with-tau-prolog","Yes · 22 lines","Partial","Explicit","Dedicated Tau Prolog interpreter demo exists.","Playwright asserts both scripts and initialized controls, but does not execute a query.","Yes","Test loading facts, queries, answers, reset, and syntax/runtime errors."],
+  ["External","Shared","mathjax","composer-projects/conjin/ext/modules-shared/mathjax","Yes · 38 lines","Upstream","Explicit","Dedicated base page and widespread dependency use.","Playwright asserts runtime/global, inline/display output, and absence of MathJax errors.","Yes","Add dynamic typesetting, configuration variants, failure reporting, and accessibility output."],
+  ["External","Shared","mathjs","composer-projects/conjin/ext/modules-shared/mathjs","Yes · 35 lines","Upstream","Explicit","Dedicated demo and value-table consumer exist.","Playwright asserts runtime, evaluate API, and a result; value-table covers interactive calculations.","Yes","Add parse/evaluate errors, units/types, and version/config compatibility."],
+  ["External","Shared","nerdamer","composer-projects/conjin/ext/modules-shared/nerdamer","Yes · 5 lines","Upstream","Explicit","Dedicated symbolic-math demo exists.","Playwright asserts runtime and representative symbolic expansion.","Yes","Test simplify, solve, substitution, parse errors, and MathJax interop."],
+  ["External","Shared","paged-js","composer-projects/conjin/ext/modules-shared/paged-js","Yes · 8 lines","Upstream","Explicit","Dedicated preview demo and print-mode consumers exist.","Playwright asserts API, completion, page count, structure, and three template integrations.","Yes","Add multi-page breaks, counters, orientation/size, complex content, and failures."],
+  ["External","Shared","parsedown","composer-projects/conjin/ext/modules-shared/parsedown","Missing","Missing","Unconfigured","Directory contains only a .gitignore; Markdown uses the Composer package.","Markdown asserts representative output, but this directory provides no module implementation.","No","Remove the vestigial directory or define, register, and document an external wrapper."],
+  ["External","Shared","picocss","composer-projects/conjin/ext/modules-shared/picocss","Yes · 3 lines","Upstream","Explicit","Dedicated Pico CSS demo covers configured classless/styled output.","No focused integration spec; LinkChecker verifies page/assets only.","Useful","Document version/config and assert stylesheet selection plus computed styles."],
+  ["External","Shared","prism","composer-projects/conjin/ext/modules-shared/prism","Yes · 13 lines","Partial","Explicit","Dedicated Prism and source-module demos exist.","Playwright asserts assets, API, highlighting, line numbers, line highlight, and toolbar.","Yes","Test copy behavior, language/plugin variants, missing grammar, and re-highlighting."],
+  ["External","Shared","spinning-wheel","composer-projects/conjin/ext/modules-shared/spinning-wheel","Yes · 4 lines","Upstream","Absent","Configured wrapper but no wheel demo.","No coverage.","Yes","Add deterministic wheel initialization, spin, and selected-item test."],
+  ["External","Shared","sql-js","composer-projects/conjin/ext/modules-shared/sql-js","Yes · 69 lines","Good","Explicit","Dedicated SQL demo and extension dependency.","Browser smoke test asserts WASM/query output; extensions cover inline, fetched, path, and database-file initialization.","Yes","Add failed WASM/fetch, malformed database, concurrency, cleanup, and large-result cases."],
+  ["External","Shared","tom-select","composer-projects/conjin/ext/modules-shared/tom-select","Yes · 7 lines","Good","Explicit","Dedicated select demo plus issue-tracker integration exist.","Playwright asserts assets, enhancement, dropdown selection, and underlying value.","Yes","Add search, keyboard, multi-select/remove, reinit, accessibility, and invalid-option cases."],
+
+  ["Internal","Local","—","composer-projects/demo-app/src/modules","Directory absent","N/A","Absent","The demo app defines no internal/local modules.","N/A","No","Add rows here if demo-app-local modules are introduced."],
+  ["External","Local","—","composer-projects/demo-app/ext/modules","Directory absent","N/A","Absent","The demo app defines no external/local modules.","N/A","No","Add rows here if external app-local modules are introduced."]
+];
+
+const javascriptCoverage = new Map([
+  ["composer-projects/conjin/src/modules-shared/bootstrap-alternative", ["Covered", "Playwright asserts all three script imports and exercises accordion, collapse, and modal behavior without browser, console, or resource-loading errors."]],
+  ["composer-projects/conjin/src/modules-shared/bootstrap-extended", ["Partial", "Exercise and SQL fixtures exercise Bootstrap collapses indirectly; the module’s collapse-resync hook and the remaining components are not asserted."]],
+  ["composer-projects/conjin/src/modules-shared/doc-extensions", ["Covered", "Playwright asserts DOM-setup JavaScript execution and insertion order in both supported templates."]],
+  ["composer-projects/conjin/src/modules-shared/dynamic-toggle", ["Covered", "Default state, clicks, localStorage writes, and reload restoration are asserted."]],
+  ["composer-projects/conjin/src/modules-shared/geogebra-helpers", ["Partial", "Generated applet initialization and Apps API availability are asserted; controls and the wider plotting/action surface are not."]],
+  ["composer-projects/conjin/src/modules-shared/issue-tracker", ["Covered", "Browser tests exercise validation, modal-driven create/edit/close/reopen/delete flows, tags, and authorization."]],
+  ["composer-projects/conjin/src/modules-shared/js-standard-lib", ["Partial", "Only nextUniqueId() is asserted; assert(), getURLParameter(), and updateURLParameter() are uncovered."]],
+  ["composer-projects/conjin/src/modules-shared/jsxgraph-helpers", ["Partial", "A helper-generated board is initialized; sequence, 2D, dynamic 3D, cavalier, and control behavior remain uncovered."]],
+  ["composer-projects/conjin/src/modules-shared/math-value-table", ["Covered", "Math rendering, recalculation, reveal, and add-point/add-expression controls are asserted."]],
+  ["composer-projects/conjin/src/modules-shared/mathjax-extensions", ["Covered", "Extension output, hooks, and number-formatting helpers are asserted after MathJax rendering."]],
+  ["composer-projects/conjin/src/modules-shared/print-mode", ["Covered", "Wrapper/standalone separation, iframe loading, Paged.js output, and print invocation are asserted for three templates."]],
+  ["composer-projects/conjin/src/modules-shared/source", ["Covered", "Prism integration, highlighting, line numbers, escaping, scoped defaults, file loading, and block extraction are asserted."]],
+  ["composer-projects/conjin/src/modules-shared/sql-js-extensions", ["Covered", "All database initializers, query rendering, schema toggles, escaping, and the query-error path are asserted."]],
+  ["composer-projects/conjin/src/modules-shared/sql-js-knowledge-history", ["Covered", "Date rendering, descriptions, persisted tags, and empty results are asserted without browser errors."]],
+  ["composer-projects/conjin/src/modules-shared/sql-js-knowledge-tagged", ["Covered", "Tag filtering plus expand/collapse-all interactions are asserted."]],
+  ["composer-projects/conjin/src/modules-shared/sync-dims", ["Partial", "Initial width and height synchronization is measured; resize, late content, and accordion/MathJax resync are not."]],
+  ["composer-projects/conjin/src/modules-shared/template-exam", ["Partial", "Print-mode specs cover wrapper and paged-document behavior; the template script’s first-page and overflow handling is not isolated."]],
+  ["composer-projects/conjin/src/modules-shared/template-navigable", ["Partial", "Several focused fixtures render it and exercise solution/print controls, but sidebar state, persistence, and responsive behavior lack a direct spec."]],
+  ["composer-projects/conjin/src/modules-shared/timetable", ["Partial", "Playwright asserts calendar initialization and one event; navigation, callbacks, repeated/cancelled events, and non-calendar views remain uncovered."]],
+  ["composer-projects/conjin/ext/modules-shared/bootstrap", ["Covered", "The bundle global and collapse interaction are asserted together with the stylesheet."]],
+  ["composer-projects/conjin/ext/modules-shared/chart-js", ["Covered", "The Chart global, attached instance, dataset, and non-zero canvas size are asserted."]],
+  ["composer-projects/conjin/ext/modules-shared/eskuel-suite", ["Missing", "Ships a JavaScript application and worker chunks, but has no demo fixture or integration spec."]],
+  ["composer-projects/conjin/ext/modules-shared/fullcalendar", ["Partial", "Default and Bootstrap themes render, including a timetable event; navigation, locale, event callbacks, and interactions remain uncovered."]],
+  ["composer-projects/conjin/ext/modules-shared/geogebra", ["Covered", "Runtime loading, applet readiness, Apps API availability, command execution, and a created object are asserted."]],
+  ["composer-projects/conjin/ext/modules-shared/jsxgraph", ["Covered", "Asset loading, the JXG API, and an SVG board are asserted."]],
+  ["composer-projects/conjin/ext/modules-shared/klipse-with-tau-prolog", ["Partial", "Runtime loading and interpreter UI initialization are asserted; program loading, querying, answers, and error behavior are not."]],
+  ["composer-projects/conjin/ext/modules-shared/mathjax", ["Covered", "Runtime loading and successful inline/display TeX rendering without merrors are asserted."]],
+  ["composer-projects/conjin/ext/modules-shared/mathjs", ["Covered", "Runtime loading, the evaluate API, and a representative result are asserted."]],
+  ["composer-projects/conjin/ext/modules-shared/nerdamer", ["Covered", "Runtime loading and representative symbolic expansion are asserted."]],
+  ["composer-projects/conjin/ext/modules-shared/paged-js", ["Covered", "Runtime loading, preview completion, page count, and generated page structure are asserted."]],
+  ["composer-projects/conjin/ext/modules-shared/prism", ["Partial", "Highlighting, line numbers, line highlighting, and toolbar creation are asserted; copy-button behavior is not."]],
+  ["composer-projects/conjin/ext/modules-shared/spinning-wheel", ["Missing", "Ships the wheel runtime, but has no demo fixture or integration spec."]],
+  ["composer-projects/conjin/ext/modules-shared/sql-js", ["Covered", "The browser smoke test asserts WASM initialization and query output; sql-js-extensions adds file/fetch database coverage."]],
+  ["composer-projects/conjin/ext/modules-shared/tom-select", ["Covered", "Asset loading, enhancement, opening the dropdown, and changing the selected value are asserted."]]
+]);
+
+const styleFor = value => {
+  if (/^(Good|Yes|Explicit|Covered)/.test(value)) return "good";
+  if (/^(Partial|Useful|Indirect|Upstream)/.test(value)) return "warn";
+  if (/^(Missing|Minimal|Absent|Unconfigured)/.test(value)) return "bad";
+  return "neutral";
+};
+
+const tbody = document.querySelector("#modules");
+const empty = document.querySelector("#empty");
+const search = document.querySelector("#search");
+const integrationFilter = document.querySelector("#integration-filter");
+const browserFilter = document.querySelector("#browser-filter");
+const javascriptFilter = document.querySelector("#javascript-filter");
+
+function badge(value) {
+  const span = document.createElement("span");
+  span.className = `badge ${styleFor(value)}`;
+  span.textContent = value;
+  return span;
+}
+
+function render() {
+  tbody.replaceChildren();
+  const needle = search.value.trim().toLowerCase();
+  const visible = rows.filter(row => {
+    const matchesText = !needle || row.join(" ").toLowerCase().includes(needle);
+    const matchesIntegration = !integrationFilter.value || row[6] === integrationFilter.value;
+    const matchesBrowser = !browserFilter.value || row[9] === browserFilter.value;
+    const javascriptState = javascriptCoverage.get(row[3])?.[0] ?? "N/A";
+    const matchesJavascript = !javascriptFilter.value || javascriptState === javascriptFilter.value;
+    return matchesText && matchesIntegration && matchesBrowser && matchesJavascript;
+  });
+
+  let previousGroup = null;
+  for (const row of visible) {
+    const group = `${row[0]} / ${row[1]}`;
+    if (group !== previousGroup) {
+      const groupRow = document.createElement("tr");
+      groupRow.className = "group-row";
+      const heading = document.createElement("th");
+      heading.colSpan = 8;
+      heading.textContent = group;
+      groupRow.append(heading);
+      tbody.append(groupRow);
+      previousGroup = group;
+    }
+
+    const tr = document.createElement("tr");
+    const moduleCell = document.createElement("td");
+    moduleCell.className = "module";
+    const link = document.createElement("a");
+    link.href = row[3];
+    link.textContent = row[2];
+    const path = document.createElement("small");
+    path.textContent = row[3];
+    moduleCell.append(link, path);
+
+    const readmeCell = document.createElement("td");
+    readmeCell.append(badge(row[4].split(" · ")[0]), document.createTextNode(row[4].includes(" · ") ? ` ${row[4].split(" · ")[1]}` : ""));
+    const apiCell = document.createElement("td");
+    apiCell.append(badge(row[5]));
+    const integrationCell = document.createElement("td");
+    integrationCell.append(badge(row[6]), document.createElement("br"), document.createTextNode(row[7]));
+    const testCell = document.createElement("td");
+    testCell.textContent = row[8];
+    const javascriptCell = document.createElement("td");
+    const [javascriptState, javascriptDetail] = javascriptCoverage.get(row[3]) ?? ["N/A", "No module-owned or module-generated browser behavior identified."];
+    javascriptCell.append(badge(javascriptState), document.createElement("br"), document.createTextNode(javascriptDetail));
+    const browserCell = document.createElement("td");
+    browserCell.append(badge(row[9]));
+    const agendaCell = document.createElement("td");
+    agendaCell.textContent = row[10];
+    tr.append(moduleCell, readmeCell, apiCell, integrationCell, testCell, javascriptCell, browserCell, agendaCell);
+    tbody.append(tr);
+  }
+  empty.hidden = visible.length !== 0;
+}
+
+search.addEventListener("input", render);
+integrationFilter.addEventListener("change", render);
+browserFilter.addEventListener("change", render);
+javascriptFilter.addEventListener("change", render);
+render();
+</script>
+</body>
+</html>

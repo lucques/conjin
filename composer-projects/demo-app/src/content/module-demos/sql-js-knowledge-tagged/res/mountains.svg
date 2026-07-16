@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-labelledby="title description">
+    <title id="title">Mountains</title>
+    <desc id="description">Blue mountains beneath a pale sky.</desc>
+    <rect width="800" height="450" fill="#d9edff"/>
+    <path d="M0 390 220 125 430 390Z" fill="#4d7298"/>
+    <path d="M205 390 505 75 800 390Z" fill="#31587a"/>
+    <path d="m395 190 110-115 108 115-57-30-51 26-48-24Z" fill="#f8fafc"/>
+    <path d="M0 365 Q200 330 400 375 T800 355 V450 H0Z" fill="#7aa874"/>
+</svg>
