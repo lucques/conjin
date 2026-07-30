@@ -111,7 +111,16 @@ def phase_generate_password_hashes(users2tagged_passwords):
             password = tagged_password['contents']
 
             print('- Hashing password for ' + user + '...')
-            hash = subprocess.check_output(f"docker run --rm php:8.2-cli php -r 'print(password_hash(\"{ password }\", PASSWORD_DEFAULT));'", shell=True, text=True)
+            environment = os.environ.copy()
+            environment['CONJIN_PASSWORD'] = password
+            hash = subprocess.check_output(
+                [
+                    'php',
+                    '-r',
+                    'print(password_hash(getenv("CONJIN_PASSWORD"), PASSWORD_DEFAULT));',
+                ],
+                env=environment,
+                text=True)
             users_2_hashes[user] = hash
         else:
             hash = tagged_password['contents']

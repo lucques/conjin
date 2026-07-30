@@ -1,4 +1,5 @@
-FROM php:8.3.4-apache
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
 
 RUN apt-get update && \
     apt-get install -y libgmp-dev libcurl4-openssl-dev

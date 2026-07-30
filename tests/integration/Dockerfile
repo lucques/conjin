@@ -1,4 +1,5 @@
-FROM mcr.microsoft.com/playwright:v1.61.0-noble
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
 
 WORKDIR /tests
 

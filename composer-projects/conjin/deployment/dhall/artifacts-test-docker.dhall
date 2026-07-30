@@ -12,6 +12,8 @@ let keyValue = P.Map.keyValue
 
 -- Artifacts: Common
 let common = ./artifacts-docker-common.dhall
+let dockerImages = ./docker-images.dhall
+let makeDockerBuild = common.makeDockerBuild
 let makeVol = common.makeVol
 let makeReadonlyVol = common.makeReadonlyVol
 let makeNamedVol = common.makeNamedVol
@@ -68,7 +70,7 @@ let makeTestDeplCompose =
     -- Define Services
 
     let webserver = Compose.Service::{
-        , build = Some (Compose.Build.String (config.depl.conjinDir ++ "/deployment/docker/images/conjin-server"))
+        , build = Some (makeDockerBuild (config.depl.conjinDir ++ "/deployment/docker/images/conjin-server") dockerImages.imagePHP)
         , depends_on = merge {
             , None = None (List Text)
             , Some = \(_: T.TestDb) -> Some ["db"]
@@ -99,7 +101,7 @@ let makeTestDeplCompose =
 
     let db = P.Optional.map T.TestDb (Entry Text Compose.Service.Type)
         (\(db: T.TestDb) -> keyValue Compose.Service.Type "db" Compose.Service::{
-            , image = Some "mariadb:10"
+            , image = Some dockerImages.imageMariaDB
             , environment = Some (Compose.ListOrDict.Dict [P.Map.keyText "MARIADB_ROOT_PASSWORD" db.rootPassword])
             , volumes = Some ([makeNamedVol "database-data" "/var/lib/mysql"] #
                 (unpackOptionals Compose.ServiceVolume [
@@ -121,7 +123,7 @@ let makeTestDeplCompose =
 
     let playwright = P.Optional.map Text (Entry Text Compose.Service.Type)
         (\(playwrightTestsDir: Text) -> keyValue Compose.Service.Type "playwright" Compose.Service::{
-            , build = Some (Compose.Build.String playwrightTestsDir)
+            , build = Some (makeDockerBuild playwrightTestsDir dockerImages.imagePlaywright)
             , command = Some (Compose.StringOrList.List ["npm", "test"])
             , depends_on = Some ["webserver"]
             , environment = Some (Compose.ListOrDict.Dict [
@@ -142,7 +144,7 @@ let makeTestDeplCompose =
     -- they cannot be made writable during the deployment build, so this
     -- one-shot service prepares them for Apache before the webserver starts.
     let volumeInit = keyValue Compose.Service.Type "volume-init" Compose.Service::{
-        , image = Some "alpine:3.20"
+        , image = Some dockerImages.imageAlpine
         , command = Some (Compose.StringOrList.List [
             , "/bin/sh"
             , "-c"
@@ -156,7 +158,7 @@ let makeTestDeplCompose =
         (P.List.map (List Text) Text (P.Text.concatSep "/") config.linkchecker.excludeTargets)
 
     let linkchecker = keyValue Compose.Service.Type "linkchecker" Compose.Service::{
-        , build = Some (Compose.Build.String (config.depl.conjinDir ++ "/deployment/docker/images/conjin-linkchecker"))
+        , build = Some (makeDockerBuild (config.depl.conjinDir ++ "/deployment/docker/images/conjin-linkchecker") dockerImages.imageLinkChecker)
         , depends_on = Some ["webserver"]
         , environment = Some (Compose.ListOrDict.Dict [
             , P.Map.keyText "LINKCHECKER_HOST" "webserver.internal"

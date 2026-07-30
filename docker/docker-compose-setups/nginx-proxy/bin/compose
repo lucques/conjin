@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+setup_dir="$(dirname -- "${script_dir}")"
+image_nginx_proxy="$(dhall text --file "${setup_dir}/docker-image.dhall")"
+
+export IMAGE_NGINX_PROXY="${image_nginx_proxy}"
+exec docker compose --file "${setup_dir}/docker-compose.yml" "$@"

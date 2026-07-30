@@ -5,6 +5,7 @@
     , typesSharedModules      = ./types-shared-modules.dhall
     , typesTagged             = ./types-tagged.dhall
 
+    , dockerImages            = ./docker-images.dhall
     , artifactsDockerCommon   = ./artifacts-docker-common.dhall
     , artifactsLocal          = ./artifacts-local.dhall
     , artifactsTest           = ./artifacts-test.dhall

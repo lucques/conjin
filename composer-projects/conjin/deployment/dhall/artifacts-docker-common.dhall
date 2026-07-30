@@ -11,6 +11,8 @@ let empty = P.List.empty
 let Entry = P.Map.Entry
 let keyValue = P.Map.keyValue
 
+let dockerImages = ./docker-images.dhall
+
 
 --------------------
 -- Volume helpers --
@@ -57,6 +59,19 @@ let makeReadonlyNamedVol =
         , read_only = Some True
     }
 : Compose.ServiceVolume
+
+let makeDockerBuild =
+    \(context: Text) ->
+    \(baseImage: Text) ->
+    Compose.Build.Object {
+        , context = context
+        , dockerfile = "Dockerfile"
+        , args = Compose.ListOrDict.Dict [
+            , P.Map.keyText "BASE_IMAGE" baseImage
+        ]
+        , ssh = Compose.ListOrDict.Dict ([] : List (Entry Text Text))
+    }
+: Compose.Build
 
 
 -------------------
@@ -246,7 +261,7 @@ let makeTemplateSassCompilation =
     in
 
     Compose.Service::{
-        , image   = Some "michalklempa/dart-sass"
+        , image   = Some dockerImages.imageDartSass
         , volumes = Some volumes
         , command = Some (Compose.StringOrList.List ([
             "/opt/dart-sass/sass",
@@ -313,6 +328,7 @@ let extractDockerVolumeSources =
 
 
 in {
+    , makeDockerBuild
     , makeVol
     , makeReadonlyVol
     , makeNamedVol

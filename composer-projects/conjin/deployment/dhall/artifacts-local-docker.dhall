@@ -14,6 +14,8 @@ let keyValue = P.Map.keyValue
 
 -- Artifacts: Common
 let common = ./artifacts-docker-common.dhall
+let dockerImages = ./docker-images.dhall
+let makeDockerBuild = common.makeDockerBuild
 let makeVol = common.makeVol
 let makeReadonlyVol = common.makeReadonlyVol
 let makeWebserverHealthcheck = common.makeWebserverHealthcheck
@@ -61,7 +63,7 @@ let makeWebserver =
 
     in
     Compose.Service::{
-        , build       = Some (Compose.Build.String (conjinDir ++ "/deployment/docker/images/conjin-server"))
+        , build       = Some (makeDockerBuild (conjinDir ++ "/deployment/docker/images/conjin-server") dockerImages.imagePHP)
         , volumes     = Some (htdocsVols # [preprocessVol] # (unpackOptionals Compose.ServiceVolume [errorLogVol, storeVol, storeInitVol, storeBackupVol]))
         , restart     = Some "always"
         , networks    = Some (Compose.ServiceNetworks.Map [
@@ -88,7 +90,7 @@ let makeWebserver =
 let makeDbService =
     \(db:            T.LocalDb) ->
     Compose.Service::{
-        , image       = Some "mariadb:10"
+        , image       = Some dockerImages.imageMariaDB
         , volumes     = Some (P.List.unpackOptionals Compose.ServiceVolume [
                             , P.Optional.map Text Compose.ServiceVolume
                                 (\(initFilesDir: Text) ->
@@ -112,7 +114,7 @@ let makeDbService =
 let makePhpmyadmin = 
     \(nginxVirtualHost: Text) ->
     Compose.Service::{
-        , image   = Some "phpmyadmin:5-apache"
+        , image   = Some dockerImages.imagePHPMyAdmin
         , restart = Some "always"
         , networks = Some (Compose.ServiceNetworks.List ["default", "nginx-proxy_default"])
         , environment = Some (Compose.ListOrDict.Dict [P.Map.keyText "VIRTUAL_HOST" ("phpmyadmin." ++ nginxVirtualHost)]) 
@@ -143,7 +145,7 @@ let makeTemplateSassWatcher =
     in
 
     Compose.Service::{
-        , image   = Some "michalklempa/dart-sass"
+        , image   = Some dockerImages.imageDartSass
         , volumes = Some volumes
         , command = Some (Compose.StringOrList.List ([
             "/opt/dart-sass/sass"] #
@@ -161,7 +163,7 @@ let makeTemplateSassWatcher =
 let makePreprocess =
     \(config: T.LocalDepl) ->
     Compose.Service::{
-        , image      = Some "curlimages/curl:8.12.1"
+        , image      = Some dockerImages.imageCurl
         , command    = Some (Compose.StringOrList.List [
             , "--fail-with-body"
             , "--show-error"
@@ -179,7 +181,7 @@ let makeLinkChecker =
         (P.List.map (List Text) Text (P.Text.concatSep "/") config.linkchecker.excludeTargets)
     in
     Compose.Service::{
-        , build       = Some (Compose.Build.String (config.depl.conjinDir ++ "/deployment/docker/images/conjin-linkchecker"))
+        , build       = Some (makeDockerBuild (config.depl.conjinDir ++ "/deployment/docker/images/conjin-linkchecker") dockerImages.imageLinkChecker)
         , depends_on  = Some ["webserver"]
         , user        = Some "\${USER_UID:-0}:\${USER_GID:-0}"
         , volumes     = Some [makeVol config.linkcheckerVolDir "/mnt"]

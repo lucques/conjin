@@ -2,6 +2,7 @@ let P       = ./vendor/dhall-lang-fd057db9b3f89de44cdc77d9669e958b04ed416a/Prelu
 let Compose = ./vendor/dhall-docker-compose-f077072175ee1501e12efc9fd37963ae043596ab/compose/v3/package_resolved.dhall
 
 let T       = ./types.dhall
+let dockerImages = ./docker-images.dhall
 
 -- Prelude
 let filterMap = P.List.filterMap
@@ -39,7 +40,7 @@ let makeUploadJob =
         "rclone sync --progress --create-empty-src-dirs " ++ excludeConjinComposerPackage ++ " --exclude=store/** --exclude=logs/error/** " ++ htdocsDir ++ " " ++ rcloneRemote.name ++ ":" ++ rcloneRemote.dir
     in
     Compose.Service::{
-        , image      = Some "rclone/rclone"
+        , image      = Some dockerImages.imageRclone
         , volumes    = Some (htdocsVols # [rCloneConfigVol])
         , user       = Some "\${USER_UID:-0}:\${USER_GID:-0}"
         , entrypoint = Some (Compose.StringOrList.String "sh")
@@ -61,7 +62,7 @@ let makeBackupJob =
     let rCloneConfigVol = makeVol rcloneRemote.configPath "/config/rclone/rclone.conf"
     in
     Compose.Service::{
-        , image   = Some "rclone/rclone"
+        , image   = Some dockerImages.imageRclone
         , volumes = Some ([backupVol, rCloneConfigVol])
         , user    = Some "\${USER_UID:-0}:\${USER_GID:-0}"
         , command = Some (Compose.StringOrList.List [

@@ -1,8 +1,6 @@
-version: "3"
-
 services:
   nginx-proxy:
-    image: jwilder/nginx-proxy:latest
+    image: "${IMAGE_NGINX_PROXY:?Run this Compose project through ./bin/compose}"
     container_name: nginx-proxy
     restart: always
     ports:
