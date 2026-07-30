@@ -48,6 +48,7 @@ The following scripts are generated in the `./target/bin` directory:
         - MariaDB server (if configured)
         - PHPMyAdmin server (if configured)
         - SCSS watchers
+    - Rebuilds selected services that define a Compose `build` configuration, using cached image layers when their inputs have not changed.
     - After Docker reports the configured services as running or healthy: Calls `./target/bin/preprocess`
 - `./target/bin/down`
     - Stops SCSS watchers and servers
@@ -69,7 +70,7 @@ The following scripts are generated in the `./target/bin` directory:
 - Error logging is configured separately and has no generated local backup command.
     - See [Error handling](./error_handling.md) for configuration and runtime behavior.
 - `./target/bin/linkchecker`
-    - Starts a docker compose project that runs a linkchecker service
+    - Builds and runs the LinkChecker service, using cached image layers when its inputs have not changed.
     - Uses the internal local-job endpoint without retrieving a password.
     - The args given to this script are passed as the target id prefix to check.
     - E.g., `./target/bin/linkchecker first second` will check all URLs that start with `http://host/first/second/`.

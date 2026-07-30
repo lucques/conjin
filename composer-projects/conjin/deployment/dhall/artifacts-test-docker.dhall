@@ -125,6 +125,7 @@ let makeTestDeplCompose =
             , command = Some (Compose.StringOrList.List ["npm", "test"])
             , depends_on = Some ["webserver"]
             , environment = Some (Compose.ListOrDict.Dict [
+                , P.Map.keyText "CI" "\${CI:-}"
                 , P.Map.keyText "HOME" "/tmp"
                 , P.Map.keyText "TEST_BASE_URL" "http://webserver"
                 , P.Map.keyText "TEST_ARTIFACTS_DIR" "/artifacts"

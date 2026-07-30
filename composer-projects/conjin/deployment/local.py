@@ -211,6 +211,7 @@ def build_local_depl(
         store_initialization_command = ':'
     else:
         store_initialization_command = textwrap.dedent(f'''\
+            "${{compose[@]}}" build webserver
             "${{compose[@]}}" run --rm --no-deps --user www-data --entrypoint sh webserver -c '
                 if [ -z "$(find /files/store -mindepth 1 -print -quit)" ]; then
                     cp -R /files/store-init/. /files/store/
@@ -238,7 +239,7 @@ def build_local_depl(
 
                 # Start the long-running services and run preprocessing only after
                 # they are running and all configured health checks have passed.
-                "${{compose[@]}}" up --detach --wait --wait-timeout 90 {autostart_service_arguments} \\
+                "${{compose[@]}}" up --detach --build --wait --wait-timeout 90 {autostart_service_arguments} \\
                 && {target_dir / 'bin' / 'preprocess'}
                 ''')
         },
@@ -276,7 +277,7 @@ def build_local_depl(
                 export USER_GID=$(id -g)
 
 {compose_command}
-                "${{compose[@]}}" run --rm --no-deps linkchecker &&
+                "${{compose[@]}}" run --rm --no-deps --build linkchecker &&
 
                 echo "Results are output in {config['linkcheckerVolDir']}/linkchecker-output.html, launching web browser now..."
                 xdg-open "file://{config['linkcheckerVolDir']}/linkchecker-output.html"
