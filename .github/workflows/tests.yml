@@ -17,10 +17,13 @@ jobs:
             - name: Check out repository
               uses: actions/checkout@v6
 
-            - name: Install Dhall
+            - name: Install Dhall tools
               run: |
-                  sudo apt-get update
-                  sudo apt-get install --yes dhall
+                  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+                  brew install dhall dhall-json
+                  echo "$(brew --prefix)/bin" >> "${GITHUB_PATH}"
+                  dhall --version
+                  dhall-to-json --version
 
             - name: Set up repository
               run: ./setup.sh

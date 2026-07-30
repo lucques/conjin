@@ -12,7 +12,7 @@ modules_dir="${conjin_dir}/ext/modules-shared"
 # 1. Validate the tools used by the remaining setup phases. Checking everything
 # up front produces a useful error before any dependencies or assets are changed.
 echo "[1/8] Checking required setup tools"
-for command_name in composer npm curl sha256sum tar unzip dhall docker; do
+for command_name in composer npm curl sha256sum tar unzip dhall dhall-to-json docker; do
     command -v "${command_name}" >/dev/null || {
         echo "Required command is not installed: ${command_name}" >&2
         exit 1
