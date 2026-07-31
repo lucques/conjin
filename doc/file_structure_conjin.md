@@ -6,11 +6,10 @@ The repository is a monorepo. All Composer roots are grouped below `composer-pro
 - composer-projects
     - conjin                   Publishable `lucques/conjin` Composer package
         - deployment           Deployment command, Python implementation, Dhall, and Docker images
-            - dhall/vendor     Pinned third-party Dhall sources
             - docker/images    Docker image definitions used by generated deployments
         - ext
+            - dhall            Pinned third-party Dhall sources
             - modules-shared   Shared modules built from external packages or archives
-            - npm-packages     Private npm package archives used to build module assets
         - src
             - conjin           Framework runtime mounted at `htdocs/conjin`
             - modules-shared   Internally maintained shared modules
@@ -21,8 +20,13 @@ The repository is a monorepo. All Composer roots are grouped below `composer-pro
     - integration-test-app     Minimal deterministic fixture for automated tests
 - tests                        Repository-level integration test runner and specifications
 - doc                          Repository and framework documentation
-- docker/docker-compose-setups Development infrastructure not shipped with the package
-- setup.sh                     Installs dependencies, builds package assets, and configures the demo app
+- build-assets.sh              Builds generated npm and Dhall assets in the development tree
+- build-composer-package.sh    Assembles source and generated assets under dist/lucques-conjin
+- publish-composer-package.sh  Publishes an assembled release to the package repository
+- DEPENDENCY_LICENSES.md       Generated inventory of locked dependency licenses
+- licenses/                    License inventory and legal-file collection tools
+- dist/lucques-conjin          Ignored clean staging tree for the distributable Composer package
+- setup.sh                     Installs dependencies, builds package assets, and configures the applications
 - package.json                 Build-time browser dependencies for external shared modules
 - package-lock.json            Locked build-time browser dependency graph
 ```

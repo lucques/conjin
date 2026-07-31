@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+
+REPOSITORY_DIR = Path(__file__).resolve().parent.parent
+REPORT_PATH = REPOSITORY_DIR / "DEPENDENCY_LICENSES.md"
+NPM_LICENSE_OVERRIDES = {
+    "conjin-integration-tests": "GPL-3.0-or-later",
+}
+NPM_VERSION_OVERRIDES = {
+    "conjin-integration-tests": "workspace",
+}
+
+
+def load_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def markdown_cell(value: str) -> str:
+    return value.replace("|", r"\|").replace("\n", " ")
+
+
+def npm_package_name(lock_path: str) -> str:
+    return lock_path.rsplit("node_modules/", 1)[-1]
+
+
+def npm_dependencies() -> list[tuple[str, str, str, str]]:
+    rows = []
+    lockfiles = (
+        ("root npm lock", REPOSITORY_DIR / "package-lock.json"),
+        ("integration tests", REPOSITORY_DIR / "tests/integration/package-lock.json"),
+    )
+    for scope, path in lockfiles:
+        lock = load_json(path)
+        for package_path, package in lock.get("packages", {}).items():
+            if "node_modules/" not in package_path:
+                continue
+            name = npm_package_name(package_path)
+            version = package.get("version") or NPM_VERSION_OVERRIDES.get(name, "NOASSERTION")
+            license_name = package.get("license") or NPM_LICENSE_OVERRIDES.get(name, "NOASSERTION")
+            rows.append((name, version, license_name, scope))
+    return rows
+
+
+def composer_dependencies() -> list[tuple[str, str, str, str]]:
+    grouped = defaultdict(set)
+    for path in sorted((REPOSITORY_DIR / "composer-projects").glob("*/composer.lock")):
+        project = path.parent.name
+        lock = load_json(path)
+        for package in [*lock.get("packages", []), *lock.get("packages-dev", [])]:
+            licenses = package.get("license") or ["NOASSERTION"]
+            grouped[(package["name"], package["version"], " OR ".join(licenses))].add(project)
+    return [
+        (name, version, license_name, ", ".join(sorted(projects)))
+        for (name, version, license_name), projects in sorted(grouped.items())
+    ]
+
+
+def render_report() -> str:
+    npm_rows = sorted(set(npm_dependencies()))
+    composer_rows = composer_dependencies()
+    lines = [
+        "# Dependency licenses",
+        "",
+        "This generated inventory lists dependency licenses declared by the repository lockfiles. Regenerate it with `./licenses/generate-report`; use `./licenses/generate-report --check` in automation. Package metadata is evidence supplied by the package publisher, not a legal compatibility determination.",
+        "",
+        "Conjin-authored code is licensed under `GPL-3.0-or-later`. Dependencies and separately distributed components remain under their own licenses. Redistribution-specific notices and the current release status are documented in [`composer-projects/conjin/THIRD_PARTY_NOTICES.md`](./composer-projects/conjin/THIRD_PARTY_NOTICES.md).",
+        "",
+        "## Current release status",
+        "",
+        "No unresolved licensing blocker is currently identified by this inventory. All locked Composer and npm packages declare licenses; the pinned `sbdchd/dhall-docker-compose` source declares MIT and retains its upstream license file; and legal files supplied with redistributed npm browser assets are collected into the assembled Composer package. This is an inventory-based compliance status, not a legal opinion.",
+        "",
+        "## Composer dependencies",
+        "",
+        "| Package | Version | Declared license | Lockfile projects |",
+        "| --- | --- | --- | --- |",
+    ]
+    for row in composer_rows:
+        lines.append("| " + " | ".join(markdown_cell(value) for value in row) + " |")
+    lines.extend(
+        [
+            "",
+            "PHP and PHP extensions are platform requirements and are not Composer packages, so their licenses do not appear in Composer lockfile metadata.",
+            "",
+            "## npm dependencies",
+            "",
+            "| Package | Version | Declared license | Lockfile scope |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
+    for row in npm_rows:
+        lines.append("| " + " | ".join(markdown_cell(value) for value in row) + " |")
+    lines.extend(
+        [
+            "",
+            "The root npm installation supplies browser assets and also contains the integration-test workspace. The integration-test lock is shown independently to make the test toolchain auditable.",
+            "",
+            "## Downloaded and locally packaged components",
+            "",
+            "| Component | Version or revision | License | Distribution role |",
+            "| --- | --- | --- | --- |",
+            "| `dhall-lang` | `fd057db9b3f89de44cdc77d9669e958b04ed416a` | BSD-3-Clause | Vendored Dhall Prelude source; upstream license file is retained |",
+            "| `sbdchd/dhall-docker-compose` | `f589e233de3cdfb6a85d3ced7d35982d1cdf706e` | MIT | Vendored Dhall source; upstream license file is retained |",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Generate the repository dependency-license inventory.")
+    parser.add_argument("--check", action="store_true", help="fail if the committed report is not current")
+    arguments = parser.parse_args()
+    report = render_report()
+    if arguments.check:
+        if not REPORT_PATH.is_file() or REPORT_PATH.read_text(encoding="utf-8") != report:
+            print(f"Dependency license report is stale: {REPORT_PATH}", file=sys.stderr)
+            print("Run ./licenses/generate-report and commit the result.", file=sys.stderr)
+            return 1
+        return 0
+    REPORT_PATH.write_text(report, encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

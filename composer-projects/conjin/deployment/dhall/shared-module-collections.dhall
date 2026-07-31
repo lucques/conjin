@@ -41,14 +41,12 @@ let full = minimal # [
     -- Local
     , SharedBareModule.DbMysql {=}
     , SharedBareModule.Exercise {=}
-    , SharedBareModule.GeogebraHelpers {=}
     , SharedBareModule.Grading {=}
     , SharedBareModule.GraphingTypes {=}
     , SharedBareModule.Hamster {=}
     , SharedBareModule.IssueTracker {=}
     , SharedBareModule.JavaWorlds {=}
     , SharedBareModule.JsxGraphHelpers {=}
-    , SharedBareModule.KlipseWithTauProlog {=}
     , SharedBareModule.MathArith {=}
     , SharedBareModule.MathLogic {=}
     , SharedBareModule.MathProbability {=}
@@ -64,9 +62,7 @@ let full = minimal # [
 
     -- External
     , SharedBareModule.ChartJs {=}
-    , SharedBareModule.EskuelSuite {=}
     , SharedBareModule.Fullcalendar {=}
-    , SharedBareModule.Geogebra {=}
     , SharedBareModule.Mathjs {=}
     , SharedBareModule.Nerdamer {=}
     , SharedBareModule.JsxGraph {=}

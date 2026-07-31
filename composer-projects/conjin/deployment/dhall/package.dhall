@@ -1,5 +1,5 @@
 {
-    , prelude                 = ./vendor/dhall-lang-fd057db9b3f89de44cdc77d9669e958b04ed416a/Prelude/package_resolved.dhall
+    , prelude                 = ../../ext/dhall/dhall-lang/Prelude/package_resolved.dhall
 
     , types                   = ./types.dhall
     , typesSharedModules      = ./types-shared-modules.dhall

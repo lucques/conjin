@@ -1,4 +1,5 @@
 from pathlib import Path
+import shlex
 import stat
 import textwrap
 
@@ -190,6 +191,7 @@ def build_local_depl(
                 --file {artifacts_config_files['docker-compose-yml']['path']} \\
                 --project-name {config['depl']['dockerProjName']})
         ''').strip(), '                ')
+    proxy_status_command = shlex.quote(str(conjin_dir / 'deployment' / 'depl')) + ' proxy status --quiet'
 
     autostart_services = ['webserver']
     if 'db' in config:
@@ -229,6 +231,10 @@ def build_local_depl(
                 set -e
 
 {compose_command}
+                # Hostname routing requires the shared Conjin proxy. Fail before
+                # doing any deployment work when that infrastructure is absent.
+                {proxy_status_command}
+
                 # Seed a configured store only while it is still empty.
                 {store_initialization_command}
 

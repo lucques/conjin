@@ -2,6 +2,7 @@
     "name": "lucques/conjin-demo-app",
     "description": "Human-facing demonstration application for Conjin",
     "type": "project",
+    "private": true,
     "license": "GPL-3.0-or-later",
     "config": {
         "platform": {

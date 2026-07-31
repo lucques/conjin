@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import shutil
+from pathlib import Path
+
+
+LEGAL_PREFIXES = ("license", "licence", "notice", "copying", "copyright")
+
+
+def is_legal_file(path: Path) -> bool:
+    return path.is_file() and path.name.lower().startswith(LEGAL_PREFIXES)
+
+
+def package_name(lock_path: str) -> str:
+    return lock_path.rsplit("node_modules/", 1)[-1]
+
+
+def safe_directory_name(name: str, version: str) -> str:
+    return f"{name.replace('/', '__')}@{version.replace('/', '_')}"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Collect npm package metadata and legal files for redistribution.")
+    parser.add_argument("--production", action="store_true", help="omit packages marked as development-only")
+    parser.add_argument("repository", type=Path, help="repository containing package-lock.json and node_modules")
+    parser.add_argument("output", type=Path, help="directory to recreate with collected legal files")
+    arguments = parser.parse_args()
+    repository = arguments.repository.resolve()
+    output = arguments.output.resolve()
+    lock = json.loads((repository / "package-lock.json").read_text(encoding="utf-8"))
+    shutil.rmtree(output, ignore_errors=True)
+    output.mkdir(parents=True)
+    rows = []
+    for lock_path, package in sorted(lock.get("packages", {}).items()):
+        if "node_modules/" not in lock_path:
+            continue
+        if arguments.production and package.get("dev", False):
+            continue
+        name = package_name(lock_path)
+        source_dir = repository / lock_path
+        if not source_dir.is_dir():
+            continue
+        metadata_path = source_dir / "package.json"
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.is_file() else {}
+        version = package.get("version") or metadata.get("version") or "workspace"
+        license_name = package.get("license") or metadata.get("license") or "NOASSERTION"
+        destination_dir = output / safe_directory_name(name, version)
+        destination_dir.mkdir(exist_ok=True)
+        if metadata_path.is_file():
+            shutil.copy2(metadata_path, destination_dir / "package.json")
+        legal_files = []
+        for source_file in sorted(source_dir.iterdir()):
+            if is_legal_file(source_file):
+                shutil.copy2(source_file, destination_dir / source_file.name)
+                legal_files.append(source_file.name)
+        rows.append((name, version, license_name, ", ".join(legal_files) if legal_files else "No separate legal file in npm package"))
+    readme = [
+        "# Collected npm legal files",
+        "",
+        "This directory is generated from the locked npm installation by `./licenses/collect-npm-legal-files`. It preserves each package's `package.json` plus top-level license, notice, copying, and copyright files supplied by the publisher. Packages without a separate legal file remain listed so their metadata and source headers can be reviewed.",
+        "",
+        "| Package | Version | Declared license | Collected files |",
+        "| --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        readme.append("| " + " | ".join(value.replace("|", r"\|") for value in row) + " |")
+    readme.append("")
+    (output / "README.md").write_text("\n".join(readme), encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -3,12 +3,14 @@
 import argparse
 from pathlib import Path
 import json
+import sys
 
 from common import phase_read_config
 from local import build_local_depl
 from remote import build_remote_depl
 from test import build_test_depl
 from generate_password_hashes import generate_password_hashes
+from proxy import manage_proxy
 
 
 ################
@@ -140,6 +142,12 @@ def make_argument_parser():
     password_parser.add_argument('password_list_path')
     password_parser.add_argument('out_path')
 
+    proxy_parser = commands.add_parser(
+        'proxy',
+        help='Manage the shared local-development reverse proxy.')
+    proxy_parser.add_argument('action', choices=('up', 'status', 'down'))
+    proxy_parser.add_argument('--quiet', action='store_true')
+
     return parser
 
 
@@ -152,8 +160,13 @@ def main():
     elif command == 'view-as-json':
         view_as_json(**args)
     else:
-        generate_password_hashes(**args)
+        if command == 'generate-password-hashes':
+            generate_password_hashes(**args)
+        else:
+            return manage_proxy(**args)
+
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

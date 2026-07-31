@@ -1,4 +1,4 @@
-let P = ./vendor/dhall-lang-fd057db9b3f89de44cdc77d9669e958b04ed416a/Prelude/package_resolved.dhall
+let P = ../../ext/dhall/dhall-lang/Prelude/package_resolved.dhall
 
 let SharedModuleLocation = { dirName: Text, isExternal: Bool }
 
@@ -12,7 +12,6 @@ let SharedBareModule = <
     Exercise: {} |
     Favicons: {} |
     Footnotes: {} |
-    GeogebraHelpers: {} |
     Grading: {} |
     Hamster: {} |
     Html: {} |
@@ -20,7 +19,6 @@ let SharedBareModule = <
     JavaWorlds: {} |
     JsStandardLib: {} |
     JsxGraphHelpers: {} |
-    KlipseWithTauProlog: {} |
     LocaleDe: {} |
     Localization: {} |
     Markdown: {} |
@@ -53,9 +51,7 @@ let SharedBareModule = <
     Bootstrap: {} |
     BootstrapIcons: {} |
     ChartJs: {} |
-    EskuelSuite: {} |
     Fullcalendar: {} |
-    Geogebra: {} |
     JsxGraph: {} |
     Mathjax: {} |
     Mathjs: {} |
@@ -79,7 +75,6 @@ let sharedBareModuleToLocation = \(id: SharedBareModule) ->
         Exercise               = \(t: {}) -> { dirName = "exercise",                 isExternal = False },
         Favicons               = \(t: {}) -> { dirName = "favicons",                 isExternal = False },
         Footnotes              = \(t: {}) -> { dirName = "footnotes",                isExternal = False },
-        GeogebraHelpers        = \(t: {}) -> { dirName = "geogebra-helpers",         isExternal = False },
         Grading                = \(t: {}) -> { dirName = "grading",                  isExternal = False },
         Hamster                = \(t: {}) -> { dirName = "hamster",                  isExternal = False },
         Html                   = \(t: {}) -> { dirName = "html",                     isExternal = False },
@@ -119,10 +114,7 @@ let sharedBareModuleToLocation = \(id: SharedBareModule) ->
         Bootstrap              = \(t: {}) -> { dirName = "bootstrap",                isExternal = True },
         BootstrapIcons         = \(t: {}) -> { dirName = "bootstrap-icons",          isExternal = True },
         ChartJs                = \(t: {}) -> { dirName = "chart-js",                 isExternal = True },
-        EskuelSuite            = \(t: {}) -> { dirName = "eskuel-suite",             isExternal = True },
         Fullcalendar           = \(t: {}) -> { dirName = "fullcalendar",             isExternal = True },
-        Geogebra               = \(t: {}) -> { dirName = "geogebra",                 isExternal = True },
-        KlipseWithTauProlog    = \(t: {}) -> { dirName = "klipse-with-tau-prolog",   isExternal = True },
         Mathjax                = \(t: {}) -> { dirName = "mathjax",                  isExternal = True },
         Mathjs                 = \(t: {}) -> { dirName = "mathjs",                   isExternal = True },
         Nerdamer               = \(t: {}) -> { dirName = "nerdamer",                 isExternal = True },
@@ -150,7 +142,6 @@ let sharedBareModuleToScssDeps = \(id: SharedBareModule) ->
         Exercise               = \(t: {}) -> P.List.empty SharedModuleLocation,
         Favicons               = \(t: {}) -> P.List.empty SharedModuleLocation,
         Footnotes              = \(t: {}) -> P.List.empty SharedModuleLocation,
-        GeogebraHelpers        = \(t: {}) -> P.List.empty SharedModuleLocation,
         Grading                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Hamster                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Html                   = \(t: {}) -> P.List.empty SharedModuleLocation,
@@ -158,7 +149,6 @@ let sharedBareModuleToScssDeps = \(id: SharedBareModule) ->
         JavaWorlds             = \(t: {}) -> P.List.empty SharedModuleLocation,
         JsStandardLib          = \(t: {}) -> P.List.empty SharedModuleLocation,
         JsxGraphHelpers        = \(t: {}) -> P.List.empty SharedModuleLocation,
-        KlipseWithTauProlog    = \(t: {}) -> P.List.empty SharedModuleLocation,
         LocaleDe               = \(t: {}) -> P.List.empty SharedModuleLocation,
         Localization           = \(t: {}) -> P.List.empty SharedModuleLocation,
         Markdown               = \(t: {}) -> P.List.empty SharedModuleLocation,
@@ -201,9 +191,7 @@ let sharedBareModuleToScssDeps = \(id: SharedBareModule) ->
         Bootstrap              = \(t: {}) -> P.List.empty SharedModuleLocation,
         BootstrapIcons         = \(t: {}) -> P.List.empty SharedModuleLocation,
         ChartJs                = \(t: {}) -> P.List.empty SharedModuleLocation,
-        EskuelSuite            = \(t: {}) -> P.List.empty SharedModuleLocation,
         Fullcalendar           = \(t: {}) -> P.List.empty SharedModuleLocation,
-        Geogebra               = \(t: {}) -> P.List.empty SharedModuleLocation,
         Mathjax                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Mathjs                 = \(t: {}) -> P.List.empty SharedModuleLocation,
         Nerdamer               = \(t: {}) -> P.List.empty SharedModuleLocation,

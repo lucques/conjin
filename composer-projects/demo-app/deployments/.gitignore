@@ -4,5 +4,5 @@ CONJIN_DIR
 DEPLOYMENTS_DIR
 
 # Backup dirs
-dcd/backup
+dcd/
 lcd/backup

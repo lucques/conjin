@@ -1,6 +1,7 @@
 {
   "name": "conjin-integration-tests",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "scripts": {
     "test": "playwright test"
   },

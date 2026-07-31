@@ -2,6 +2,7 @@
     "name": "lucques/conjin-integration-test-app",
     "description": "Deterministic integration-test fixture for Conjin",
     "type": "project",
+    "private": true,
     "license": "GPL-3.0-or-later",
     "config": {
         "platform": {

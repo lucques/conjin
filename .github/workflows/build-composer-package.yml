@@ -1,0 +1,133 @@
+name: Build Composer package
+
+on:
+    workflow_dispatch:
+    push:
+        tags:
+            - "v*"
+
+permissions:
+    contents: read
+
+concurrency:
+    group: composer-package-publication
+    cancel-in-progress: false
+
+jobs:
+    build-package:
+        runs-on: ubuntu-24.04
+        timeout-minutes: 90
+
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v6
+
+            - name: Check dependency-license inventory
+              run: ./licenses/generate-report --check
+
+            - name: Install Dhall tools
+              run: |
+                  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+                  brew install dhall dhall-json
+                  echo "$(brew --prefix)/bin" >> "${GITHUB_PATH}"
+                  dhall --version
+                  dhall-to-json --version
+
+            - name: Set up repository
+              run: ./setup.sh
+
+            - name: Run all tests
+              run: ./test.sh
+
+            - name: Assemble Composer package
+              run: ./build-composer-package.sh
+
+            - name: Validate and archive Composer package
+              id: package
+              env:
+                  REF_NAME: ${{ github.ref_name }}
+                  REF_TYPE: ${{ github.ref_type }}
+              run: |
+                  set -euo pipefail
+
+                  package_dir="dist/lucques-conjin"
+                  package_version="$(php -r '$data = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR); echo $data["version"] ?? "";' "${package_dir}/composer.json")"
+
+                  if [[ ! "${package_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+                      echo "Invalid or missing Composer package version: ${package_version}" >&2
+                      exit 1
+                  fi
+
+                  if [[ "${REF_TYPE}" == "tag" && "${REF_NAME#v}" != "${package_version}" ]]; then
+                      echo "Tag ${REF_NAME} does not match Composer package version ${package_version}." >&2
+                      exit 1
+                  fi
+
+                  composer validate --strict --no-check-lock --no-check-version "${package_dir}/composer.json"
+
+                  archive_name="lucques-conjin-${package_version}"
+                  archive_path="dist/${archive_name}.zip"
+                  rm -f -- "${archive_path}" "${archive_path}.sha256"
+                  (cd -- "${package_dir}" && zip -qr "../${archive_name}.zip" .)
+
+                  unzip -tq "${archive_path}"
+                  unzip -p "${archive_path}" composer.json | php -r '$data = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR); if (($data["name"] ?? null) !== "lucques/conjin" || empty($data["version"])) { fwrite(STDERR, "Invalid archived composer.json\n"); exit(1); }'
+                  printf '%s  %s\n' "$(sha256sum "${archive_path}" | cut -d ' ' -f 1)" "$(basename -- "${archive_path}")" > "${archive_path}.sha256"
+
+                  echo "archive_name=${archive_name}" >> "${GITHUB_OUTPUT}"
+                  echo "archive_path=${archive_path}" >> "${GITHUB_OUTPUT}"
+                  echo "package_version=${package_version}" >> "${GITHUB_OUTPUT}"
+
+            - name: Upload Composer package
+              uses: actions/upload-artifact@v7
+              with:
+                  name: ${{ steps.package.outputs.archive_name }}
+                  path: |
+                      ${{ steps.package.outputs.archive_path }}
+                      ${{ steps.package.outputs.archive_path }}.sha256
+                  if-no-files-found: error
+                  compression-level: 0
+                  retention-days: 90
+
+            - name: Publish Composer package repository
+              if: github.ref_type == 'tag'
+              env:
+                  CONJIN_PACKAGE_DEPLOY_KEY: ${{ secrets.CONJIN_PACKAGE_DEPLOY_KEY }}
+                  PACKAGE_VERSION: ${{ steps.package.outputs.package_version }}
+                  SOURCE_COMMIT: ${{ github.sha }}
+                  SOURCE_REPOSITORY: ${{ github.repository }}
+              run: |
+                  set -euo pipefail
+
+                  if [[ -z "${CONJIN_PACKAGE_DEPLOY_KEY}" ]]; then
+                      echo "Repository secret CONJIN_PACKAGE_DEPLOY_KEY is not configured." >&2
+                      exit 1
+                  fi
+
+                  eval "$(ssh-agent -s)"
+                  trap 'ssh-agent -k >/dev/null' EXIT
+                  printf '%s\n' "${CONJIN_PACKAGE_DEPLOY_KEY}" | ssh-add -
+
+                  install -d -m 700 "${HOME}/.ssh"
+                  curl --fail --silent --show-error https://api.github.com/meta \
+                      | php -r '$meta = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR); foreach ($meta["ssh_keys"] as $key) { echo "github.com {$key}\n"; }' \
+                      > "${HOME}/.ssh/known_hosts"
+                  chmod 600 "${HOME}/.ssh/known_hosts"
+
+                  publication_dir="${RUNNER_TEMP}/conjin-package"
+                  git clone git@github.com:lucques/conjin-package.git "${publication_dir}"
+                  ./publish-composer-package.sh \
+                      dist/lucques-conjin \
+                      "${publication_dir}" \
+                      "${PACKAGE_VERSION}" \
+                      "${SOURCE_REPOSITORY}" \
+                      "${SOURCE_COMMIT}"
+
+            - name: Upload test reports
+              if: failure()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: composer-package-test-results
+                  path: tests/artifacts/
+                  if-no-files-found: ignore
+                  retention-days: 14

@@ -16,10 +16,6 @@ The `./tests/run demo-linkchecker` target builds the isolated `deployments/test`
 
 Each run uses fresh Docker Compose named volumes and removes them afterward. The global `CONJIN_TEST_KEEP` and `CONJIN_TEST_PROJECT` controls apply to both test deployments.
 
-## Remote deployment
-
-The `dcd` deployment remains configured for the public demo. Setup writes its ignored `RCLONE_CONFIG_PATH` using rclone's standard configuration location. Before building the deployment, create the ignored `composer-projects/demo-app/deployments/dcd/src/password_list.dhall` file with the deployment-specific passwords.
-
 ## License
 
 This project is licensed under GPLv3.

@@ -1,5 +1,5 @@
-let P       = ./vendor/dhall-lang-fd057db9b3f89de44cdc77d9669e958b04ed416a/Prelude/package_resolved.dhall
-let Compose = ./vendor/dhall-docker-compose-f077072175ee1501e12efc9fd37963ae043596ab/compose/v3/package_resolved.dhall
+let P       = ../../ext/dhall/dhall-lang/Prelude/package_resolved.dhall
+let Compose = ../../ext/dhall/dhall-docker-compose/compose/v3/package_resolved.dhall
 
 let T       = ./types.dhall
 
@@ -72,7 +72,7 @@ let makeWebserver =
                 , ipv4_address = None Text
                 , ipv6_address = None Text
             }
-            , keyValue Compose.ServiceNetwork.Type "nginx-proxy_default" {
+            , keyValue Compose.ServiceNetwork.Type "conjin-proxy" {
                 , aliases = None (List Text)
                 , ipv4_address = None Text
                 , ipv6_address = None Text
@@ -116,7 +116,7 @@ let makePhpmyadmin =
     Compose.Service::{
         , image   = Some dockerImages.imagePHPMyAdmin
         , restart = Some "always"
-        , networks = Some (Compose.ServiceNetworks.List ["default", "nginx-proxy_default"])
+        , networks = Some (Compose.ServiceNetworks.List ["default", "conjin-proxy"])
         , environment = Some (Compose.ListOrDict.Dict [P.Map.keyText "VIRTUAL_HOST" ("phpmyadmin." ++ nginxVirtualHost)]) 
     }
 : Compose.Service.Type
@@ -296,7 +296,7 @@ let makeLocalDeplCompose =
     
     let networks
         : Compose.Networks
-        = Compose.Networks.Map [keyValue { name : Optional Text, external : Optional Bool } "nginx-proxy_default" { name = None Text, external = Some True }]
+        = Compose.Networks.Map [keyValue { name : Optional Text, external : Optional Bool } "conjin-proxy" { name = Some "conjin-proxy", external = Some True }]
 
 in Compose.Config::{ services = Some services,
                         networks = Some networks }

@@ -1,5 +1,6 @@
 # Start web server + DB server as virtualhost locally via nginx
-There is one Docker Compose project.
+
+Each local deployment has one application Docker Compose project. All local deployments additionally share the Conjin reverse-proxy Compose project described below.
 - Services with **autostart**:
     - Apache with PHP
     - Mariadb server
@@ -12,7 +13,7 @@ There is one Docker Compose project.
 
 
 ## Get started
-To deploy, the following four phases are needed.
+To deploy, the following three phases are needed.
 1. Configuration.
     - Write a `config.dhall` file that contains an expression of type `LocalDepl`
         - Use `vendor/bin/depl generate-password-hashes <password-list.dhall> <output.dhall>` when password hashes must be generated in advance.
@@ -24,8 +25,18 @@ To deploy, the following four phases are needed.
 2. Build.
     - Follow the [deployment build](./deployment.md#building-a-deployment).
 3. Run.
-    - Run the `nginx-proxy` container (https://github.com/nginx-proxy/nginx-proxy).
-    - Run one of the generated bin scripts.
+    - Start the shared Conjin reverse proxy once with `vendor/bin/depl proxy up`. This creates the persistent `conjin-proxy` Docker network and starts the version-pinned `nginx-proxy` service on it.
+    - Run one of the generated bin scripts. Every generated local `bin/up` checks that the shared proxy is running and attached to the expected network before doing deployment work.
+
+## Shared local reverse proxy
+
+The reverse proxy is packaged with Conjin and shared by all local deployments so multiple projects can use distinct `*.localhost` hostnames while the proxy alone binds host ports 80 and 443. Manage it through the installed deployment command:
+
+- `vendor/bin/depl proxy up` creates the persistent `conjin-proxy` network if necessary, starts the proxy, and waits for it to become healthy.
+- `vendor/bin/depl proxy status` checks that the proxy container is running, healthy, and attached to `conjin-proxy`.
+- `vendor/bin/depl proxy down` stops the proxy. The shared network remains available because local application containers may still be attached to it.
+
+The proxy binds only to `127.0.0.1` and reads the Docker API socket to discover containers carrying `VIRTUAL_HOST` metadata. It is trusted local-development infrastructure and is not used by remote deployments. Stop local deployments before stopping the proxy when their sites should remain reachable.
 
 ## Internal job authentication
 
@@ -43,6 +54,7 @@ Port 8080 is not published to the host, but it is reachable by other containers 
 ## Executable scripts
 The following scripts are generated in the `./target/bin` directory:
 - `./target/bin/up`
+    - Verifies that the shared Conjin reverse proxy is available.
     - Starts a docker compose project that includes:
         - Web server
         - MariaDB server (if configured)

@@ -1,4 +1,4 @@
-let P       = ./vendor/dhall-lang-fd057db9b3f89de44cdc77d9669e958b04ed416a/Prelude/package_resolved.dhall
+let P       = ../../ext/dhall/dhall-lang/Prelude/package_resolved.dhall
 let T       = ./types.dhall
 
 

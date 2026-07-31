@@ -1,7 +1,14 @@
+<p align="center">
+    <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./doc/assets/conjin-logo-dark.png">
+        <img src="./doc/assets/conjin-logo.png" alt="Conjin" width="640">
+    </picture>
+</p>
+
 # Conjin
 
 ## Introduction
-This is conjin, a PHP framework for rapidly publishing "programmable" web documents. 
+This is Conjin, a PHP framework for rapidly publishing "programmable" web documents.
 
 
 ## Ideas
@@ -36,10 +43,10 @@ Some design decisions are taken as follows. See more details and comments on dis
 
 
 ## Architecture
-If you decide to use conjin, the resulting app consists of three components:
+If you decide to use Conjin, the resulting app consists of three components:
 
 1. **Conjin** (the `composer-projects/conjin/` Composer package): The Conjin framework provides the infrastructure, including the webserver entry point, libraries, macros, CSS styles, external runtime assets, and deployment tooling.
-2. **Content** (part of your repo): This is a buch of easy-to-write PHP files, hierarchically stored in a filesystem. They automatically get included and served by the conjin app.
+2. **Content** (part of your repo): This is a buch of easy-to-write PHP files, hierarchically stored in a filesystem. They automatically get included and served by the Conjin app.
 3. **Deployment** (part of your repo): This is essentially a single and small config file which ties 1. and 2. together. The built executable will orchestrate all necessary services via Docker.
 
 This repository is a monorepo containing three sibling projects under `composer-projects/`: the reusable framework package, a human-facing demo app, and a deterministic integration-test fixture. Both applications depend only on the framework package. The repository root holds setup, documentation, tests, and supporting orchestration. A real application normally keeps its content and deployment configuration in its own repository and installs Conjin as a Composer dependency.
@@ -59,4 +66,4 @@ See [./doc/main.md](./doc/main.md).
 
 
 ## License
-This project is licensed under GPLv3.
+Conjin-authored code is licensed under [GPL-3.0-or-later](./COPYING). Dependencies and separately distributed components remain under their own licenses; see the generated [dependency-license inventory](./DEPENDENCY_LICENSES.md) and the framework package's [third-party notices](./composer-projects/conjin/THIRD_PARTY_NOTICES.md).

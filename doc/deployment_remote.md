@@ -12,7 +12,6 @@ To deploy, the following four phases are needed.
 2. Build.
     - Follow the [deployment build](./deployment.md#building-a-deployment).
 3. Run.
-    - Run the `nginx-proxy` container (https://github.com/nginx-proxy/nginx-proxy).
     - Run one of the generated bin scripts.
 
 

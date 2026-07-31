@@ -1,5 +1,5 @@
-let P       = ./vendor/dhall-lang-fd057db9b3f89de44cdc77d9669e958b04ed416a/Prelude/package_resolved.dhall
-let Compose = ./vendor/dhall-docker-compose-f077072175ee1501e12efc9fd37963ae043596ab/compose/v3/package_resolved.dhall
+let P       = ../../ext/dhall/dhall-lang/Prelude/package_resolved.dhall
+let Compose = ../../ext/dhall/dhall-docker-compose/compose/v3/package_resolved.dhall
 
 let T       = ./types.dhall
 

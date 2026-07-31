@@ -12,6 +12,7 @@ There are two established deployment scenarios, both using Docker:
 Both scenarios use a very similar build process with similar outcomes. Overview:
 
 - Run the installed `vendor/bin/depl build <local|remote|test> <config.dhall>` command to build a deployment. In this repository, the applications below `composer-projects/` provide small wrappers for their configured deployment types.
+- Local deployments share the packaged reverse proxy managed with `vendor/bin/depl proxy <up|status|down>`; see [deployment_local.md](./deployment_local.md#shared-local-reverse-proxy).
 - This will...
     - Populate the `target` dir within the deployment dir. Some are only present in certain types of deployment.
         - Config files for docker-compose etc.

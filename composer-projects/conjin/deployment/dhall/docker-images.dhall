@@ -4,7 +4,6 @@
     , imageDartSass = "michalklempa/dart-sass:1.70.0"
     , imageLinkChecker = "ghcr.io/linkchecker/linkchecker:10.6.0"
     , imageMariaDB = "mariadb:10"
-    , imageNginxProxy = "jwilder/nginx-proxy:latest"
     , imagePHP = "php:8.3.4-apache"
     , imagePHPMyAdmin = "phpmyadmin:5-apache"
     , imagePlaywright = "mcr.microsoft.com/playwright:v1.61.0-noble"

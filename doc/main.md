@@ -1,12 +1,15 @@
-# Technical Documentation of conjin
+# Technical Documentation of Conjin
 
 Documentation is spread out over multiple files.
 
 - [Design decisions](./design_decisions.md): Problem description, motivation, advantages, disadvantages of chosen technologies
 - [Setup](./setup.md): System requirements and project dependencies
+- [Composer package distribution](./composer_package_distribution.md): Build and manually install versioned Composer package artifacts
 - [Demo app](../composer-projects/demo-app/README.md): Human-facing module and template examples
 - [Integration-test app](../composer-projects/integration-test-app/README.md): Deterministic automated-test fixture
 - [Tests](./tests.md): Integration test toolchain, commands, coverage, reports, and debugging
+- [Dependency licenses](../DEPENDENCY_LICENSES.md): Generated license inventory for locked Composer and npm dependencies
+- [Third-party notices](../composer-projects/conjin/THIRD_PARTY_NOTICES.md): Redistribution notices and the current release status for the framework package
 - [Deployment](./deployment.md)
     - [Deployment using Docker + Nginx](./deployment_local.md): Deploy by running your own server
     - [Deployment using Docker + sync](./deployment_remote.md): Deploy by syncing to an external server

@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+work_dir="$(mktemp -d "${TMPDIR:-/tmp}/conjin-dhall.XXXXXX")"
+output_dir="${work_dir}/output"
+trap 'rm -rf -- "${work_dir}"' EXIT
+
+download_and_verify() {
+    local url="$1"
+    local expected_sha256="$2"
+    local archive="$3"
+
+    curl --fail --location --silent --show-error --output "${archive}" "${url}"
+    printf '%s  %s\n' "${expected_sha256}" "${archive}" | sha256sum --check --status
+}
+
+dhall_lang_commit="fd057db9b3f89de44cdc77d9669e958b04ed416a"
+dhall_compose_commit="f589e233de3cdfb6a85d3ced7d35982d1cdf706e"
+
+download_and_verify \
+    "https://codeload.github.com/dhall-lang/dhall-lang/tar.gz/${dhall_lang_commit}" \
+    "d381d6463fe8616354b620a845fed1e24f6a4c10628e0ecad7a5e7554d253186" \
+    "${work_dir}/dhall-lang.tar.gz"
+download_and_verify \
+    "https://codeload.github.com/sbdchd/dhall-docker-compose/tar.gz/${dhall_compose_commit}" \
+    "c39238d6ce109820274e8366ec3dd43474ea1326c13940286404a58cbc3d86c0" \
+    "${work_dir}/dhall-docker-compose.tar.gz"
+
+tar -xzf "${work_dir}/dhall-lang.tar.gz" -C "${work_dir}"
+tar -xzf "${work_dir}/dhall-docker-compose.tar.gz" -C "${work_dir}"
+(
+    cd -- "${work_dir}/dhall-lang-${dhall_lang_commit}/Prelude"
+    dhall resolve --file package.dhall > package_resolved.dhall
+)
+(
+    cd -- "${work_dir}/dhall-docker-compose-${dhall_compose_commit}/compose/v3"
+    dhall resolve --file package.dhall > package_resolved.dhall
+)
+
+mkdir -p -- \
+    "${output_dir}/dhall-lang/Prelude" \
+    "${output_dir}/dhall-docker-compose/compose/v3"
+install -m 0644 -- \
+    "${work_dir}/dhall-lang-${dhall_lang_commit}/LICENSE" \
+    "${output_dir}/dhall-lang/LICENSE"
+install -m 0644 -- \
+    "${work_dir}/dhall-lang-${dhall_lang_commit}/Prelude/package_resolved.dhall" \
+    "${output_dir}/dhall-lang/Prelude/package_resolved.dhall"
+install -m 0644 -- \
+    "${work_dir}/dhall-docker-compose-${dhall_compose_commit}/LICENSE" \
+    "${output_dir}/dhall-docker-compose/LICENSE"
+install -m 0644 -- \
+    "${work_dir}/dhall-docker-compose-${dhall_compose_commit}/compose/v3/package_resolved.dhall" \
+    "${output_dir}/dhall-docker-compose/compose/v3/package_resolved.dhall"
+
+rm -rf -- "${script_dir}/dhall-lang" "${script_dir}/dhall-docker-compose"
+mv -- "${output_dir}/dhall-lang" "${script_dir}/"
+mv -- "${output_dir}/dhall-docker-compose" "${script_dir}/"
