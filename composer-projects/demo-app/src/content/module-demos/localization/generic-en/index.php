@@ -19,10 +19,10 @@
 </p>
 <ul>
 <?
-    $alternatives = get_language_alternatives_and_nontranslations(['de', 'en']);
+    $alternatives = get_language_alternatives_and_nontranslations();
     foreach ($alternatives as $lang => $target_ids) {
 ?>
-    <li><a href="<?= url_collect($target_ids) ?>"><?= language_to_flag($lang) ?> <?= language_to_text($lang) ?></a></li>
+    <li><a href="<?= localization_get_language_choice_url($target_ids) ?>"><?= language_tag_to_text($lang) ?></a></li>
 <?
     }
 ?>

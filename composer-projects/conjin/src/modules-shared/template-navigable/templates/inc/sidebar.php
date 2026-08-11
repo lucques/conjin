@@ -1,7 +1,7 @@
 <?
-    $render = function(Module $template, array $placeholders) {
-        $module_localization_active = function_exists('get_language');
-        $module_sol_mode_active     = function_exists('is_sol_mode_on');
+    $render = function(Module $template, Processable $processable, array $placeholders) {
+        $module_localization_active = $processable->has_activated_module('localization');
+        $module_sol_mode_active     = $processable->has_activated_module('sol-mode');
 ?>
         <div id="sidebar">
             <div id="sidebar-header">
@@ -33,11 +33,11 @@
         ///////////////////////
 
         if ($module_localization_active) {
-            $alternatives = get_language_alternatives_and_nontranslations(['de', 'en']);
+            $alternatives = get_language_alternatives_and_nontranslations();
             if (count($alternatives) > 1 || $template->config->get('sidebar', 'show_language_switcher_always')) {
                 foreach ($alternatives as $lang => $target_ids) {
 ?>
-                    <a href="<?= url_collect($target_ids) ?>" class="btn btn-primary<?= $lang === get_language() ? ' active' : '' ?>" data-bs-toggle="tooltip" data-bs-title="<?= language_to_text($lang) ?>" data-bs-placement="bottom"><?= language_to_flag($lang) ?></a>
+                    <a href="<?= localization_get_language_choice_url($target_ids) ?>" class="btn btn-primary<?= $lang === get_language_tag() ? ' active' : '' ?>" data-bs-toggle="tooltip" data-bs-title="<?= language_tag_to_text($lang) ?>" data-bs-placement="bottom"><?= language_tag_to_text($lang) ?></a>
 <?
                 }
             }

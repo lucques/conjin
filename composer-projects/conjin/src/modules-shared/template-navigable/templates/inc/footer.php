@@ -1,8 +1,8 @@
 <?
-    $render = function(Module $template, array $placeholders) {
-        $module_doc_extensions_active = function_exists('doc_extensions_get_head_elements');
-        $module_footnotes_active      = function_exists('footnotes_any');
-        $module_references_active     = function_exists('ref_any');
+    $render = function(Module $template, Processable $processable, array $placeholders) {
+        $module_doc_extensions_active = $processable->has_activated_module('doc-extensions');
+        $module_footnotes_active      = $processable->has_activated_module('footnotes');
+        $module_references_active     = $processable->has_activated_module('references');
 
         if ($module_footnotes_active && footnotes_any()) {
 ?>

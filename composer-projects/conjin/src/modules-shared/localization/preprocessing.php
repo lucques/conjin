@@ -10,8 +10,17 @@
         bool $is_alternative = true,
     ) {
         $c->update_module_config('localization', [
-            'language' => $lang,
+            'current_language' => $lang,
             'is_alternative' => $is_alternative,
+        ]);
+    };
+
+    $set_language_switch = function(
+        PreprocessContext $c,
+        array $target_ids,
+    ) {
+        $c->update_module_config('localization', [
+            'language_switch' => $target_ids,
         ]);
     };
 

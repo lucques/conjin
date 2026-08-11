@@ -1,8 +1,8 @@
 <?
-    $default_placeholders = function(Module $template, string $title_for_head): array {
+    $default_placeholders = function(Module $template, Processable $processable, string $title_for_head): array {
         
         $title_for_logo =
-            function_exists('get_top_level_html_title')
+            $processable->has_activated_module('title')
             ? get_top_level_html_title()
             : 'Unbenannt';
 

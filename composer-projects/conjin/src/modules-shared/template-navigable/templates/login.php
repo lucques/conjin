@@ -15,7 +15,7 @@
         // Make placeholders //
         ///////////////////////
 
-        $placeholders_default = $template_self->load_def_from_script_and_call('templates/inc/default_placeholders.php', 'default_placeholders', $template, $title_for_head);
+        $placeholders_default = $template_self->load_def_from_script_and_call('templates/inc/default_placeholders.php', 'default_placeholders', $template, $syslet, $title_for_head);
         $placeholders = array_merge($placeholders_default, $placeholders_overrides);
 
 
@@ -34,9 +34,9 @@
         ////////////
 
         ob_start();
-        $template_self->load_def_from_script_and_call('templates/inc/header-1.php', 'render', $template, null, $placeholders);
+        $template_self->load_def_from_script_and_call('templates/inc/header-1.php', 'render', $template, $syslet, null, $placeholders);
         if ($template->config->get('sidebar') !== null) {
-            $template_self->load_def_from_script_and_call('templates/inc/sidebar.php', 'render', $template, $placeholders);
+            $template_self->load_def_from_script_and_call('templates/inc/sidebar.php', 'render', $template, $syslet, $placeholders);
         }
         $template_self->load_def_from_script_and_call('templates/inc/header-2.php', 'render', $template, $placeholders);
 ?>
@@ -119,7 +119,7 @@
             doc_extensions_add_js_after_dom_setup("document.querySelector('#content').addEventListener('click', event => { if (event.ctrlKey) { dtToggle('reduced-login'); } });");
         }
 
-        $template_self->load_def_from_script_and_call('templates/inc/footer.php',  'render', $template, $placeholders);
+        $template_self->load_def_from_script_and_call('templates/inc/footer.php',  'render', $template, $syslet, $placeholders);
         ob_end_flush();
     };
 ?>

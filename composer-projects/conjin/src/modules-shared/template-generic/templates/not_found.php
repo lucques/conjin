@@ -20,7 +20,7 @@
         // Render //
         ////////////
         
-        $module_doc_extensions_active = function_exists('doc_extensions_get_head_elements');
+        $module_doc_extensions_active = $syslet->has_activated_module('doc-extensions');
 ?>
 <!doctype html>
 <html lang="de">

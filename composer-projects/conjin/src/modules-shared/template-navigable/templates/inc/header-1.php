@@ -1,10 +1,10 @@
 <?
-    $render = function(Module $template, ?array $target_ids, array $placeholders) {
-        $module_doc_extensions_active = function_exists('doc_extensions_get_head_elements');
-        $module_localization_active   = function_exists('get_language');
+    $render = function(Module $template, Processable $processable, ?array $target_ids, array $placeholders) {
+        $module_doc_extensions_active = $processable->has_activated_module('doc-extensions');
+        $module_localization_active   = $processable->has_activated_module('localization');
 ?>
 <!doctype html>
-<html lang="<?= $module_localization_active ? get_language() : 'en' ?>">
+<html lang="<?= $module_localization_active ? get_language_tag() : 'en' ?>">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">

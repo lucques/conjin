@@ -14,6 +14,6 @@ test.describe("HTTP contracts", () => {
 
   test("redirects anonymous preprocessing requests", async ({ request }) => {
     const response = await request.get("/preprocess/", { maxRedirects: 0 });
-    expect(response.status()).toBe(303);
+    expect(response.status()).toBe(302);
   });
 });

@@ -254,7 +254,7 @@
         $_SESSION['user']              = auth_aux_make_guest_resolved_user();
         $GLOBALS['user']               = $_SESSION['user'];
         
-        redirect_temporally_and_exit(url() . 'login/');
+        redirect_see_other_and_exit(url() . 'login/');
     }
 
 
@@ -265,23 +265,23 @@
         // 2. Redirect is in the session variable
         // 3. No redirect; go to home page
         if (isset($_GET['redirect'])) {
-            redirect_temporally_and_exit($_GET['redirect']);
+            redirect_see_other_and_exit($_GET['redirect']);
         }
         elseif (isset($_SESSION['redirect'])) {
             // Retrieve and remove from session var
             $redirect = $_SESSION['redirect'];
             unset($_SESSION['redirect']);
 
-            redirect_temporally_and_exit($redirect);
+            redirect_see_other_and_exit($redirect);
         }
         else {
-            redirect_temporally_and_exit(url());
+            redirect_see_other_and_exit(url());
         }
     }
 
     function auth_handle_unauthorized_and_exit() {
         if (!auth_is_logged_in()) {
-            redirect_temporally_and_exit(auth_get_login_url_with_redirect());
+            redirect_temporarily_and_exit(auth_get_login_url_with_redirect());
         }
         else {
             process_unauthorized_and_exit(); // Unauthorized

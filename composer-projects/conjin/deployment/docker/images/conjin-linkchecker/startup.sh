@@ -22,7 +22,7 @@ while IFS= read -r target; do
     fi
 done <<< "${LINKCHECKER_EXCLUDE_TARGETS:-}"
 
-linkchecker --verbose --output none "${ignore_args[@]}" \
+linkchecker --config=/etc/linkchecker/linkcheckerrc --verbose --output none "${ignore_args[@]}" \
     --file-output html/ascii/linkchecker-output.html \
     --cookiefile=/tmp/cookie.txt \
     "${linkchecker_origin}/${LINKCHECKER_PREFIX}"

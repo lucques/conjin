@@ -7,9 +7,7 @@
         assert($status_code != 404, 'Use different function for 404');
 
         // Throw away any buffered output
-        while (ob_get_level() > 0) {
-            ob_end_clean();
-        }
+        while (ob_get_level() > 0) { ob_end_clean(); }
 
         http_response_code($status_code);
         
@@ -34,14 +32,29 @@
         exit();
     }
 
-    function redirect_temporally_and_exit($url) {
-        http_response_code(303);
+    function redirect_permanently_and_exit($url) {
+        // Throw away any buffered output
+        while (ob_get_level() > 0) { ob_end_clean(); }
+        
+        http_response_code(301);
         header('Location: ' . $url);
         exit();
     }
 
-    function redirect_permanently_and_exit($url) {
-        http_response_code(301);
+    function redirect_temporarily_and_exit($url) {
+        // Throw away any buffered output
+        while (ob_get_level() > 0) { ob_end_clean(); }
+
+        http_response_code(302);
+        header('Location: ' . $url);
+        exit();
+    }
+
+    function redirect_see_other_and_exit($url) {
+        // Throw away any buffered output
+        while (ob_get_level() > 0) { ob_end_clean(); }
+
+        http_response_code(303);
         header('Location: ' . $url);
         exit();
     }

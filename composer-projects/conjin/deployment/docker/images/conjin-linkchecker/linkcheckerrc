@@ -1,0 +1,3 @@
+[filtering]
+ignorewarningsforurls=
+    ^.*[?&]localization-explicit-choice=1(?:&|$) ^http-redirected$

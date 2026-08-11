@@ -1,12 +1,12 @@
 <?
     $render = function(Module $template, Target $target, string $content, string $title_for_head, array $placeholders) {
-        $module_doc_extensions_active = function_exists('doc_extensions_get_head_elements');
-        $module_localization_active   = function_exists('get_language');
-        $module_footnotes_active      = function_exists('footnotes_any');
-        $module_references_active     = function_exists('ref_any');
+        $module_doc_extensions_active = $target->has_activated_module('doc-extensions');
+        $module_localization_active   = $target->has_activated_module('localization');
+        $module_footnotes_active      = $target->has_activated_module('footnotes');
+        $module_references_active     = $target->has_activated_module('references');
 ?>
 <!doctype html>
-<html lang="<?= $module_localization_active ? get_language() : 'en' ?>">
+<html lang="<?= $module_localization_active ? get_language_tag() : 'en' ?>">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">

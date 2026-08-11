@@ -1,7 +1,7 @@
 {
     "name": "lucques/conjin",
     "description": "PHP framework for rapid content generation",
-    "version": "2.8.0",
+    "version": "2.9.0",
     "type": "library",
     "license": "GPL-3.0-or-later",
     "bin": [
