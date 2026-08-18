@@ -123,6 +123,8 @@
         public readonly ContentLocation $content_location;
         public readonly array           $actions_ser_2_actorlist_ser; // dict<action_serialized, list<actor_serialized>>
 
+        public ?string $login_profile;
+
                 
         /////////////////////////////
         // Set during PASS-THROUGH //
@@ -137,9 +139,10 @@
         // Constructors //
         //////////////////
 
-        public static function create_root() {
+        public static function create_root(string $default_login_profile_id) {
             return new TargetPreprocessContext(
                 target_ids: [],
+                login_profile: $default_login_profile_id,
             );
         }
 
@@ -148,10 +151,11 @@
 
             return new TargetPreprocessContext(
                 target_ids: array_merge($this->target_ids, [$child_id]),
+                login_profile: null,
             );
         }
 
-        private function __construct(array $target_ids) {
+        private function __construct(array $target_ids, ?string $login_profile) {
             parent::__construct();
 
             // Fixed during construction
@@ -172,6 +176,7 @@
             $this->actions_ser_2_actorlist_ser = auth_generate_actions_ser_2_actorlist_ser_for_target($target_ids);
 
             // Set during PASS-THROUGH
+            $this->login_profile       = $login_profile;
             $this->name_2_preprocessor = [];
 
             $this->children_ids        = [];
@@ -205,6 +210,15 @@
             assert(!in_array($id, $this->children_ids), "Subpage `$id` already added");
 
             $this->children_ids[] = $id;
+        }
+
+        public function set_login_profile(string $name): void {
+            assert(
+                preg_match('/^[a-z0-9_-]+$/', $name) === 1,
+                "Invalid login profile name `$name`"
+            );
+
+            $this->login_profile = $name;
         }
 
 
@@ -242,24 +256,112 @@
     // Main functions //
     ////////////////////
 
-    function preprocess_syslet(string $which): Syslet {
+    function preprocess_syslet_context_with(callable $preprocess, string $description): SysletPreprocessContext {
         $c = new SysletPreprocessContext();
 
-        // Preprocess!
-        $script_path = path('system/' . $which . '.php');
-        load_def_from_script_and_call($script_path, 'preprocess', $c);
+        $preprocess($c);
 
         // Template must have been set
-        assert($c->template !== null, 'Template not set for system target `' . $which . '`');
-        
+        assert($c->template !== null, 'Template not set for ' . $description);
+
+        return $c;
+    }
+
+    function preprocess_syslet_with(callable $preprocess, string $description): Syslet {
+        $c = preprocess_syslet_context_with($preprocess, $description);
+
         return new Syslet(
             $c->activated_modules,
             $c->template
         );
     }
 
-    function preprocess_target_root(): Target {
-        $c = TargetPreprocessContext::create_root();
+    function preprocess_login_profile_with(string $id, callable $preprocess): LoginProfile {
+        $c = preprocess_syslet_context_with($preprocess, 'login profile `' . $id . '`');
+
+        return new LoginProfile(
+            $id,
+            $c->activated_modules,
+            $c->template
+        );
+    }
+
+    function preprocess_syslet(string $which): Syslet {
+        $script_path = path('system/' . $which . '.php');
+        $defs = load_defs_from_script($script_path);
+
+        assert(isset($defs['preprocess']), "Missing definition of `\$preprocess` in file `$script_path`");
+
+        return preprocess_syslet_with(
+            $defs['preprocess'],
+            'system target `' . $which . '`'
+        );
+    }
+
+    function preprocess_login_profiles(): array {
+        $script_path = path('system/login.php');
+        $defs = load_defs_from_script($script_path);
+
+        assert(isset($defs['profiles']), "Missing definition of `\$profiles` in file `$script_path`");
+        assert(!isset($defs['preprocess']), "`\$preprocess` is not supported in file `$script_path`; define `\$profiles` instead");
+        assert(is_array($defs['profiles']), '`$profiles` must be an array');
+
+        $id_2_preprocess = $defs['profiles'];
+
+        foreach ($id_2_preprocess as $id => $preprocess) {
+            assert(is_string($id) || is_int($id), 'Login profile IDs must be strings');
+            $id = (string)$id;
+            assert(
+                preg_match('/^[a-z0-9_-]+$/', $id) === 1,
+                "Invalid login profile ID `$id`"
+            );
+            assert(is_callable($preprocess), "Login profile `$id` must contain a callable");
+
+            $id_2_preprocess[$id] = $preprocess;
+        }
+
+        $login_profiles = [];
+        foreach ($id_2_preprocess as $id => $preprocess) {
+            $login_profiles[$id] = preprocess_login_profile_with((string)$id, $preprocess);
+        }
+
+        return $login_profiles;
+    }
+
+    function preprocess_default_login_profile_id(array $login_profiles): string {
+        $script_path = path('system/login.php');
+        $defs = load_defs_from_script($script_path);
+
+        assert(isset($defs['default_profile_id']), "Missing definition of `\$default_profile_id` in file `$script_path`");
+        assert(is_string($defs['default_profile_id']), '`$default_profile_id` must be a string');
+
+        $default_profile_id = $defs['default_profile_id'];
+        assert(
+            isset($login_profiles[$default_profile_id]),
+            "Default login profile `$default_profile_id` does not exist"
+        );
+
+        return $default_profile_id;
+    }
+
+    function preprocess_validate_target_login_profiles(Target $target, array $login_profiles): void {
+        $profile_id = $target->get_login_profile();
+        $target_name = count($target->get_ids()) === 0
+            ? '/'
+            : implode('/', $target->get_ids()) . '/';
+
+        assert(
+            isset($login_profiles[$profile_id]),
+            "Unknown login profile `$profile_id` for target `$target_name`"
+        );
+
+        foreach ($target->id_2_child as $child) {
+            preprocess_validate_target_login_profiles($child, $login_profiles);
+        }
+    }
+
+    function preprocess_target_root(string $default_login_profile_id): Target {
+        $c = TargetPreprocessContext::create_root($default_login_profile_id);
         return preprocess_target_rec($c);
     }
 
@@ -341,6 +443,7 @@
             $c->template,
             count($c->target_ids) > 0 ? $c->target_ids[count($c->target_ids)-1] : null,
             $c->content_location,
+            $c->login_profile,
             $c->actions_ser_2_actorlist_ser,
             $id_2_child_target
         );

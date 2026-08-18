@@ -51,6 +51,7 @@
         unset($base_queries['target']);
         unset($base_queries['res']);
         unset($base_queries['redirect']);
+        unset($base_queries['login_profile']);
         unset($base_queries['user']);
 
         $params = array_merge($base_queries, $queries);

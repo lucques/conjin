@@ -63,8 +63,8 @@
         // Rendering //
         ///////////////
 
-        public function render_login_with_provided_template(Module $template, Syslet $syslet, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []): void {
-            $this->load_def_from_script_and_call('templates/login.php', 'render_login', $this, $template, $syslet, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names, $placeholders_overrides);
+        public function render_login_with_provided_template(Module $template, LoginProfile $login_profile, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []): void {
+            $this->load_def_from_script_and_call('templates/login.php', 'render_login', $this, $template, $login_profile, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names, $placeholders_overrides);
         }
 
         public function render_not_found_with_provided_template(Module $template, Syslet $syslet, ?array $target_ids, array $placeholders_overrides = []): void {
@@ -209,8 +209,8 @@
         // Rendering //
         ///////////////
 
-        public function render_login(Syslet $syslet, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []): void {
-            $this->load_def_from_script_and_call('templates/login.php', 'render_login', $this, $this, $syslet, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names, $placeholders_overrides);
+        public function render_login(LoginProfile $login_profile, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []): void {
+            $this->load_def_from_script_and_call('templates/login.php', 'render_login', $this, $this, $login_profile, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names, $placeholders_overrides);
         }
 
         public function render_not_found(Syslet $syslet, ?array $target_ids, array $placeholders_overrides = []): void {

@@ -34,6 +34,7 @@
             ?string  $template,                    // key of `activated_modules` or `null` if not set
             public readonly ?string $id,
             public readonly ContentLocation $content_location,
+            public readonly ?string $login_profile,
             public readonly array   $actions_ser_2_actorlist_ser, // dict<action_serialized, list<actor_serialized>>
             public readonly array   $id_2_child                   // dict<string, Target>
         ) {
@@ -64,6 +65,15 @@
         
         public function get_css_slug(): string {
             return implode('_', $this->get_ids());
+        }
+
+        public function get_login_profile(): string {
+            if ($this->login_profile !== null) {
+                return $this->login_profile;
+            }
+
+            assert($this->parent !== null, 'Root target has no login profile');
+            return $this->parent->get_login_profile();
         }
 
         public function navigate_to_ids(array $relative_path): array {
@@ -109,6 +119,7 @@
             return [
                 'id' => $this->id,
                 'content_location' => $this->content_location,
+                'login_profile' => $this->login_profile,
                 'activated_modules' => $this->activated_modules,
                 'template' => $this->template,
                 'actions_ser_2_actorlist_ser' => $this->actions_ser_2_actorlist_ser,
@@ -126,6 +137,16 @@
         public function __construct(
             array  $activated_modules, // dict<string, Module>
             string $template,          // key of `activated_modules`, must not be null
+        ) {
+            parent::__construct($activated_modules, $template);
+        }
+    }
+
+    final class LoginProfile extends Syslet {
+        public function __construct(
+            public readonly string $id,
+            array $activated_modules,
+            string $template,
         ) {
             parent::__construct($activated_modules, $template);
         }

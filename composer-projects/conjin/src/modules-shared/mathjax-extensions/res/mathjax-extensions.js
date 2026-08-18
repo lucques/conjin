@@ -55,12 +55,15 @@ window.MathJax = {
 
             // --- After rendering ("MathJax is initialized, and the initial typeset is queued") ---
 
-            // Call user-defined functions (hooks)
-            if (typeof mathJaxAfterRenderingHooks !== 'undefined') {
-                for (const func of mathJaxAfterRenderingHooks) {
-                    MathJax.startup.promise.then(func);
+            // Read the hooks only after the initial rendering is complete. Content scripts in
+            // the document body may not have registered their hooks yet when `ready()` runs.
+            MathJax.startup.promise.then(() => {
+                if (typeof mathJaxAfterRenderingHooks !== 'undefined') {
+                    for (const func of mathJaxAfterRenderingHooks) {
+                        MathJax.startup.promise.then(func);
+                    }
                 }
-            }
+            });
         }
     },
     loader: {load: ['[tex]/color',

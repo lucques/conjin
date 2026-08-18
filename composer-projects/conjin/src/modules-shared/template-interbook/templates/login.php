@@ -1,5 +1,5 @@
 <?
-    $render_login = function(ModuleLocation $template_self, Module $template, Syslet $syslet, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []) {
+    $render_login = function(ModuleLocation $template_self, Module $template, LoginProfile $login_profile, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []) {
         
         ///////////////////////////
         // Sub-template: Prepare //
@@ -20,6 +20,6 @@
         // Sub-template: Render //
         //////////////////////////
 
-        $sub_template->render_login_with_provided_template($template, $syslet, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names, $placeholders_for_subtemplate);
+        $sub_template->render_login_with_provided_template($template, $login_profile, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names, $placeholders_for_subtemplate);
     };
 ?>

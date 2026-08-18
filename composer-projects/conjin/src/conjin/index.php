@@ -8,13 +8,15 @@
     require('inc/core_effectful.php');
 
     enum Req: string {
-        case Debug      = 'debug';
-        case Preprocess = 'preprocess';
-        case Login      = 'login';
-        case Logout     = 'logout';
-        case Show       = 'show';
-        case Res        = 'res';
-        case Other      = 'other'; 
+        case Debug        = 'debug';
+        case Preprocess   = 'preprocess';
+        case Login        = 'login';
+        case OidcStart    = 'oidc-start';
+        case OidcCallback = 'oidc-callback';
+        case Logout       = 'logout';
+        case Show         = 'show';
+        case Res          = 'res';
+        case Other        = 'other';
     }
 
     $req = Req::tryFrom($_GET['req'] ?? '');
@@ -71,11 +73,19 @@
         // Preprocessing prepares objects:
         // 1. For auth:    `groups_2_userlist_ser`
         // 2. Targets:     `target_root`
-        // 3. Syslets:     `syslet_*`
+        // 3. Syslets (including login profiles)
         core_save_obj('groups_2_userlist_ser',       auth_generate_groups_2_userlist_ser());
         core_save_obj('groups_2_openidmarkerlist',   auth_generate_groups_2_openidmarkerlist());
-        core_save_obj('target_root',                 preprocess_target_root());
-        core_save_obj('syslet_login',                preprocess_syslet('login'));
+
+        $login_profiles = preprocess_login_profiles();
+        $default_login_profile_id = preprocess_default_login_profile_id($login_profiles);
+        $target_root = preprocess_target_root($default_login_profile_id);
+
+        preprocess_validate_target_login_profiles($target_root, $login_profiles);
+
+        core_save_obj('target_root',                 $target_root);
+        core_save_obj('login_profiles',              $login_profiles);
+        core_save_obj('default_login_profile_id',    $default_login_profile_id);
         core_save_obj('syslet_not_found',            preprocess_syslet('not_found'));
         core_save_obj('syslet_unauthorized',         preprocess_syslet('unauthorized'));
 
@@ -95,14 +105,73 @@
             // Login //
             ///////////
     
+            $login_profile_id = $_GET['login_profile'] ?? auth_get_default_login_profile_id();
+            $login_profiles = core_load_obj('login_profiles');
+
+            if (!is_string($login_profile_id) || !isset($login_profiles[$login_profile_id])) {
+                process_not_found_and_exit();
+            }
+
             // Already logged in? Then redirect.
             if (auth_is_logged_in()) {
                 auth_redirect_after_successful_login_and_exit();
             }
             else {
-                auth_handle_login_and_exit();
+                auth_handle_login_and_exit($login_profiles[$login_profile_id]);
             }
-    
+
+        }
+        elseif ($req == Req::OidcStart) {
+
+            /////////////////////////////
+            // OpenID Connect: Start   //
+            /////////////////////////////
+
+            $provider_name = $_GET['oidc_provider'] ?? null;
+            $login_profile_id = $_GET['login_profile'] ?? auth_get_default_login_profile_id();
+            $login_profiles = core_load_obj('login_profiles');
+
+            if (
+                !is_string($provider_name)
+                || !is_string($login_profile_id)
+                || !isset($login_profiles[$login_profile_id])
+            ) {
+                process_not_found_and_exit();
+            }
+
+            if (auth_is_logged_in()) {
+                auth_redirect_after_successful_login_and_exit();
+            }
+            else {
+                auth_handle_oidc_start_and_exit($provider_name, $login_profiles[$login_profile_id]);
+            }
+
+        }
+        elseif ($req == Req::OidcCallback) {
+
+            ////////////////////////////////
+            // OpenID Connect: Callback   //
+            ////////////////////////////////
+
+            $provider_name = $_GET['oidc_provider'] ?? null;
+            $default_login_profile_id = auth_get_default_login_profile_id();
+            $login_profile_id = $_SESSION['oidc_login_profile_id'] ?? $default_login_profile_id;
+            $login_profiles = core_load_obj('login_profiles');
+
+            if (!is_string($provider_name)) {
+                process_not_found_and_exit();
+            }
+            if (!is_string($login_profile_id) || !isset($login_profiles[$login_profile_id])) {
+                $login_profile_id = $default_login_profile_id;
+            }
+
+            if (auth_is_logged_in()) {
+                auth_redirect_after_successful_login_and_exit();
+            }
+            else {
+                auth_handle_oidc_callback_and_exit($provider_name, $login_profiles[$login_profile_id]);
+            }
+
         }
         elseif ($req == Req::Logout) {
     
@@ -157,7 +226,7 @@
             // If user is not privileged to view target, either redirect to
             // login page or send "unauthorized"
             if (!auth_is_cur_user_privileged_for_view($target)) {
-                auth_handle_unauthorized_and_exit();
+                auth_handle_unauthorized_and_exit($target->get_login_profile());
             }
     
             // Respond "not modified", i.e. file cached by browser?
@@ -220,7 +289,7 @@
             // If user is not privileged to view target, either redirect to
             // login page or send "unauthorized"
             if (!auth_is_cur_user_privileged_for_view($target)) {
-                auth_handle_unauthorized_and_exit();
+                auth_handle_unauthorized_and_exit($target->get_login_profile());
             }
             
             // If resource outside of `content` dir, treat it as non-existing.

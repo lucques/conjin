@@ -18,7 +18,8 @@
 
     $preprocess_objs = [
         'target_root',
-        'syslet_login',
+        'login_profiles',
+        'default_login_profile_id',
         'syslet_not_found',
         'syslet_unauthorized',
         'groups_2_userlist_ser',

@@ -1,5 +1,5 @@
 <?
-    $render_login = function(ModuleLocation $template_self, Module $template, Syslet $syslet, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []) {
+    $render_login = function(ModuleLocation $template_self, Module $template, LoginProfile $login_profile, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names, array $placeholders_overrides = []) {
 
         //////////////////////////
         // Prepare placeholders //
@@ -20,7 +20,7 @@
         // Render //
         ////////////
 
-        $module_doc_extensions_active = $syslet->has_activated_module('doc-extensions');
+        $module_doc_extensions_active = $login_profile->has_activated_module('doc-extensions');
 ?>
 <!doctype html>
 <html lang="de">
@@ -85,8 +85,8 @@
     foreach ($openid_provider_names as $provider_name) {
 ?>
         <div style="width: 300px; margin:20px auto; border-radius:4px; padding:20px; background-color:white;">
-            <form method="get" style="margin:0;" action="<?= auth_get_login_url_for_openid($provider_name) ?>">
-                <input type="hidden" name="open_id_provider" value="<?= htmlspecialchars($provider_name) ?>" />
+            <form method="get" style="margin:0;" action="<?= auth_get_oidc_start_url($provider_name) ?>">
+                <input type="hidden" name="login_profile" value="<?= htmlspecialchars($login_profile->id) ?>" />
 <?
     // Submit potential redirect URL as form field
     if (isset($_GET['redirect'])) {

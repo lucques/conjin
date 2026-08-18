@@ -1,15 +1,15 @@
 <?
-    function process_login(Syslet $syslet, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names) {
+    function process_login(LoginProfile $login_profile, bool $logout_successful, bool $password_incorrect, mixed $openid_fail, array $openid_provider_names) {
 
         // Init modules
-        foreach ($syslet->activated_modules as $name => $module) {
+        foreach ($login_profile->activated_modules as $name => $module) {
             ob_start();
-            $module->init_processing_syslet($syslet, core_load_obj('target_root'));
+            $module->init_processing_syslet($login_profile, core_load_obj('target_root'));
             ob_end_clean();
         }
 
         // Render
-        $syslet->get_template()->render_login($syslet, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names);
+        $login_profile->get_template()->render_login($login_profile, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names);
     }
 
     function process_not_found_and_exit() {

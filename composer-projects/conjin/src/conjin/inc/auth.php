@@ -107,11 +107,12 @@
 
     // Preconditions:
     // - User is not currently logged in
-    function auth_handle_login_and_exit() {
+    function auth_handle_login_and_exit(LoginProfile $login_profile) {
         $password_incorrect = false;
-        $openid_fail        = null;  // Either `null` or of type [providerName => '...', message => 'the-message']
+        $openid_fail        = $_SESSION['oidc_fail'] ?? null;
+        unset($_SESSION['oidc_fail']);
 
-        // 1. If login for static user was tried
+        // If login for static user was tried
         if (isset($_POST['password'])) {
             // Get the user or `null`
             $user = auth_aux_try_login($_POST['password']);
@@ -126,104 +127,9 @@
                 $password_incorrect = true;
             }
         }
-        // 2. If login using an OpenID provider was tried
-        else if (isset($_GET['openid'])) {
-            $providers = get_global_config('authentication', 'openIdProviders');
-            
-            // Find provider
-            $providerName = $_GET['openid'];
-            $server       = null;
-            $clientID     = null;
-            $clientSecret = null;
-            foreach ($providers as $provider) {
-                if ($provider['name'] == $providerName) {
-                    $server       = $provider['server'];
-                    $clientID     = $provider['clientId'];
-                    $clientSecret = $provider['clientSecret'];
-                    break;
-                }
-            }
 
-            if ($server === null) {
-                fail('OpenID provider not found: ' . $providerName);
-            }
-
-            // Save potential redirect URL in session var, because the OpenID
-            // server will not return it via query string.
-            if (isset($_GET['redirect'])) {
-                $_SESSION['redirect'] = $_GET['redirect'];
-            }
-
-            // Use OpenID Connect client to authenticate
-            $oidc = new OpenIDConnectClient($server, $clientID, $clientSecret);
-            $oidc->addScope($provider['scopes']);
-
-            // Any error from the OpenID server is thrown as an exception.
-            try {
-                // Run authentication
-                $oidc->authenticate();
-
-                // Pick up after re-connect
-                $idAttribute = $oidc->requestUserInfo($provider['idAttribute']);
-
-                $emailAttribute = isset($provider['emailAttribute']) ? 
-                    $oidc->requestUserInfo($provider['emailAttribute']) : 
-                    null;
-
-                // Collect markers
-                $markers = [];
-                foreach ($provider['markerAttributes'] as $markerAttribute) {
-                    $value = $oidc->requestUserInfo($markerAttribute['attributeName']);
-
-                    if ($markerAttribute['isList']) {
-                        foreach ($value as $marker) {
-                            if (isset($markerAttribute['subkey'])) {
-                                $subkey = $markerAttribute['subkey'];
-                                $markers[] = new OpenIdMarker(
-                                    $markerAttribute['attributeName'],
-                                    $marker->$subkey
-                                );
-                            }
-                            else {
-                                $markers[] = new OpenIdMarker(
-                                    $markerAttribute['attributeName'],
-                                    $marker
-                                );
-                            }
-                        }
-                    }
-                    else {
-                        if (isset($markerAttribute['subkey'])) {
-                            $markers[] = new OpenIdMarker(
-                                $markerAttribute['attributeName'],
-                                $value[$markerAttribute['subkey']]
-                            );
-                        }
-                        else {
-                            $markers[] = new OpenIdMarker(
-                                $markerAttribute['attributeName'],
-                                $value
-                            );
-                        }
-                    }
-                }
-
-                $user = new OpenIdResolvedUser($providerName, $idAttribute, $emailAttribute, $markers);
-
-                // Establish login session
-                $_SESSION['user'] = $user;
-                $GLOBALS['user']  = $user;
-            }
-            catch (Exception $e) {
-                $openid_fail = [
-                    'providerName' => $providerName,
-                    'message'      => $e->getMessage(),
-                ];
-            }
-        }
-
-        // By now, potential login attempts were handled. Proceed by redirect
-        // or by showing the login page.    
+        // By now, a potential static login attempt was handled. Proceed by
+        // redirecting or showing the login page.
         if (auth_is_logged_in()) {
             auth_redirect_after_successful_login_and_exit();
         }
@@ -242,10 +148,158 @@
                 $openid_provider_names[] = $provider['name'];
             }
 
-            process_login(core_load_obj('syslet_login'), $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names);
+            process_login($login_profile, $logout_successful, $password_incorrect, $openid_fail, $openid_provider_names);
             
             exit();
         }
+    }
+
+    // Preconditions:
+    // - User is not currently logged in
+    // - Login profile exists
+    function auth_handle_oidc_start_and_exit(string $provider_name, LoginProfile $login_profile): never {
+        $provider = auth_aux_get_openid_provider($provider_name);
+        if ($provider === null) {
+            process_not_found_and_exit();
+        }
+
+        if (isset($_GET['redirect'])) {
+            if (!is_string($_GET['redirect'])) {
+                send_response_and_exit(400);
+            }
+            $_SESSION['redirect'] = $_GET['redirect'];
+        }
+
+        $_SESSION['oidc_provider_name'] = $provider_name;
+        $_SESSION['oidc_login_profile_id'] = $login_profile->id;
+
+        try {
+            auth_aux_make_oidc_client($provider)->authenticate();
+        }
+        catch (Exception $e) {
+            auth_aux_handle_oidc_failure_and_exit($provider_name, $login_profile, $e);
+        }
+
+        fail('OpenID Connect authorization did not redirect');
+    }
+
+    // Preconditions:
+    // - User is not currently logged in
+    function auth_handle_oidc_callback_and_exit(string $provider_name, LoginProfile $login_profile): never {
+        if (!isset($_GET['code']) && !isset($_GET['error'])) {
+            send_response_and_exit(400);
+        }
+
+        $provider = auth_aux_get_openid_provider($provider_name);
+        if ($provider === null) {
+            process_not_found_and_exit();
+        }
+
+        try {
+            if (($_SESSION['oidc_provider_name'] ?? null) !== $provider_name) {
+                throw new Exception('No matching OpenID Connect login attempt was found.');
+            }
+
+            $oidc = auth_aux_make_oidc_client($provider);
+            $oidc->authenticate();
+            $user = auth_aux_resolve_openid_user($provider_name, $provider, $oidc);
+
+            $_SESSION['user'] = $user;
+            $GLOBALS['user']  = $user;
+        }
+        catch (Exception $e) {
+            auth_aux_handle_oidc_failure_and_exit($provider_name, $login_profile, $e);
+        }
+
+        auth_redirect_after_successful_login_and_exit();
+    }
+
+    function auth_aux_get_openid_provider(string $provider_name): ?array {
+        foreach (get_global_config('authentication', 'openIdProviders') as $provider) {
+            if ($provider['name'] === $provider_name) {
+                return $provider;
+            }
+        }
+
+        return null;
+    }
+
+    function auth_aux_make_oidc_client(array $provider): OpenIDConnectClient {
+        $oidc = new OpenIDConnectClient(
+            $provider['server'],
+            $provider['clientId'],
+            $provider['clientSecret']
+        );
+        $oidc->setRedirectURL(auth_get_oidc_callback_url($provider['name'], full: true));
+        $oidc->addScope($provider['scopes']);
+
+        return $oidc;
+    }
+
+    function auth_aux_resolve_openid_user(
+        string $provider_name,
+        array $provider,
+        OpenIDConnectClient $oidc
+    ): OpenIdResolvedUser {
+        $id_attribute = $oidc->requestUserInfo($provider['idAttribute']);
+        $email_attribute = isset($provider['emailAttribute'])
+            ? $oidc->requestUserInfo($provider['emailAttribute'])
+            : null;
+
+        $markers = [];
+        foreach ($provider['markerAttributes'] as $marker_attribute) {
+            $value = $oidc->requestUserInfo($marker_attribute['attributeName']);
+
+            if ($marker_attribute['isList']) {
+                foreach ($value as $marker) {
+                    if (isset($marker_attribute['subkey'])) {
+                        $subkey = $marker_attribute['subkey'];
+                        $markers[] = new OpenIdMarker(
+                            $marker_attribute['attributeName'],
+                            $marker->$subkey
+                        );
+                    }
+                    else {
+                        $markers[] = new OpenIdMarker(
+                            $marker_attribute['attributeName'],
+                            $marker
+                        );
+                    }
+                }
+            }
+            elseif (isset($marker_attribute['subkey'])) {
+                $markers[] = new OpenIdMarker(
+                    $marker_attribute['attributeName'],
+                    $value[$marker_attribute['subkey']]
+                );
+            }
+            else {
+                $markers[] = new OpenIdMarker(
+                    $marker_attribute['attributeName'],
+                    $value
+                );
+            }
+        }
+
+        return new OpenIdResolvedUser($provider_name, $id_attribute, $email_attribute, $markers);
+    }
+
+    function auth_aux_handle_oidc_failure_and_exit(
+        string $provider_name,
+        LoginProfile $login_profile,
+        Exception $exception
+    ): never {
+        $_SESSION['oidc_fail'] = [
+            'providerName' => $provider_name,
+            'message'      => $exception->getMessage(),
+        ];
+        unset($_SESSION['oidc_provider_name']);
+        unset($_SESSION['oidc_login_profile_id']);
+
+        $queries = isset($_SESSION['redirect']) && is_string($_SESSION['redirect'])
+            ? ['redirect' => $_SESSION['redirect']]
+            : [];
+        redirect_see_other_and_exit(auth_get_login_url($login_profile->id) . make_query_string($queries));
     }
 
     // Precondition: User is eligible to logout.
@@ -260,6 +314,9 @@
 
     // Redirect from login page to the page the user wanted to access.
     function auth_redirect_after_successful_login_and_exit() {
+        unset($_SESSION['oidc_provider_name']);
+        unset($_SESSION['oidc_login_profile_id']);
+
         // There are three options:
         // 1. Redirect is in the query string
         // 2. Redirect is in the session variable
@@ -279,9 +336,9 @@
         }
     }
 
-    function auth_handle_unauthorized_and_exit() {
+    function auth_handle_unauthorized_and_exit(?string $login_profile_id = null) {
         if (!auth_is_logged_in()) {
-            redirect_temporarily_and_exit(auth_get_login_url_with_redirect());
+            redirect_temporarily_and_exit(auth_get_login_url_with_redirect($login_profile_id));
         }
         else {
             process_unauthorized_and_exit(); // Unauthorized
@@ -761,20 +818,45 @@
     // For templates //
     ///////////////////
 
+    function auth_get_default_login_profile_id(): string {
+        return core_load_obj('default_login_profile_id');
+    }
+
+    function auth_get_login_url(?string $profile_id = null): string {
+        if ($profile_id === null || $profile_id === auth_get_default_login_profile_id()) {
+            return url() . 'login/';
+        }
+
+        assert(
+            preg_match('/^[a-z0-9_-]+$/', $profile_id) === 1,
+            "Invalid login profile name `$profile_id`"
+        );
+
+        return url() . 'login/' . $profile_id . '/';
+    }
+
     // This function returns the url to a login page, with a redirection param
     // pointing to the current url.
     // Any query strings e.g. `?solution=true` are preserved.
-    function auth_get_login_url_with_redirect(): string {
+    function auth_get_login_url_with_redirect(?string $login_profile_id = null): string {
+        $login_url = auth_get_login_url($login_profile_id);
+
         if ($_SERVER['REQUEST_URI'] != '/') {
-            return url() . 'login/' . make_query_string(['redirect' => $_SERVER['REQUEST_URI']]);
+            return $login_url . make_query_string(['redirect' => $_SERVER['REQUEST_URI']]);
         }
         else {
-            return url() . 'login/';
+            return $login_url;
         }
     }
 
-    function auth_get_login_url_for_openid(string $provider_name): string {
-        return url() . 'login/openid/' . $provider_name;
+    function auth_get_oidc_start_url(string $provider_name): string {
+        return url() . 'auth/oidc/' . rawurlencode($provider_name) . '/start';
+    }
+
+    function auth_get_oidc_callback_url(string $provider_name, bool $full = false): string {
+        $suffix = 'auth/oidc/' . rawurlencode($provider_name) . '/callback';
+
+        return $full ? url_full($suffix) : url() . $suffix;
     }
 
     function auth_get_logout_url(): string {

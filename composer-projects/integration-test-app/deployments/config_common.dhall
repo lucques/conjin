@@ -53,6 +53,7 @@ let authorization = T.Authorization::{
         , t.denyViewActionToStaticUser ["module-tests-expect-success", "nav-view", "structural", "hidden-only-parent", "hidden-child"] "guest"
         , t.allowViewActionForStaticUser ["module-tests-expect-success", "nav-view", "empty"] "guest"
         , t.denyViewActionToStaticUser ["module-tests-expect-success", "nav-view", "empty", "hidden-child"] "guest"
+        , t.denyViewActionToStaticUser ["login-profile"] "guest"
     ]
 }
 

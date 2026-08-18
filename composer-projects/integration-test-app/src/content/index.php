@@ -8,6 +8,7 @@
         $c->add_subpage('module-ext-tests-expect-success');
         $c->add_subpage('module-tests-expect-success');
         $c->add_subpage('module-tests-expect-fail');
+        $c->add_subpage('login-profile');
     };
 
     $process = function (Target $target) {

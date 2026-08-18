@@ -1,5 +1,9 @@
 <?
-    $preprocess = function (SysletPreprocessContext $c) {
-        $c->activate_template('template-generic');
-    };
+    $profiles = [
+        'default' => function (SysletPreprocessContext $c) {
+            $c->activate_template('template-generic');
+        },
+    ];
+
+    $default_profile_id = 'default';
 ?>

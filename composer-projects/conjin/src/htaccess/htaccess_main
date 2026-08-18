@@ -22,10 +22,12 @@ RewriteRule ^users.json$                                        - [F,L]
 RewriteRule ^preprocess/$                                       conjin/index.php?req=preprocess [L]
 RewriteRule ^debug/$                                            conjin/index.php?req=debug [QSA,L]
 RewriteRule ^login/$                                            conjin/index.php?req=login [QSA,L]
+RewriteRule ^login/([a-zA-Z0-9_-]+)/$                           conjin/index.php?req=login&login_profile=$1 [QSA,L]
 RewriteRule ^logout/$                                           conjin/index.php?req=logout [QSA,L]
 
-# Open ID Connect
-RewriteRule ^login/openid/(.+)$                                 conjin/index.php?req=login&openid=$1 [QSA,L]
+# OpenID Connect
+RewriteRule ^auth/oidc/([a-zA-Z0-9_.-]+)/start$                 conjin/index.php?req=oidc-start&oidc_provider=$1 [QSA,L]
+RewriteRule ^auth/oidc/([a-zA-Z0-9_.-]+)/callback$              conjin/index.php?req=oidc-callback&oidc_provider=$1 [QSA,L]
 RewriteRule ^debug/openid/(.+)$                                 conjin/index.php?req=debug&what=openid&openid=$1 [QSA,L]
 
 # Content

@@ -107,3 +107,35 @@ If not logged in yet ("guest" user) and via "login" page or something similar, t
 ## Static users
 
 Passwords can be configured in plaintext or as hashes. Plaintext passwords should not contain special characters.
+
+
+## Login profiles
+
+Applications define their login profiles through a `$profiles` map and select one of them through `$default_profile_id` in `system/login.php`. The map associates every profile ID with a preprocessing callback. Every callback receives an independent `SysletPreprocessContext`, so profiles may use different templates, modules, and module configurations while sharing the framework authentication handlers.
+
+```php
+$profiles = [
+    'default' => function (SysletPreprocessContext $c) {
+        $c->activate_template('template-generic');
+    },
+    'standalone' => function (SysletPreprocessContext $c) {
+        $c->activate_template('template-navigable');
+    },
+];
+
+$default_profile_id = 'default';
+```
+
+Both variables are required, and `$default_profile_id` must identify an entry in `$profiles`. The profile ID `default` has no reserved meaning and may be replaced by any valid profile ID. The former single `$preprocess` callback form is not supported.
+
+During preprocessing, every map entry becomes a `LoginProfile` object. `LoginProfile` extends `Syslet` with its immutable `$id`, while retaining the activated modules and template. The resulting map and selected default ID are stored as the `login_profiles` and `default_login_profile_id` preprocessing objects. Login render callbacks receive the selected `LoginProfile` and can access its ID as `$login_profile->id`; the profile ID is not kept in global state.
+
+Targets select a profile during preprocessing. The selection is inherited by descendants, and targets without a selection use the profile identified by `$default_profile_id`.
+
+```php
+$c->set_login_profile('standalone');
+```
+
+When an anonymous user requests a protected target, Conjin redirects to `/login/<profile>/?redirect=...`. `/login/` selects the configured default profile independently of its ID. Profile IDs may contain lowercase ASCII letters, digits, underscores, and hyphens.
+
+Login pages and OpenID Connect protocol endpoints use separate URL namespaces. `/auth/oidc/<provider>/start` initiates authentication and `/auth/oidc/<provider>/callback` receives the provider response. The callback URL must be registered exactly as an allowed redirect URI at the provider. Conjin stores the selected login profile and destination in the session for the duration of the authentication attempt.
