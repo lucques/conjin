@@ -33,6 +33,7 @@ Frameworks discover these files automatically inside each category. File filters
 | `unit-phpunit` | [SubmissionTokensTest.php](../tests/php/unit/SubmissionTokensTest.php) | — |
 | `unit-phpunit` | [TargetSplitTest.php](../tests/php/unit/TargetSplitTest.php) | — |
 | `integration-phpunit` | [AuthSessionTest.php](../tests/php/integration/AuthSessionTest.php) | — |
+| `integration-phpunit` | [CacheHttpTest.php](../tests/php/integration/CacheHttpTest.php) | — |
 | `integration-phpunit` | [FeedbackCollectorTest.php](../tests/php/integration/FeedbackCollectorTest.php) | feedback-collector |
 | `integration-phpunit` | [IssueTrackerNotificationsTest.php](../tests/php/integration/IssueTrackerNotificationsTest.php) | issue-tracker |
 | `integration-phpunit` | [ModuleEntrypointsTest.php](../tests/php/integration/ModuleEntrypointsTest.php) | bootstrap-extended, template-interbook |
@@ -55,14 +56,11 @@ This maps dedicated tests to modules; it is not a measured code-coverage percent
 | db-mysql | — | [expect-success/db-mysql.spec.ts](../tests/integration/specs/http/expect-success/module-tests/db-mysql.spec.ts) | — | — |
 | doc-extensions | — | — | — | [expect-success/doc-extensions.spec.ts](../tests/integration/specs/e2e/expect-success/module-tests/doc-extensions.spec.ts) |
 | dynamic-toggle | — | — | — | [expect-success/dynamic-toggle.spec.ts](../tests/integration/specs/e2e/expect-success/module-tests/dynamic-toggle.spec.ts) |
-| eskuel-suite | — | — | — | — |
 | exercise | — | [expect-fail/exercise.spec.ts](../tests/integration/specs/http/expect-fail/module-tests/exercise.spec.ts) | — | [expect-success/exercise.spec.ts](../tests/integration/specs/e2e/expect-success/module-tests/exercise.spec.ts) |
 | favicons | — | — | — | [expect-success/favicons.spec.ts](../tests/integration/specs/e2e/expect-success/module-tests/favicons.spec.ts) |
 | feedback-collector | [FeedbackConfigurationTest.php](../tests/php/unit/FeedbackConfigurationTest.php) | [FeedbackCollectorTest.php](../tests/php/integration/FeedbackCollectorTest.php) | [component-playwright](../tests/components/feedback-collector.spec.ts) | — |
 | footnotes | — | — | — | [expect-success/footnotes.spec.ts](../tests/integration/specs/e2e/expect-success/module-tests/footnotes.spec.ts) |
 | fullcalendar | — | — | — | [expect-success/fullcalendar.spec.ts](../tests/integration/specs/e2e/expect-success/module-ext-tests/fullcalendar.spec.ts) |
-| geogebra | — | — | — | — |
-| geogebra-helpers | — | — | — | — |
 | grading | — | — | — | [expect-success/grading.spec.ts](../tests/integration/specs/e2e/expect-success/module-tests/grading.spec.ts) |
 | graphing-types | — | — | — | — |
 | hamster | — | — | — | — |
@@ -73,7 +71,6 @@ This maps dedicated tests to modules; it is not a measured code-coverage percent
 | json-editor | — | — | — | — |
 | jsxgraph | — | — | — | [expect-success/jsxgraph.spec.ts](../tests/integration/specs/e2e/expect-success/module-ext-tests/jsxgraph.spec.ts) |
 | jsxgraph-helpers | [JSXGraphAxesTest.php](../tests/php/unit/JSXGraphAxesTest.php) | [expect-fail/jsxgraph-helpers.spec.ts](../tests/integration/specs/http/expect-fail/module-tests/jsxgraph-helpers.spec.ts) | — | [expect-success/jsxgraph-axes.spec.ts](../tests/integration/specs/e2e/expect-success/module-tests/jsxgraph-axes.spec.ts)<br>[expect-success/jsxgraph-helpers.spec.ts](../tests/integration/specs/e2e/expect-success/module-tests/jsxgraph-helpers.spec.ts) |
-| klipse-with-tau-prolog | — | — | — | — |
 | locale-de | — | — | — | — |
 | localization | — | [expect-success/localization.spec.ts](../tests/integration/specs/http/expect-success/module-tests/localization.spec.ts) | — | [expect-success/localization.spec.ts](../tests/integration/specs/e2e/expect-success/module-tests/localization.spec.ts) |
 | markdown | — | — | — | [expect-success/markdown.spec.ts](../tests/integration/specs/e2e/expect-success/module-tests/markdown.spec.ts) |

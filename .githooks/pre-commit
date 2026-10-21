@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Regenerate the test inventory from the index, preserving unstaged work."""
+
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+
+def git(*args, **kwargs):
+    return subprocess.run(['git', *args], check=True, stdout=subprocess.PIPE, **kwargs).stdout
+
+
+def main():
+    repo = Path(git('rev-parse', '--show-toplevel').decode().strip())
+    paths = ('tests', 'composer-projects/conjin/src/modules-shared', 'composer-projects/conjin/ext/modules-shared')
+    with tempfile.TemporaryDirectory(prefix='conjin-inventory-') as directory:
+        snapshot = Path(directory)
+        files = git('ls-files', '-z', '--', *paths, cwd=repo)
+        git('checkout-index', '--force', '--prefix=' + directory + '/', '-z', '--stdin', input=files, cwd=repo)
+        (snapshot / 'doc').mkdir()
+        subprocess.run([sys.executable, str(snapshot / 'tests/support/document_inventory.py')], check=True)
+        generated = (snapshot / 'doc/test_inventory.md').read_bytes()
+
+    target = 'doc/test_inventory.md'
+    indexed = git('show', ':' + target, cwd=repo)
+    working = repo / target
+    if not working.is_file() or working.read_bytes() not in (indexed, generated):
+        sys.exit('Inventory has unstaged edits. Stage or save doc/test_inventory.md before committing; no inventory changes were made.')
+    if generated != indexed:
+        blob = git('hash-object', '-w', '--stdin', input=generated, cwd=repo).decode().strip()
+        git('update-index', '--add', '--cacheinfo', '100644,' + blob + ',' + target, cwd=repo)
+        print('Updated and staged doc/test_inventory.md from staged tests.')
+    working.write_bytes(generated)
+
+
+if __name__ == '__main__':
+    main()

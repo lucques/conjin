@@ -8,6 +8,9 @@ conjin_dir="${composer_projects_dir}/conjin"
 demo_app_dir="${composer_projects_dir}/demo-app"
 integration_test_app_dir="${composer_projects_dir}/integration-test-app"
 
+# Activate the versioned hooks for this clone.
+git -C "${repository_dir}" config --local core.hooksPath .githooks
+
 # 1. Validate the tools used by the remaining setup phases. Checking everything
 # up front produces a useful error before any dependencies or assets are changed.
 echo "[1/6] Checking required setup tools"

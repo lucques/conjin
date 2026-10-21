@@ -27,7 +27,9 @@ def render():
     text += ['', '## Shared module map', '', 'This maps dedicated tests to modules; it is not a measured code-coverage percentage or a claim that every behavior is covered. A dash means no dedicated test is mapped at that level. LinkChecker may traverse demo or integration content for a module, but crawling alone does not establish its behavioral coverage. PHP integration cases use real SQLite/filesystem or module machinery with captured external effects. Component cases use routed browser fixtures; end-to-end cases use the deployed application.', '', '| Module | Unit | Integration | Component | End-to-end |', '| --- | --- | --- | --- | --- |']
     framework = REPO / 'composer-projects/conjin'
     for module in sorted(list((framework / 'src/modules-shared').iterdir()) + list((framework / 'ext/modules-shared').iterdir()), key=lambda p: p.name):
-        if not module.is_dir(): continue
+        # Module READMEs identify source modules; stale/generated directories
+        # must not make the inventory depend on local build history.
+        if not module.is_dir() or not (module / 'README.md').is_file(): continue
         cells = {category: [] for category in ('unit', 'integration', 'component', 'e2e')}
         for suite, file, modules in files:
             if module.name in modules:
