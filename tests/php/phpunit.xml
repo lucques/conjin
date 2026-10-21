@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../composer-projects/conjin/vendor/phpunit/phpunit/phpunit.xsd"
+    cacheDirectory="../../.cache/phpunit"
+    failOnEmptyTestSuite="true" failOnRisky="true" failOnWarning="true"
+    failOnSkipped="true" failOnIncomplete="true" failOnDeprecation="true">
+    <testsuites>
+        <testsuite name="unit"><directory>unit</directory></testsuite>
+        <testsuite name="integration"><directory>integration</directory></testsuite>
+    </testsuites>
+    <php>
+        <ini name="zend.assertions" value="1"/>
+        <ini name="assert.exception" value="1"/>
+    </php>
+    <source><include><directory>../../composer-projects/conjin/src</directory></include></source>
+</phpunit>

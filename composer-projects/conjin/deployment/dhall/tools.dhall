@@ -509,6 +509,7 @@ let makeDefaultLocalDepl =
             , appDir
             , targetDir            = makeDefaultTargetDir    deplDir
             , cssVolDir            = makeDefaultDockerVolDir deplDir ++ "/css"
+            , targetSplitDepth     = 0
             , authentication
             , authorization
             , bareModules          = bareModuleListToMap (sharedBareModulesWrapped # localBareModulesWrapped)
@@ -555,6 +556,7 @@ let makeDefaultRemoteDepl =
             , appDir
             , targetDir            = makeDefaultTargetDir deplDir
             , cssVolDir            = makeDefaultDockerVolDir deplDir ++ "/css"
+            , targetSplitDepth     = 0
             , authentication
             , authorization
             , bareModules          = bareModuleListToMap (sharedBareModulesWrapped # localBareModulesWrapped)
@@ -565,6 +567,7 @@ let makeDefaultRemoteDepl =
         , desktopIntegration = makeDefaultDesktopIntegration name
         , host
         , pathBase
+        , internalDir = "conjin"
         , urlBase
         , https                  = T.HTTPS.Force {=}
         , wwwSubdomain           = T.WWWSubdomain.Off {=}

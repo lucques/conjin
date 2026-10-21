@@ -9,6 +9,7 @@ clear_outputs res
 
 cat \
     "${prism_dir}/prism.js" \
+    "${prism_dir}/components/prism-typescript.min.js" \
     "${prism_dir}/components/prism-java.min.js" \
     "${prism_dir}/components/prism-sql.min.js" \
     "${prism_dir}/plugins/line-highlight/prism-line-highlight.min.js" \

@@ -63,7 +63,7 @@ Without the `print-mode` module, the DOM structure is as follows.
 ## Print wrapper
 When `print-mode` is activated, `template-navigable` implements an internal wrapper mechanism using `?wrapper=0` and `?wrapper=1`.
 
-`wrapper=1` is the default and renders the normal navigable shell with an iframe in place of the `<main>` content. The iframe points to the same target with `wrapper=0`. `wrapper=0` renders only a minimal standalone document and initializes paged.js there. This isolates paged.js and the generated pages from the navigation document. The wrapper's print button opens the browser print dialog for the iframe document; it does not toggle print mode.
+`wrapper=1` is the default and renders the normal navigable shell with an iframe in place of the `<main>` content. The iframe points to the same target with `wrapper=0`. `wrapper=0` renders only a minimal standalone document and prepares it using the configured print-mode renderer. This isolates paged.js and the generated pages from the navigation document. The wrapper's print button opens the browser print dialog for the iframe document; it does not toggle print mode.
 
 The wrapper document has this structure:
 

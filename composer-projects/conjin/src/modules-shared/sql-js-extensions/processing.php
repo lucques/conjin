@@ -3,7 +3,8 @@
     // Init //
     //////////
 
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
+        $GLOBALS['sql_js_extensions_page_prep_active'] = $target->has_activated_module('page-prep');
         if ($module->config->get('import_from_url') !== null) {
             doc_extensions_add_head_element('<script src="'. $module->config->get('import_from_url') . '/res/library.js"></script>');
             doc_extensions_add_head_element('<link href="'. $module->config->get('import_from_url') . '/res/styles.css" rel="stylesheet">');
@@ -163,12 +164,16 @@
         $results_var     = sql_js_query_resultset($db_var, $sql);
         // 2. Print
         $results_view_id = 'sql_js_inline_resultsview_' . next_unique_id();
+        $task_prefix = $GLOBALS['sql_js_extensions_page_prep_active']
+            ? 'pagePrep.track({ id: ' . sql_js_aux_encode_string_for_js('sql-results:' . $results_view_id) . ", before: 'initialContentReady', promise: "
+            : '';
+        $task_suffix = $GLOBALS['sql_js_extensions_page_prep_active'] ? ' });' : ';';
 ?>
         <div id="<?= $results_view_id ?>" class="stack"></div>
         <script>
-            <?= $results_var ?>.then(function(results) {
+            <?= $task_prefix ?><?= $results_var ?>.then(function(results) {
                 document.getElementById("<?= $results_view_id ?>").innerHTML = sql_js_inline_resultsToHTML(results, <?= sql_js_aux_encode_string_for_js($title) ?>, <?= $truncated ? 'true' : 'false' ?>);
-            });
+            })<?= $task_suffix ?>
         </script>
 <?
     }
@@ -196,10 +201,14 @@
         $results_var = sql_js_query_resultset($db_var, $sql);
         // 3. Print
         $results_view_id = 'sql_js_inline_resultsview_' . next_unique_id();
+        $task_prefix = $GLOBALS['sql_js_extensions_page_prep_active']
+            ? 'pagePrep.track({ id: ' . sql_js_aux_encode_string_for_js('sql-schema:' . $results_view_id) . ", before: 'initialContentReady', promise: "
+            : '';
+        $task_suffix = $GLOBALS['sql_js_extensions_page_prep_active'] ? ' });' : ';';
 ?>
        <div id="<?= $results_view_id ?>" class="stack"></div>
        <script>
-           <?= $results_var ?>.then(function(results) {
+           <?= $task_prefix ?><?= $results_var ?>.then(function(results) {
                 const tables = <?= sql_js_aux_encode_value_for_js($tables) ?>;
                 // Go through tables. If a table has a query, then add the results to it.
                 let resultIndex = 0;
@@ -211,7 +220,7 @@
                 }
                 document.getElementById("<?= $results_view_id ?>").innerHTML = sql_js_inline_schemaWithResultsToHTML(tables, <?= $show_button ? 'true' : 'false' ?>);
            
-           });
+           })<?= $task_suffix ?>
        </script>
 <?
     }

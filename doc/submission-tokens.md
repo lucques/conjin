@@ -1,0 +1,15 @@
+# Submission tokens
+
+State-changing forms can use the session-backed API in `composer-projects/conjin/src/conjin/inc/auth_submission_tokens.php`, loaded by authentication initialization. Session startup is managed lazily by the [auth session layer](auth-sessions.md). Tokens combine CSRF protection with bounded duplicate detection; permission checks remain mandatory.
+
+Call `auth_issue_submission_token($scope)` for each rendered form and put the returned token in an HTML-escaped hidden field. The caller supplies one server-derived scope identifying its module, the form/action, storage configuration, and any record known at render time. Current resolved identity is bound centrally. Never accept a posted scope as authoritative. Multiple rendered forms and tabs have independent tokens.
+
+After confirming the request targets the action, checking basic field structure, and checking permissions, call `auth_consume_submission_token($submittedToken, $expectedScope)` before validation or side effects. Its result is `SubmissionTokenResult::Valid`, `Duplicate`, or `Invalid`. Only `Valid` may proceed. Unknown, malformed, expired, wrong-session, wrong-identity, and wrong-scope tokens are invalid. Consumed tokens are duplicates only in their original context. An invalid request must receive a rejection/reload message; a duplicate must not repeat the operation.
+
+Consumption completes an attempt even if validation or persistence fails. Render a new form and token for corrections and retries. An original POST cannot be retried after a lost response; the user must load a fresh form. Tokens do not prevent a user from loading and submitting several fresh forms.
+
+Records are server-side in `$_SESSION['conjin_submission_tokens']`, limited across the session to 256 issued and 128 consumed tokens. Tokens expire two hours after issuance; oldest entries are evicted when a limit is reached. Keep scopes application-controlled; callers are responsible for choosing distinct scope IDs. Form HTML must not enter a shared cache; tokens must not appear in URLs or logs. Cookie `SameSite` configuration is additional protection, not a substitute for token checks.
+
+Issuing a token starts a session when needed. Consuming a token resumes an existing session if present and otherwise returns `Invalid` without creating a session. Keep its exclusive lock held through consumption and the action; the default file session handler provides this, but custom handlers must also serialize requests for a session. Do not call `session_write_close()` before completing the action. This is bounded duplicate detection, not durable exactly-once execution. Consumed records can expire or be evicted (subsequent replays are then invalid), and process/session-storage failure can lose state. Use a transactional database submission key for durable idempotency if needed.
+
+The previous unscoped deduplication helpers have been removed. All callers must issue and consume scoped submission tokens. Old open forms require reloading after rollout.

@@ -22,7 +22,7 @@ let makeWebserverHealthcheck = common.makeWebserverHealthcheck
 let makeMariaDbHealthcheck = common.makeMariaDbHealthcheck
 let makeModuleCssVolName = common.makeModuleCssVolName
 let moduleToString = common.moduleToString
-let makeHtdocsVols = common.makeHtdocsVols
+let makeWebserverVols = common.makeWebserverVols
 let makeTemplateSassCompilation = common.makeTemplateSassCompilation
 
 
@@ -45,7 +45,7 @@ let makeTestDeplCompose =
                 (makeNamedVol (makeModuleCssVolName location)
                               target)
 
-    let htdocsVols = makeHtdocsVols
+    let webserverVols = makeWebserverVols
             config.depl.targetDir
             config.depl.appDir
             config.depl.conjinDir
@@ -53,9 +53,7 @@ let makeTestDeplCompose =
             config.depl.staticFiles
             config.depl.modules
             makeReadonlyModuleCssNamedVol  -- Named vols
-            False                     -- Put outside of htdocs dir
-            False                     -- Put outside of htdocs dir
-            False                     -- Put outside of htdocs dir
+            "/files/conjin"
 
     let withStore = P.Bool.not (P.Optional.null T.TestStore config.store)
 
@@ -84,16 +82,17 @@ let makeTestDeplCompose =
         ])
         , environment = Some (Compose.ListOrDict.Dict [
             , P.Map.keyText "CONJIN_ENABLE_INTERNAL_AUTH" "1"
+            , P.Map.keyText "CONJIN_TEST_PREPROCESS_USER" config.preprocessUser
         ])
         , volumes = Some (
-            htdocsVols
+            webserverVols
             #
             -- No error log vol
             -- Preprocess data vol
-            [makeNamedVol "preprocess-data" "/files/preprocess"]
+            [makeNamedVol "preprocess-data" "/files/conjin-preprocessing-runtime"]
             #
             -- Store data vol (if enabled)
-            (if withStore then [makeNamedVol "store-data" "/files/store"] else [] : List Compose.ServiceVolume)
+            (if withStore then [makeNamedVol "store-data" "/files/conjin-dyn-data/store"] else [] : List Compose.ServiceVolume)
             #
             (unpackOptionals Compose.ServiceVolume [storeInitVol]))
         , healthcheck = Some makeWebserverHealthcheck
@@ -148,10 +147,10 @@ let makeTestDeplCompose =
         , command = Some (Compose.StringOrList.List [
             , "/bin/sh"
             , "-c"
-            , "chmod 0777 /files/preprocess" ++ (if withStore then " /files/store" else "")
+            , "chmod 0777 /files/conjin-preprocessing-runtime" ++ (if withStore then " /files/conjin-dyn-data/store" else "")
         ])
-        , volumes = Some ([makeNamedVol "preprocess-data" "/files/preprocess"] #
-            (if withStore then [makeNamedVol "store-data" "/files/store"] else [] : List Compose.ServiceVolume))
+        , volumes = Some ([makeNamedVol "preprocess-data" "/files/conjin-preprocessing-runtime"] #
+            (if withStore then [makeNamedVol "store-data" "/files/conjin-dyn-data/store"] else [] : List Compose.ServiceVolume))
     }
 
     let linkcheckerExcludeTargets = P.Text.concatSep "\n"

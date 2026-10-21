@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {       
+    $process_target = function(Module $module, Target $target) {
         $GLOBALS['test_next_number'] = $module->config->get('exercise_start');
         $GLOBALS['test_points']      = 0;
     };

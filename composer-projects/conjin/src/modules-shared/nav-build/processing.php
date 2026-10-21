@@ -3,7 +3,7 @@
     // PROCESSING //
     ////////////////
 
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $GLOBALS['nav_build_target_ids'] = $target->get_ids();
     };
 
@@ -13,6 +13,21 @@
     //////////////////////////
 
     function nav_h(int $level, string $title, ?string $nav_title = null, ?string $id = null, string $class = '', string $style = '') {
+        $html_id = nav_aux_create_heading_anchor($level, $title, $nav_title, $id);
+        html_h($level, $title, id: $html_id, class: $class, style: $style);
+    }
+
+    function nav_h_with_anchor(int $level, string $title, ?string $nav_title = null, ?string $id = null, string $class = '', string $style = '') {
+        $html_id = nav_aux_create_heading_anchor($level, $title, $nav_title, $id);
+        html_h_with_anchor($level, $title, id: $html_id, class: $class, style: $style);
+    }
+
+
+    //////////////
+    // Internal //
+    //////////////
+
+    function nav_aux_create_heading_anchor(int $level, string $title, ?string $nav_title, ?string $id): string {
         // If no id is provided, make one out of title
         if ($id === null) {
             $id = kebabize($title);
@@ -36,7 +51,6 @@
         // Update parent
         $parent_item->add_anchor_child($anchor_item);
         
-        // Print
-        html_h($level, $title, id: anchor_collect($anchor_ids), class: $class, style: $style);
+        return anchor_collect($anchor_ids);
     }
 ?>

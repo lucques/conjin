@@ -1,5 +1,5 @@
 <?
-    $init_preprocessing = function(Module $m, PreprocessContext $c) {
+    $preprocess_target = $preprocess_syslet = function(Module $m, PreprocessContext $c) {
 
         //////////////////////////////////
         // Taken from the base template //
@@ -32,6 +32,9 @@
         ///////////////////
 
         $c->activate_module('sol-mode');
-        $c->activate_module('print-mode');
+        $c->activate_module('print-mode', [
+            'renderer' => 'pagedjs',
+            'renderer_in_sol_mode' => 'native',
+        ]);
     };
 ?>

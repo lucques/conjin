@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function (Module $module) {  
+    $process_target = function (Module $module) {
         mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
         
         // Create connection

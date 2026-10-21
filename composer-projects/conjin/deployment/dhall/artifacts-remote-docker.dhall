@@ -20,7 +20,7 @@ let makeModuleCssDir = common.makeModuleCssDir
 let moduleToString = common.moduleToString
 let htdocsDir = common.htdocsDir
 let conjinComposerPackagePath = common.conjinComposerPackagePath
-let makeHtdocsVols = common.makeHtdocsVols
+let makeWebserverVols = common.makeWebserverVols
 let makeTemplateSassCompilation = common.makeTemplateSassCompilation
 
 
@@ -30,22 +30,42 @@ let makeTemplateSassCompilation = common.makeTemplateSassCompilation
 
 -- TODO: Needs env vars `USER_UID` and `USER_GID` to be set
 let makeUploadJob =
-    \(htdocsVols:      List Compose.ServiceVolume) ->
+    \(webserverVols: List Compose.ServiceVolume) ->
     \(rcloneRemote:    T.RClone) ->
+    \(internalDir:     Text) ->
+    \(withStore: Bool) ->
+    \(withErrorLog: Bool) ->
     let rCloneConfigVol = makeVol rcloneRemote.configPath "/config/rclone/rclone.conf"
-    let excludeConjinComposerPackage = "--exclude='" ++ conjinComposerPackagePath ++ "{,/**}'"
-    let createEmptyDirsCmd = 
-        "rclone copy --progress --create-empty-src-dirs " ++ excludeConjinComposerPackage ++ " " ++ htdocsDir ++ " " ++ rcloneRemote.name ++ ":" ++ rcloneRemote.dir
+    let excludeConjinComposerPackage = "--exclude='/" ++ internalDir ++ conjinComposerPackagePath ++ "{,/**}'"
+    let contentDir = internalDir ++ "/content"
+    -- Sync content separately so deleting excluded dev trees cannot affect
+    -- the deployment's other exclusions.
+    let exclusions = excludeConjinComposerPackage
+        ++ " --exclude=/" ++ internalDir ++ "-dyn-data/**"
+        ++ " --exclude=/" ++ internalDir ++ "-dyn-preprocessing/**"
+        ++ " --exclude=/" ++ internalDir ++ "-dyn-preprocessing-new/**"
+        ++ " --exclude=/" ++ internalDir ++ "-dyn-preprocessing-old/**"
+        ++ " --exclude='/" ++ contentDir ++ "/**'"
+    -- Persistent data is entirely excluded from deployment sync. Install its
+    -- access protection separately, and create optional runtime directories.
+    let dataDir = internalDir ++ "-dyn-data"
+    let remoteRoot = rcloneRemote.name ++ ":" ++ rcloneRemote.dir
+    let protectDataCmd = "rclone copyto " ++ htdocsDir ++ "/" ++ dataDir ++ "/.htaccess " ++ remoteRoot ++ "/" ++ dataDir ++ "/.htaccess"
+        ++ (if withStore then " && rclone mkdir " ++ remoteRoot ++ "/" ++ dataDir ++ "/store" else "")
+        ++ (if withErrorLog then " && rclone mkdir " ++ remoteRoot ++ "/" ++ dataDir ++ "/logs/error" else "")
     let syncCmd =
-        "rclone sync --progress --create-empty-src-dirs " ++ excludeConjinComposerPackage ++ " --exclude=store/** --exclude=logs/error/** " ++ htdocsDir ++ " " ++ rcloneRemote.name ++ ":" ++ rcloneRemote.dir
+        "rclone sync --progress --create-empty-src-dirs " ++ exclusions ++ " " ++ htdocsDir ++ " " ++ rcloneRemote.name ++ ":" ++ rcloneRemote.dir
+    let syncContentCmd =
+        "rclone sync --progress --create-empty-src-dirs --delete-excluded --exclude='dev/**' "
+        ++ htdocsDir ++ "/" ++ contentDir ++ " " ++ remoteRoot ++ "/" ++ contentDir
     in
     Compose.Service::{
         , image      = Some dockerImages.imageRclone
-        , volumes    = Some (htdocsVols # [rCloneConfigVol])
+        , volumes    = Some (webserverVols # [rCloneConfigVol])
         , user       = Some "\${USER_UID:-0}:\${USER_GID:-0}"
         , entrypoint = Some (Compose.StringOrList.String "sh")
         , command    = Some (Compose.StringOrList.String 
-                            ("-c \"" ++ createEmptyDirsCmd ++ " && " ++ syncCmd ++ "\""))
+                            ("-c \"" ++ protectDataCmd ++ " && " ++ syncCmd ++ " && " ++ syncContentCmd ++ "\""))
     }
 : Compose.Service.Type
 
@@ -115,7 +135,7 @@ let makeRemoteDeplCompose =
                 (makeVol (makeModuleCssDir config.depl.cssVolDir location)
                          target)
 
-    let htdocsVols = makeHtdocsVols
+    let webserverVols = (makeWebserverVols
             config.depl.targetDir
             config.depl.appDir
             config.depl.conjinDir
@@ -123,9 +143,14 @@ let makeRemoteDeplCompose =
             config.depl.staticFiles
             config.depl.modules
             makeReadonlyModuleCssBindVol                   -- Bind vols
-            (hasRemoteErrorLogging config.errors.logging)  -- Put in htdocs (if at all)
-            True                                           -- Put in htdocs
-            (hasRemoteStore config.store)                  -- Put in htdocs (if at all)
+            (htdocsDir ++ "/" ++ config.internalDir)) # [
+                makeReadonlyVol
+                    (config.depl.targetDir ++ "/htdocs/" ++ config.internalDir ++ "-dyn-preprocessing")
+                    (htdocsDir ++ "/" ++ config.internalDir ++ "-dyn-preprocessing"),
+                makeReadonlyVol
+                    (config.depl.targetDir ++ "/htdocs/" ++ config.internalDir ++ "-dyn-data")
+                    (htdocsDir ++ "/" ++ config.internalDir ++ "-dyn-data")
+            ]
 
     -- Define Services
 
@@ -140,22 +165,25 @@ let makeRemoteDeplCompose =
         (P.Map.values Text T.Module config.depl.modules)
 
     let uploadJob = makeUploadJob
-        htdocsVols
+        webserverVols
         config.rcloneRemote
+        config.internalDir
+        (hasRemoteStore config.store)
+        (hasRemoteErrorLogging config.errors.logging)
     : Compose.Service.Type
 
     let backupErrorLog =
         merge {
             , None          = \(_: {}) -> empty (Entry Text Compose.Service.Type)
             , WithoutBackup = \(_: {}) -> empty (Entry Text Compose.Service.Type)
-            , WithBackup    = \(s: {backupDir: Text}) -> [keyValue Compose.Service.Type "backup-errorlog" (makeBackupJob "logs/error" s.backupDir config.rcloneRemote)]
+            , WithBackup    = \(s: {backupDir: Text}) -> [keyValue Compose.Service.Type "backup-errorlog" (makeBackupJob (config.internalDir ++ "-dyn-data/logs/error") s.backupDir config.rcloneRemote)]
         } config.errors.logging
 
     let backupStore =
         merge {
             , None          = \(_: {}) -> empty (Entry Text Compose.Service.Type)
             , WithoutBackup = \(_: {}) -> empty (Entry Text Compose.Service.Type)
-            , WithBackup    = \(s: {backupDir: Text}) -> [keyValue Compose.Service.Type "backup-store" (makeBackupJob "store" s.backupDir config.rcloneRemote)]
+            , WithBackup    = \(s: {backupDir: Text}) -> [keyValue Compose.Service.Type "backup-store" (makeBackupJob (config.internalDir ++ "-dyn-data/store") s.backupDir config.rcloneRemote)]
         } config.store
 
     let services

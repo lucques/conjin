@@ -13,11 +13,20 @@ The nav is built up during the preprocessing phase. The navigation is built up r
 Add headings that are to appear in the navigation. They get inserted into the hierarchy as follows: The current target has level 1. So the next sub-heading should be of level 2. Such a heading serves as an HTML anchor and the anchor id is either generated (error is thrown on name clashes)...
 
 ```html
-<? nav_h(2, 'Sub-heading');  // Generated anchor id is "sub_heading"  ?> 
+<? nav_h(2, 'Sub-heading');  // Generated anchor id is "sub-heading"  ?>
 ```
 
 ... or manually assigned:
 
 ```html
-<? nav_h(2, 'Sub-heading', 'the-anchor-id');  // Generated anchor id is "the-anchor-id"  ?> 
+<? nav_h(2, 'Sub-heading', id: 'the-anchor-id');  // Anchor id is "the-anchor-id"  ?>
 ```
+
+Use `nav_h_with_anchor()` to add a right-aligned `#` permalink to the heading, rendered by `html_h_with_anchor()`:
+
+```php
+nav_h_with_anchor(2, 'Sub-heading');
+nav_h_with_anchor(3, 'Detailed heading', nav_title: 'Short title', id: 'details');
+```
+
+Both functions accept `($level, $title, $nav_title = null, $id = null, $class = '', $style = '')` and register headings in the same navigation and anchor hierarchy. Omitted or `null` IDs are generated with `kebabize($title)`. The permalink uses the complete hierarchical anchor ID, such as `#sub-heading_details` in this example. The navigation title defaults to `$title` and does not include the permalink. Optional classes and styles apply to the heading.

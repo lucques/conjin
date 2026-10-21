@@ -1,5 +1,5 @@
 <?
-    $init_processing = function(Module $module, Processable $processable) {
+    $process_target = $process_syslet = function(Module $module, Processable $processable) {
         if ($module->config->get('import_from_url') !== null) {
             doc_extensions_add_head_element('<script src="' . $module->config->get('import_from_url') . '/js/bootstrap.min.js "></script>');
 

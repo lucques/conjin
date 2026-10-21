@@ -19,8 +19,15 @@
 ## Target mechanism
 
 In PHP, the `process: Target -> ()` function in `process_mech.php` handles the request.
-1. The activated processing modules' `$init_processing: Target -> ()` functions get executed. This will include macros etc.
+1. Each activated module's `processing.php` is loaded, and its optional `$process_target: (Module, Target) -> ()` function is executed. Loading the file also makes its macros available.
     - Runtime dependencies have been already resolved during preprocessing, so the topologically sorted list of processing modules is included one by one.
-2. Depending on whether the content location is `inline` or `extra`:
-    1. `inline`: Include the `index.php` and execute the `process: Target -> ()` function.
-    2. `extra`: Include the `content.php` (no function to execute)
+2. Load the target's `index.php` and execute its `$process: Target -> ()` closure, capturing the output.
+3. Pass the captured content to the target's template for rendering.
+
+Only targets with `inline` content are processed this way. The request handler follows `$redirect` for redirect targets and returns a not-found response for targets with no content. A target cannot define both `$process` and `$redirect`.
+
+## Syslet mechanism
+
+For login profiles, not-found pages, and unauthorized pages, each activated module's `processing.php` is loaded in dependency order and its optional `$process_syslet: (Module, Syslet, Target $target_root) -> ()` function is executed before template rendering. Login profiles are passed as `LoginProfile` objects, which extend `Syslet`.
+
+Only the matching module entrypoint runs. Any common initialization is called explicitly or shared locally by the module; the framework does not call a separate common hook.

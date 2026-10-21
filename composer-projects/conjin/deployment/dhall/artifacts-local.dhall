@@ -44,8 +44,9 @@ let makeArtifacts =
         , config-json
             = tagConfigJsonFile {
                 path_base = "..",
-                path_preprocess = "../../preprocess",
-                path_store = P.Optional.map T.LocalStore Text (\(_: T.LocalStore) -> "../../store") config.store,
+                path_preprocess = "../../conjin-preprocessing-runtime/conjin-dyn-preprocessing",
+                target_split_depth = config.depl.targetSplitDepth,
+                path_store = P.Optional.map T.LocalStore Text (\(_: T.LocalStore) -> "../../conjin-dyn-data/store") config.store,
                 https = False,
                 host = config.nginxVirtualHost,
                 url_base = "/",
@@ -55,7 +56,7 @@ let makeArtifacts =
                 module_2_config = P.Map.map Text T.Module P.JSON.Type (\(m: T.Module) -> m.config) config.depl.modules,
                 mail = None T.Mail,
                 errorlog_display = config.errors.display,
-                errorlog_dir = P.Optional.map Text Text (\(_: Text) -> "../../logs/error") config.errors.logToVolDir
+                errorlog_dir = P.Optional.map Text Text (\(_: Text) -> "../../conjin-dyn-data/logs/error") config.errors.logToVolDir
             }
             : ConfigJsonFileT
     }

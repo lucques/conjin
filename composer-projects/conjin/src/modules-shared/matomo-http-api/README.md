@@ -1,0 +1,13 @@
+# matomo-http-api
+
+Explicit server-side Matomo API. Activation records nothing. Low-level tracking methods read no visitor context. Configure `enabled` and `exclude_localhost` (both default true), `endpoint`, and `site_id`; empty endpoint or site disables delivery. Requires PHP cURL. Optional `token_auth` is taken only from module configuration and sent in the POST body; null or an empty string keeps unauthenticated tracking. Caller parameters cannot supply or replace this token. Configure production endpoints with HTTPS.
+
+After module processing loads the API, call `MatomoHttpApi::page_view($module, $url, $title, $parameters, $statuses)` or `MatomoHttpApi::event($module, $category, $action, $name, $parameters, $statuses)`. The module argument is the configured Matomo module. `track($module, $parameters, $statuses)` accepts other Matomo parameters. Destination, required tracking fields, and authentication cannot be overridden through extra parameters.
+
+Omit statuses or pass null for immediate delivery. Pass an array of allowed final HTTP status integers for deferred delivery, for example `[200, 304]`. One shutdown callback delivers matching entries unless a fatal PHP error occurred. All delivery shares a 500 ms network budget per PHP request, including immediate calls. Delivery is synchronous, best effort, without retries or persistent storage. Failures never interrupt the caller. The API enforces the configured localhost exclusion for every delivery path. Callers own their privacy policy and choose which actions to record.
+
+Run `php -d short_open_tag=1 dev/test.php` with PHP cURL for standalone loopback-only regression checks.
+
+`MatomoHttpApi::track_target($target)` explicitly records a successful GET Conjin page view: canonical URL and title, referrer, user agent, accepted languages, existing-session visitor ID, and a public `REMOTE_ADDR` as `cip` when a nonempty token is configured. It never starts a session or trusts forwarding headers. The existing `matomo_http_api_visitor_id` session key is preserved. It deduplicates page views and defers delivery to final 2xx responses. This helper deliberately collects visitor context; it is not called automatically on activation.
+
+`for_context($context)` returns the configured shared module, `is_get_request($module)` checks GET and enabled/configuration/local-host conditions, `once($module, $key)` provides request-local deduplication, and `request_path()` returns the public request path without query values. These helpers allow consuming modules to supply application-specific event policy without duplicating general tracking code. Set `exclude_localhost` to false to deliberately test a localhost site; the exclusion uses Conjin's configured URL rather than request headers.

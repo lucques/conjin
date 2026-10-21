@@ -1,4 +1,10 @@
 <?
+    // Keep response headers available when a form first needs a session during
+    // rendering. PHP flushes this outer buffer when the request finishes.
+    // Redirect/error helpers can discard it before sending their response.
+    ob_start();
+    header('Cache-Control: no-store');
+
     ///////////////////
     // Setup, part 1 //
     ///////////////////
@@ -70,27 +76,31 @@
         // Libraries
         require('inc/preprocess_mech.php');
 
-        // Preprocessing prepares objects:
-        // 1. For auth:    `groups_2_userlist_ser`
-        // 2. Targets:     `target_root`
-        // 3. Syslets (including login profiles)
-        core_save_obj('groups_2_userlist_ser',       auth_generate_groups_2_userlist_ser());
-        core_save_obj('groups_2_openidmarkerlist',   auth_generate_groups_2_openidmarkerlist());
+        require('inc/preprocess_output.php');
+        $cleanup_warning = preprocess_replace_output(function(): void {
+            // Preprocessing prepares objects:
+            // 1. For auth:    `groups_2_userlist_ser`
+            // 2. Targets:     `target_root`
+            // 3. Syslets (including login profiles)
+            core_save_obj('groups_2_userlist_ser',       auth_generate_groups_2_userlist_ser());
+            core_save_obj('groups_2_openidmarkerlist',   auth_generate_groups_2_openidmarkerlist());
 
-        $login_profiles = preprocess_login_profiles();
-        $default_login_profile_id = preprocess_default_login_profile_id($login_profiles);
-        $target_root = preprocess_target_root($default_login_profile_id);
+            $login_profiles           = preprocess_login_profiles();
+            $default_login_profile_id = preprocess_default_login_profile_id($login_profiles);
+            $target_root              = preprocess_target_root($default_login_profile_id);
 
-        preprocess_validate_target_login_profiles($target_root, $login_profiles);
+            preprocess_validate_target_login_profiles($target_root, $login_profiles);
 
-        core_save_obj('target_root',                 $target_root);
-        core_save_obj('login_profiles',              $login_profiles);
-        core_save_obj('default_login_profile_id',    $default_login_profile_id);
-        core_save_obj('syslet_not_found',            preprocess_syslet('not_found'));
-        core_save_obj('syslet_unauthorized',         preprocess_syslet('unauthorized'));
+            preprocess_split_target_data($target_root, get_global_config('target_split_depth'));
+            core_save_obj('target_root',                 $target_root);
+            core_save_obj('login_profiles',              $login_profiles);
+            core_save_obj('default_login_profile_id',    $default_login_profile_id);
+            core_save_obj('syslet_not_found',            preprocess_syslet('not_found'));
+            core_save_obj('syslet_unauthorized',         preprocess_syslet('unauthorized'));
+        });
 
         // Render response
-        send_response_and_exit(message: 'Preprocessing done.');
+        send_response_and_exit(message: 'Preprocessing done.' . ($cleanup_warning === null ? '' : ' Cleanup warning: ' . $cleanup_warning));
     }
     else {
 
@@ -179,13 +189,7 @@
             // Logout //
             ////////////
     
-            // Logged in? Then logout.
-            if (auth_is_logged_in()) {
-                auth_handle_logout_and_exit();
-            }
-            else {
-                auth_handle_unauthorized_and_exit();
-            }
+            auth_handle_logout_and_exit();
             
         }
         elseif ($req == Req::Show) {
@@ -193,9 +197,6 @@
             //////////
             // Show //
             //////////
-    
-            // Libraries
-            require('inc/cache.php'); // Deals with browser cache (304 Not Modified)
     
             // Interpret request
             $GET_target = $_GET['target'] ?? ''; // Coalesce to empty string
@@ -229,9 +230,8 @@
                 auth_handle_unauthorized_and_exit($target->get_login_profile());
             }
     
-            // Respond "not modified", i.e. file cached by browser?
-            $requested_path = path_collect($requested_target_ids, 'index.php');
-            check_whether_unmodified_and_handle_and_exit($requested_path);
+            // HTML may depend on templates, modules, nuggets and session state.
+            // Keep it on no-store; a page-file timestamp cannot validate it.
                 
             // Render response
             process($target);
@@ -268,41 +268,45 @@
                 process_not_found_and_exit(); // Not Found
             }
     
-            // 2. Interpret `inc` and `res` part of the request
-            $path = null;
-
-            if (isset($_GET['inc'])) {
-                // `inc` part present
-                $path = path('content') . '/' . $GET_target . 'inc/' . $_GET['inc'] . 'res/' . $_GET['res'];
-            }
-            else {
-                // `inc` part absent
-                $path = path('content') . '/' . $GET_target . 'res/' . $_GET['res'];    
-            }
-            $real_path = realpath($path);
-    
-            // If resource does not exist, send "not found"
-            if ($real_path === false) {
-                process_not_found_and_exit(); // Not Found
-            }
-    
-            // If user is not privileged to view target, either redirect to
-            // login page or send "unauthorized"
+            // Authorize the target before resolving any resource beneath it.
             if (!auth_is_cur_user_privileged_for_view($target)) {
                 auth_handle_unauthorized_and_exit($target->get_login_profile());
             }
-            
-            // If resource outside of `content` dir, treat it as non-existing.
-            if (!str_starts_with($real_path, realpath(path('content')))) {
-                process_not_found_and_exit(); // Not Found
+
+            require('inc/resource_files.php');
+            $inc = $_GET['inc'] ?? '';
+            if (!is_string($_GET['res']) || !is_string($inc) ||
+                ($inc !== '' && target_query_to_target_ids($inc) === null)) {
+                process_not_found_and_exit();
             }
-    
+            $resource_dir = isset($_GET['inc']) ? 'inc/' . $inc . 'res' : 'res';
+            $real_path = resolve_resource_file(path_collect($requested_target_ids), $resource_dir, $_GET['res']);
+            if ($real_path === null) {
+                process_not_found_and_exit();
+            }
+            $path = $real_path;
+
+            header_remove('Cache-Control');
+            $resource_root = realpath(path_collect($requested_target_ids) . '/' . $resource_dir);
+            $resource_path = substr($real_path, strlen($resource_root) + 1);
+            foreach ($target->get_activated_modules() as $module) {
+                ob_start();
+                try {
+                    $module->process_resource($target, $resource_path, $resource_dir);
+                } finally {
+                    ob_end_clean();
+                }
+            }
+
             // Respond "not modified", i.e. file cached by browser?
             check_whether_unmodified_and_handle_and_exit($path);
     
             // If not handled already away by now: Send file
             header('Content-Type: ' . get_mime($path));
-            readfile($real_path);
+            header('Content-Length: ' . filesize($real_path));
+            if ($_SERVER['REQUEST_METHOD'] !== 'HEAD') {
+                readfile($real_path);
+            }
         }
         elseif ($req == Req::Other) {
             process_not_found_and_exit(); // Not Found            

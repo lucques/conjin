@@ -1,7 +1,8 @@
 <?
     require_once(__DIR__ . '/datatypes.php');
     
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
+        $GLOBALS['timetable_page_prep_active']         = $target->has_activated_module('page-prep');
         $GLOBALS['timetable_cur_classlog']            = null;
         $GLOBALS['timetable_cur_entry_long_date']     = null;
         $GLOBALS['timetable_cur_entry_long_id']       = null;
@@ -18,6 +19,7 @@
 
         $slot_earliest = $sc->get_slot_earliest();
         $slot_latest = $sc->get_slot_latest();
+        $date_after_slot_latest = $slot_latest->date->modify('+1 day');
 
         // Determine whether there is a GET request for a specific date
         $date_requested = null;
@@ -37,7 +39,8 @@
         head_start();
 ?>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(() => {
+const renderCalendar = () => {
     var calendarEl = document.getElementById('<?= $html_id ?>');
     var calendar = new FullCalendar.Calendar(calendarEl, {
         themeSystem: 'bootstrap5',
@@ -64,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
         eventOrder: 'weight',
         validRange: {
             start: '<?= date_to_iso($slot_earliest->date) ?>',
-            end:   '<?= date_to_iso($slot_latest->date) ?>'
+            end:   '<?= date_to_iso($date_after_slot_latest) ?>'
         },
         eventContent: function(arg) {
             return { html: '<span style="white-space:normal;">' + arg.event.title + '</span>' };
@@ -175,7 +178,34 @@ document.addEventListener('DOMContentLoaded', function() {
         ],
     });
     calendar.render();
-});      
+};
+<?
+        if ($GLOBALS['timetable_page_prep_active']) {
+?>
+pagePrep.track({
+    id: 'timetable:<?= $html_id ?>',
+    before: 'initialContentReady',
+    promise: new Promise((resolve, reject) => {
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                renderCalendar();
+                resolve();
+            }
+            catch (error) {
+                reject(error);
+            }
+        }, { once: true });
+    }),
+});
+<?
+        }
+        else {
+?>
+document.addEventListener('DOMContentLoaded', renderCalendar, { once: true });
+<?
+        }
+?>
+})();
 </script>
 <?
         head_end();

@@ -25,7 +25,7 @@ let makeModuleDir = common.makeModuleDir
 let makeModuleCssDir = common.makeModuleCssDir
 let moduleToString = common.moduleToString
 --let htdocsDir = common.htdocsDir
-let makeHtdocsVols = common.makeHtdocsVols
+let makeWebserverVols = common.makeWebserverVols
 let makeTemplateSassCompilation = common.makeTemplateSassCompilation
 
 
@@ -35,20 +35,20 @@ let makeTemplateSassCompilation = common.makeTemplateSassCompilation
 
 let makeWebserver =
     \(conjinDir:        Text) ->
-    \(htdocsVols:       List Compose.ServiceVolume) ->
+    \(webserverVols: List Compose.ServiceVolume) ->
     \(errorLogVolDir:   Optional Text) ->
     \(preprocessVolDir: Text) ->
     \(store:            Optional T.LocalStore) ->
     \(nginxVirtualHost: Text) ->
 
     -- The following volumes are placed outside of htdocs dir
-    let preprocessVol = makeVol preprocessVolDir "/files/preprocess"
+    let preprocessVol = makeVol preprocessVolDir "/files/conjin-preprocessing-runtime"
 
     let errorLogVol = P.Optional.map Text Compose.ServiceVolume
-        (\(d: Text) -> makeVol d "/files/logs/error") errorLogVolDir
+        (\(d: Text) -> makeVol d "/files/conjin-dyn-data/logs/error") errorLogVolDir
 
     let storeVol = P.Optional.map T.LocalStore Compose.ServiceVolume
-        (\(d: T.LocalStore) -> makeVol d.volDir "/files/store")
+        (\(d: T.LocalStore) -> makeVol d.volDir "/files/conjin-dyn-data/store")
         store
 
     let storeInitVol = P.Optional.concat Compose.ServiceVolume (
@@ -64,7 +64,7 @@ let makeWebserver =
     in
     Compose.Service::{
         , build       = Some (makeDockerBuild (conjinDir ++ "/deployment/docker/images/conjin-server") dockerImages.imagePHP)
-        , volumes     = Some (htdocsVols # [preprocessVol] # (unpackOptionals Compose.ServiceVolume [errorLogVol, storeVol, storeInitVol, storeBackupVol]))
+        , volumes     = Some (webserverVols # [preprocessVol] # (unpackOptionals Compose.ServiceVolume [errorLogVol, storeVol, storeInitVol, storeBackupVol]))
         , restart     = Some "always"
         , networks    = Some (Compose.ServiceNetworks.Map [
             , keyValue Compose.ServiceNetwork.Type "default" {
@@ -217,8 +217,8 @@ let makeLocalDeplCompose =
             makeVol (makeModuleCssDir config.depl.cssVolDir location)
                     target
 
-    let htdocsVols =
-        makeHtdocsVols
+    let webserverVols =
+        makeWebserverVols
             config.depl.targetDir
             config.depl.appDir
             config.depl.conjinDir
@@ -226,15 +226,13 @@ let makeLocalDeplCompose =
             config.depl.staticFiles
             config.depl.modules
             makeReadonlyModuleCssBindVol -- Bind vols
-            False                    -- Put outside of htdocs dir
-            False                    -- Put outside of htdocs dir
-            False                    -- Put outside of htdocs dir
+            "/files/conjin"
 
     -- Define Services
 
     let webserver = makeWebserver
                         config.depl.conjinDir
-                        htdocsVols
+                        webserverVols
                         config.errors.logToVolDir
                         config.preprocessVolDir
                         config.store

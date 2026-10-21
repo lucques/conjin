@@ -1,13 +1,21 @@
 # print-mode
 
-This module provides paged.js-based rendering for printable pages.
+This module provides Paged.js or native browser rendering for printable pages.
 
 Print mode is determined exclusively by module activation. If `print-mode` is activated for a target, it is active; otherwise it is inactive. There is no query parameter, runtime toggle, or `always_on` option.
 
 
+## Renderer configuration
+
+`renderer` selects `pagedjs` (default) or `native`. `renderer_in_sol_mode` overrides it when authorized solution mode is on; its default `null` inherits `renderer`. The override also respects sol-mode's `always_on` and `always_off` settings.
+
+Both renderers use the same wrapper, standalone document, print styles and readiness barrier. Native mode shows continuous content on screen and uses browser pagination when printing, retaining explicit `page_break()` calls. It loads no Paged.js script or preview interface. The outer document retains the final sheet’s named page to prevent a trailing blank page in Firefox. Templates can select defaults when activating print-mode; template-exam uses `pagedjs` for exercises and `native` for solutions.
+
+
 ## Features
 - Options (see "config")
-- Uses `paged-js` for nice print rendering
+- Uses `paged-js` or native browser pagination for print rendering
+- Starts pagination after the page-prep readyForPagination barrier resolves.
 - Functions:
     - Custom page flow:
         - `page_start`, `page_end`, `page_break` functions
@@ -16,11 +24,25 @@ Print mode is determined exclusively by module activation. If `print-mode` is ac
         - Work like `css_start` and `css_end`; supporting templates include the collected CSS only in the standalone print document.
 
 
-## Supported modules
-- `mathjax-extensions`
-    - How? When `mathjax-extensions` and `print-mode` are both active, the order of setting up the two modules is important:
-        1. Render mathjax, which may change the layout
-        2. Render the print mode.
+## Module relationships
+
+### Dependencies
+
+- `doc-extensions`: Adds the print scripts and styles to the standalone document.
+- `page-prep`: Coordinates source-document readiness; print-mode waits for `readyForPagination`.
+- `paged-js`: Paginates the prepared source document when the Paged.js renderer is selected.
+
+Print-mode does not depend on any content producer or renderer. Each active producer registers its own work with page-prep, which determines when pagination can start.
+
+## Browser lifecycle
+
+`setupPrintMode(cssPath, renderer = 'pagedjs')` starts preparation once and returns the same `window.printModePromise` on subsequent calls. Successful print preparation sets `window.printModeReady` and emits `print-mode-ready`.
+
+Modules and pages that produce initial content register their work with page-prep. Print-mode consumes only the final `readyForPagination` barrier. See [document readiness](../../../../../doc/document_readiness.md) for stage and resource contracts.
+
+A preparation failure leaves the source DOM intact, displays `#print-mode-error`, stores the error in `window.printModeError`, emits `print-mode-error` with the error as its detail, and rejects `printModePromise`. It never emits `print-mode-ready`. Console reporting is attached automatically; callers can also await the rejection. Failures inside Paged.js itself may occur after Paged.js has already replaced the source DOM.
+
+See [document readiness](../../../../../doc/document_readiness.md) for the module integration contract.
 
 
 ## How to support this module

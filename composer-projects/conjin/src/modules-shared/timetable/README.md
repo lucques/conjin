@@ -2,6 +2,8 @@
 
 This module allows to create and manage timetables for school classes etc. It combines timetables with logs and a syllabus which results in a definite **schedule**. You can see exactly when which topic will take place.
 
+When page-prep is active, the initial calendar render participates in initialContentReady. Later calendar navigation remains interactive work.
+
 It results in four components.
 1. **Calendar view** ("Jahreskalender"): Contains logs (past), prospective topics (future)
 2. **Classlog view** ("Logbuch): Contains a list of all logs and tags with details

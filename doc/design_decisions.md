@@ -11,7 +11,7 @@ Some design decisions are taken as follows.
         - Good IDE support
         - In the future: Use additional external packages from Packagist
     - Disadvantages:
-        - Not as modular as other languages. When including content files (`index.php` or `content.php`) or module files, the scoping mechanism is not very elegant -- at these few points things have been crafted with great care.
+        - Not as modular as other languages. When including content files (`index.php`) or module files, the scoping mechanism is not very elegant -- at these few points things have been crafted with great care.
 - HTML & SASS
     - Complete control of page layout and styles
     - May also switch to Markdown on some sections and then generate HTML

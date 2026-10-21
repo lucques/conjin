@@ -66,11 +66,22 @@
 
         $GLOBALS['config'] = new ConfigTree($config);
 
+        if (!isset($config['target_split_depth']) || !is_int($config['target_split_depth']) || $config['target_split_depth'] < 0) {
+            throw new InvalidArgumentException('target_split_depth must be a nonnegative integer');
+        }
+
         $GLOBALS['core_path_base']       = realpath(get_global_config('path_base'));
-        $GLOBALS['core_path_preprocess'] = realpath(get_global_config('path_preprocess'));
+        // The current directory need not exist before the first publication.
+        $preprocess = rtrim(get_global_config('path_preprocess'), '/');
+        $parent = realpath(dirname($preprocess));
+        if ($parent === false) {
+            throw new RuntimeException('Preprocessing parent directory does not exist.');
+        }
+        $current = $parent . '/' . basename($preprocess);
+        $GLOBALS['core_path_preprocess_current'] = $current;
+        $GLOBALS['core_path_preprocess'] = $current;
 
         assert($GLOBALS['core_path_base'] !== false, 'Path base does not exist.');
-        assert($GLOBALS['core_path_preprocess'] !== false, 'Path to preprocess dir does not exist.');
 
         if (isset_global_config('errorlog_dir')) {
             $GLOBALS['core_errorlog_dir'] = realpath(get_global_config('errorlog_dir'));
@@ -107,7 +118,7 @@
     // Enable composer packages  //
     ///////////////////////////////
 
-    require __DIR__ . '/../../vendor/autoload.php';
+    require $GLOBALS['core_path_base'] . '/vendor/autoload.php';
 
 
     ///////////////////////////////
@@ -129,6 +140,9 @@
     }
 
     function fail($message) {
+        if (isset($GLOBALS['preprocess_failure_cleanup'])) {
+            ($GLOBALS['preprocess_failure_cleanup'])();
+        }
         $GLOBALS['logger_error']->error($message);
 
         http_response_code(500);
@@ -157,6 +171,9 @@
     function the_shutdown_function()
     {
         $last_error = error_get_last();
+        if (isset($GLOBALS['preprocess_failure_cleanup'])) {
+            ($GLOBALS['preprocess_failure_cleanup'])();
+        }
         
         if ($last_error !== null) {
             while (ob_get_level() > 0) {

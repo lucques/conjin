@@ -139,3 +139,11 @@ $c->set_login_profile('standalone');
 When an anonymous user requests a protected target, Conjin redirects to `/login/<profile>/?redirect=...`. `/login/` selects the configured default profile independently of its ID. Profile IDs may contain lowercase ASCII letters, digits, underscores, and hyphens.
 
 Login pages and OpenID Connect protocol endpoints use separate URL namespaces. `/auth/oidc/<provider>/start` initiates authentication and `/auth/oidc/<provider>/callback` receives the provider response. The callback URL must be registered exactly as an allowed redirect URI at the provider. Conjin stores the selected login profile and destination in the session for the duration of the authentication attempt.
+
+## Post-login redirects
+
+Password and OIDC login accept only root-relative destinations inside the configured application URL base. For a base of `/app`, `/app` and `/app/…` are allowed; `/application/` and paths outside that base are rejected. Absolute URLs, including same-origin URLs, and scheme-relative URLs are rejected. Applications do not support external post-login destinations.
+
+The authentication validator rejects malformed percent escapes, backslashes, control characters, dot path segments, encoded path separators, and nested path encoding. Accepted URLs retain their original query strings and fragments, including external URLs used solely as query values. Invalid or missing destinations fall back to the application homepage without failing authentication.
+
+The query-string destination takes precedence over session state, even when invalid. Successful login validates the destination again and clears stored redirect state. OIDC validates before storing a destination, clears an older destination when an explicitly invalid one is supplied, and carries only valid destinations into failure/retry URLs. General-purpose redirect helpers remain available for external redirects elsewhere.

@@ -12,7 +12,7 @@
     new Conjin\Modules\IssueTracker\Config(
         file_name: 'unused.sqlite',
         view_target_ids: [],
-        tag_names: [],
+        tags: [],
         privilege_admin: 'unused-admin',
         privilege_write: 'unused-write',
         may_edit_own_content_within_n_minutes: -1,
@@ -27,6 +27,9 @@
             post_desc_short: '',
             post_desc_long: '',
             tag_desc: '',
+            tag_desc_singular: '',
+            solved_issue_count_desc: '',
+            unsolved_issue_count_desc: '',
             author_identity_to_label: fn(string $identity): string => '',
             status_to_variant: fn(string $status): string => '',
             status_to_label: fn(string $status): string => ''

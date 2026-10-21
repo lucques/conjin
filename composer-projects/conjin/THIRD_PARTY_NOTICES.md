@@ -10,6 +10,7 @@ Conjin-authored code is licensed under `GPL-3.0-or-later`. The components below 
 | `bootstrap` | Bootstrap 5.3.3 and Popper 2.11.8 | MIT |
 | `chart-js` | Chart.js 4.5.1 | MIT |
 | `fullcalendar` | FullCalendar 6.1.15, FullCalendar Bootstrap 5 6.1.15, and FullCalendar DayGrid 6.1.15 | MIT |
+| `json-editor` | JSONEditor 10.4.3 | Apache-2.0 |
 | `jsxgraph` | JSXGraph 1.12.2 | MIT OR LGPL-3.0-or-later; Conjin redistributes it under the MIT option |
 | `mathjax` | MathJax 3.2.2 | Apache-2.0 |
 | `mathjs` | math.js 12.4.2 | Apache-2.0; upstream `NOTICE` retained |

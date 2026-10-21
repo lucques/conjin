@@ -66,7 +66,7 @@ For example:
 ```
 
 When `logToVolDir` is set, that host directory is mounted into the web-server
-container at `/files/logs/error`, and the generated `errorlog_dir` points to the
+container at `/files/conjin-dyn-data/logs/error`, and the generated `errorlog_dir` points to the
 mount. The build tooling can create the directory and make it writable.
 
 The default local configuration is intended for development:
@@ -114,21 +114,17 @@ The logging modes have the following effects:
 | Mode | Remote log directory | `backup-errorlog` |
 |---|---|---|
 | `None` | Not configured | Not generated |
-| `WithoutBackup` | `<pathBase>/logs/error` | Not generated |
-| `WithBackup { backupDir }` | `<pathBase>/logs/error` | Generated |
+| `WithoutBackup` | `<pathBase>/<internalDir>-dyn-data/logs/error` | Not generated |
+| `WithBackup { backupDir }` | `<pathBase>/<internalDir>-dyn-data/logs/error` | Generated |
 
 The default remote configuration is production-oriented: detailed errors are
 not displayed, file logging is enabled, and backups are enabled. Its backup
 destination is the default backup directory below
 `<deployment-directory>/logs/error`.
 
-Remote uploads exclude `logs/error/**` from `rclone sync`. An upload creates the
-directory when necessary but does not replace or delete existing log files.
+Remote uploads exclude `<internalDir>-dyn-data/**` from the non-content `rclone sync`; content is synchronized separately. An upload creates the directory when necessary but does not replace or delete existing log files.
 
-With `WithBackup`, running `target/bin/backup-errorlog` uses `rclone` to copy
-the remote `logs/error` directory into a timestamped `snapshot-*` directory
-below `backupDir`. The configured `backupDir` is local to the machine running
-the deployment command; it is not a path on the remote web server.
+With `WithBackup`, running `target/bin/backup-errorlog` uses `rclone` to copy the remote `<internalDir>-dyn-data/logs/error` directory into a timestamped `snapshot-*` directory below `backupDir`. The configured `backupDir` is local to the machine running the deployment command; it is not a path on the remote web server.
 
 
 ## Store and error logs

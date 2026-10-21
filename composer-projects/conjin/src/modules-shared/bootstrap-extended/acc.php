@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $GLOBALS['acc_stack']           = [];
         $GLOBALS['acc_next_id_numeric'] = 0;
 
@@ -81,7 +81,7 @@
     }
 
     // Parameter `$custom_color`: If to use another color outside of the variants as described in `README.md`
-    function acc_item_start($title, $variant = null, $custom_color = null, $hidden = false, $open = false, $id = null, $class = '', $style = '', $header_actions = '') {
+    function acc_item_start($title, $variant = null, $custom_color = null, $hidden = false, $open = false, $id = null, $class = '', $style = '', $header_actions = '', $with_anchor = false) {
         // The last element must be of type 'acc'
         assert(count($GLOBALS['acc_stack']) > 0 && end($GLOBALS['acc_stack'])['type'] == 'acc', 'No accordion set started');
         // `$variant` and `$custom_color` must not be set together
@@ -90,6 +90,11 @@
 
         $html_accordion_id = acc_aux_get_html_id($GLOBALS['acc_stack']);
         $accordion_only_one_open = end($GLOBALS['acc_stack'])['only_one_open'];
+
+        if ($with_anchor && $id === null) {
+            $id = kebabize($title);
+            if ($id === '') { $id = null; }
+        }
 
         // Push on stack
         $cur = [
@@ -111,11 +116,14 @@
         else {
 ?>
         <div id="<?= $html_accordion_item_id ?>" class="accordion-item<? if ($variant !== null) { echo ' accordion-item-' . variant_to_color($variant); } elseif ($custom_color !== null) { echo ' accordion-item-' . $custom_color; } if ($class != '') { echo ' ' . $class; } ?>"<?= $style != '' ? ' style="' . $style . '"' : '' ?>>
-            <span class="accordion-header<?= $header_actions !== '' ? ' accordion-header-with-action' : '' ?>" id="<?= $html_accordion_item_id . '-header' ?>">
+            <span class="accordion-header<?= $header_actions !== '' ? ' accordion-header-with-action' : '' ?><?= $with_anchor ? ' accordion-header-with-anchor' : '' ?>" id="<?= $html_accordion_item_id . '-header' ?>">
                 <?= $header_actions ?>
-                <button class="accordion-button<? if (!$open) { echo ' collapsed'; } ?>" type="button" data-bs-toggle="collapse" data-bs-target="#<?= $html_accordion_item_id . '-collapse' ?>" aria-expanded="true" aria-controls="<?= $html_accordion_item_id . '-collapse' ?>">
+                <button class="accordion-button<? if (!$open) { echo ' collapsed'; } ?>" type="button" data-bs-toggle="collapse" data-bs-target="#<?= $html_accordion_item_id . '-collapse' ?>" aria-expanded="<?= $open ? 'true' : 'false' ?>" aria-controls="<?= $html_accordion_item_id . '-collapse' ?>">
                     <span><?= $title ?></span>
                 </button>
+<? if ($with_anchor) { ?>
+                <a class="accordion-anchor" href="#<?= rawurlencode($html_accordion_item_id) ?>" aria-label="Permalink">#</a>
+<? } ?>
             </span>
             <div id="<?= $html_accordion_item_id . '-collapse' ?>" class="accordion-collapse collapse<? if ($open) { echo ' show'; } ?>" aria-labelledby="<?= $html_accordion_item_id . '-header' ?>"<? if ($accordion_only_one_open) { echo ' data-bs-parent="#' . $html_accordion_id . '"'; } ?>>
                 <div class="accordion-body">
@@ -146,11 +154,16 @@
     }
 
     // Parameter `$custom_color`: If to use another color outside of the variants as described in `README.md`
-    function acc_block_start($title = '', $variant = null, $custom_color = null, $bg_as_collapsed = false, $id = null, $class = '', $style = '') {
+    function acc_block_start($title = '', $variant = null, $custom_color = null, $bg_as_collapsed = false, $id = null, $class = '', $style = '', $with_anchor = false) {
         // The last item must be of type 'acc'
         assert(count($GLOBALS['acc_stack']) > 0 && end($GLOBALS['acc_stack'])['type'] == 'acc', 'No accordion set started');
         // `$variant` and `$custom_color` must not be set together
         assert($variant === null || $custom_color === null, 'Variant and custom color cannot be set together');
+
+        if ($with_anchor && $id === null) {
+            $id = kebabize($title);
+            if ($id === '') { $id = null; }
+        }
 
         // Push on stack
         $cur = [
@@ -167,10 +180,13 @@
 ?>
         <div id="<?= $html_accordion_block_id ?>" class="accordion-block<? if ($variant !== null) { echo ' accordion-block-' . variant_to_color($variant); } elseif ($custom_color !== null) { echo ' accordion-item-' . $custom_color; } if ($class != '') { echo ' ' . $class; } ?>"<?= $style != '' ? ' style="' . $style . '"' : '' ?>>
 <?
-        if ($title != '') {
+        if ($title != '' || $with_anchor) {
 ?>
-            <span class="block-header">
+            <span class="block-header<?= $with_anchor ? ' accordion-header-with-anchor' : '' ?>">
                 <span class="block-title<?= $bg_as_collapsed ? ' collapsed' : '' ?>"><span><?= $title ?></span></span>
+<? if ($with_anchor) { ?>
+                <a class="accordion-anchor" href="#<?= rawurlencode($html_accordion_block_id) ?>" aria-label="Permalink">#</a>
+<? } ?>
             </span>
 <?
         }
@@ -208,9 +224,9 @@
     // Shorthands //
     ////////////////
 
-    function acc_single_item_start($title, $variant = null, $custom_color = null, $open = false, $acc_id = null, $acc_class = null, $acc_style = null, $item_id = null, $item_class = '', $item_style = '') {
+    function acc_single_item_start($title, $variant = null, $custom_color = null, $open = false, $acc_id = null, $acc_class = null, $acc_style = null, $item_id = null, $item_class = '', $item_style = '', $with_anchor = false) {
         acc_start(id: $acc_id, class: $acc_class, style: $acc_style);
-        acc_item_start($title, variant: $variant, custom_color: $custom_color, open: $open, id: $item_id, class: $item_class, style: $item_style);
+        acc_item_start($title, variant: $variant, custom_color: $custom_color, open: $open, id: $item_id, class: $item_class, style: $item_style, with_anchor: $with_anchor);
     }
 
     function acc_single_item_end() {
@@ -218,9 +234,9 @@
         acc_end();
     }
 
-    function acc_single_block_start($title = '', $variant = null, $custom_color = null, $acc_id = null, $acc_class = null, $acc_style = null, $block_id = null, $block_class = '', $block_style = '') {
+    function acc_single_block_start($title = '', $variant = null, $custom_color = null, $acc_id = null, $acc_class = null, $acc_style = null, $block_id = null, $block_class = '', $block_style = '', $with_anchor = false) {
         acc_start(id: $acc_id, class: $acc_class, style: $acc_style);
-        acc_block_start($title, variant: $variant, custom_color: $custom_color, id: $block_id, class: $block_class, style: $block_style);
+        acc_block_start($title, variant: $variant, custom_color: $custom_color, id: $block_id, class: $block_class, style: $block_style, with_anchor: $with_anchor);
     }
 
     function acc_single_block_end() {

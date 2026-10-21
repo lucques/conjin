@@ -22,9 +22,6 @@ jobs:
             - name: Check out repository
               uses: actions/checkout@v6
 
-            - name: Check dependency-license inventory
-              run: ./licenses/generate-report --check
-
             - name: Install Dhall tools
               run: |
                   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
@@ -33,11 +30,21 @@ jobs:
                   dhall --version
                   dhall-to-json --version
 
+            - name: Install setup tools and rclone
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y php8.3-cli php8.3-curl rclone
+
             - name: Set up repository
+              id: setup
               run: ./setup.sh
 
+            - name: Prepare test environments
+              run: bin/test prepare
+
             - name: Run all tests
-              run: ./test.sh
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+              run: bin/test all
 
             - name: Assemble Composer package
               run: ./build-composer-package.sh
@@ -124,10 +131,10 @@ jobs:
                       "${SOURCE_COMMIT}"
 
             - name: Upload test reports
-              if: failure()
+              if: always()
               uses: actions/upload-artifact@v7
               with:
                   name: composer-package-test-results
-                  path: tests/artifacts/
+                  path: test-artifacts/
                   if-no-files-found: ignore
                   retention-days: 14

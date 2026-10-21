@@ -67,7 +67,7 @@ For a local deployment, `store` is an optional `LocalStore` value:
 }
 ```
 
-`volDir` is mounted into the web-server container at `/files/store`. The
+`volDir` is mounted into the web-server container at `/files/conjin-dyn-data/store`. The
 generated application configuration points `path_store` to this mount. The
 build tooling can create the host directory and makes it writable by all users.
 
@@ -88,21 +88,13 @@ A remote deployment configures the store as one of:
 - `RemoteStore.WithoutBackup`
 - `RemoteStore.WithBackup { backupDir = ... }`
 
-When enabled, the store is `<pathBase>/store` on the remote server. Uploads use
-`rclone sync` with `store/**` excluded. The store directory is created when
-needed, but files already inside it are not uploaded, replaced, or deleted by a
-deployment.
+When enabled, the store is `<pathBase>/<internalDir>-dyn-data/store` on the remote server (`internalDir` defaults to `conjin`). The deployment's non-content `rclone sync` excludes `<internalDir>-dyn-data/**`; content is synchronized separately. The store directory is created when needed, but files already inside it are not uploaded, replaced, or deleted by a deployment.
 
 With `WithBackup`, the build generates `target/bin/backup-store`. This command
 uses `rclone` to copy the remote store into a timestamped `snapshot-*` directory
 below the configured local `backupDir`.
 
-The deployment tooling provides only this remote-to-local backup mechanism. It
-does not provide a corresponding command for uploading, restoring, or otherwise
-seeding store files on the remote server. If a file such as an existing SQLite
-database must be transferred into the remote store, that operation must be
-performed manually. This is intentional: normal application uploads exclude
-`store/**` so that a deployment cannot accidentally overwrite live runtime data.
+The deployment tooling provides only this remote-to-local backup mechanism. It does not provide a corresponding command for uploading, restoring, or otherwise seeding store files on the remote server. If a file such as an existing SQLite database must be transferred into the remote store, that operation must be performed manually. This is intentional: normal application uploads exclude `<internalDir>-dyn-data/**` so that a deployment cannot accidentally overwrite live runtime data.
 
 In both deployment types, `backup-store` is a filesystem-level copy. It does not
 pause the application or ask modules and databases to create a transactional
@@ -116,3 +108,5 @@ The debug page lists top-level store files when a store is configured. Selecting
 a listed file displays its contents. Store files can contain private or
 sensitive application data, so access to the debug page must be restricted
 appropriately.
+
+For SQLite files, the debug editor offers a single-statement query action that displays result rows and a script action that executes the full textarea as SQL. Use the script action for migrations containing multiple statements or explicit transactions. The script action reports success or the first SQL error; it does not display result rows or a total affected-row count.

@@ -27,6 +27,23 @@
         'nav',
     ];
 
+    // Index the actual chunk files so links and lookups use the same allowlist.
+    $target_chunks = [];
+    $target_chunks_dir = path_preprocess('obj/target-chunks');
+    if (is_dir($target_chunks_dir)) {
+        $entries = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($target_chunks_dir, FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($entries as $entry) {
+            if ($entry->getFilename() !== 'chunk' || !$entry->isFile() || $entry->isLink()) {
+                continue;
+            }
+            $name = substr(dirname($entry->getPathname()), strlen($target_chunks_dir) + 1);
+            $target_chunks[$name] = $entry->getPathname();
+        }
+        ksort($target_chunks);
+    }
+
     $store_files = null;
     if (isset($GLOBALS['core_path_store'])) {
         $store_files = [];
@@ -46,7 +63,7 @@
 
         
         echo '<h2>Session variables</h2><ul>';
-        foreach ($_SESSION as $key => $value) {
+        foreach (($_SESSION ?? []) as $key => $value) {
             echo '<li>' . htmlspecialchars($key) . ': <pre>' . htmlspecialchars(var_export($value, true)) . '</pre></li>';
         }
         echo '</ul>';
@@ -88,9 +105,13 @@
             echo '<tr><td><a href="?what=preprocess-obj&name=' . $name . '">' . $name . '</a></td><td>' . $file_size . '</td></tr>';
         }
         
-        echo '</table>';
+        foreach ($target_chunks as $name => $file_path) {
+            $file_size = round(filesize($file_path) / 1024, 2) . ' KB';
+            $display_name = 'target-chunks/' . $name . '/chunk';
+            echo '<tr><td><a href="?what=preprocess-target-chunk&amp;name=' . urlencode($name) . '">' . htmlspecialchars($display_name) . '</a></td><td>' . $file_size . '</td></tr>';
+        }
 
-        echo '<h2>Store files</h2>';
+        echo '</table><h2>Store files</h2>';
         if ($store_files !== null) {
             echo '<table><tr><td>Name</td><td>Size</td><td>Edit</td></tr>';
 
@@ -278,7 +299,7 @@
             if ($_GET['name'] == 'nav') {
 
                 // Load classes -- hacky, but ok for debugging purposes
-                include('../modules-shared/nav-common/datatypes.php');
+                include(path('modules-shared/nav-common/datatypes.php'));
                 $obj = core_load_obj('nav');
                 header('Content-Type: application/json');
                 debug_aux_print_json($obj);
@@ -290,6 +311,16 @@
         }
         else {
             echo "Preprocess object '" . htmlspecialchars($_GET['name']) . "' not found.\n";
+        }
+    }
+    elseif ($what == 'preprocess-target-chunk') {
+        $name = $_GET['name'] ?? null;
+        if (!is_string($name) || !isset($target_chunks[$name])) {
+            echo "Target data chunk not found.\n";
+        }
+        else {
+            header('Content-Type: application/json');
+            debug_aux_print_json(core_load_obj('target-chunks/' . $name . '/chunk'));
         }
     }
     elseif ($what == 'store-file-download') {

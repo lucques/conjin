@@ -1,10 +1,14 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
+        $GLOBALS['jsxgraph_helpers_print_mode_module_active'] = $target->has_activated_module('print-mode');
         doc_extensions_add_head_element('<script src="' . $module->get_url() . '/res/jsxgraph-helpers.js"></script>');
     };
 
 
+    include_once __DIR__ . '/processing_interaction.php';
     include_once __DIR__ . '/processing_common.php';
+    include_once __DIR__ . '/processing_axes.php';
+    include_once __DIR__ . '/processing_viewport_2d.php';
     include_once __DIR__ . '/processing_sequence.php';
     include_once __DIR__ . '/processing_plot_2d.php';
     include_once __DIR__ . '/processing_plot_3d_dynamic.php';

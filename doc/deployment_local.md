@@ -86,3 +86,10 @@ The following scripts are generated in the `./target/bin` directory:
     - Uses the internal local-job endpoint without retrieving a password.
     - The args given to this script are passed as the target id prefix to check.
     - E.g., `./target/bin/linkchecker first second` will check all URLs that start with `http://host/first/second/`.
+
+
+## Private directories
+
+Code, configuration, and framework implementations mount beneath `/files/conjin`; the existing preprocessing volume mounts at `/files/conjin-preprocessing-runtime`, with active output in its `conjin-dyn-preprocessing` child; store and logs mount beneath `/files/conjin-dyn-data`. The public bootstraps and explicit static files are under `/files/htdocs`. The generated `up` script runs preprocessing after startup.
+
+Host volume locations are determined by the deployment configuration. Startup, reset-store, and backup scripts use the private container paths.

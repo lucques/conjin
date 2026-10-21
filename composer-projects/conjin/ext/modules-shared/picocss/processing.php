@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $classless_or_not = ($module->config->get('classless') ? '.classless' : '');
 
         if ($module->config->get('import_from_url') !== null) {

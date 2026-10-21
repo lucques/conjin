@@ -12,12 +12,12 @@
 - A module is activated in **target**s and **syslet**s.
 - Three possible functions that a module can take up, any combination possible:
     - **Preprocessing**
-        A module can hook into the preprocessing mechanism by implementing the `$init_preprocessing`, `$init_preprocessing_target`, `$init_preprocessing_syslet` functions. These functions then can:
+        A module can hook into the preprocessing mechanism by implementing the `$preprocess_target` and `$preprocess_syslet` functions. These functions then can:
         - Activate and configure other modules
         - Create and add a preprocessor object to the preprocessing context. This is used e.g. by `nav-build` to build up the navigation tree.
         - Provide preprocessing macros to be used by other modules during the preprocessing phase.
     - **Processing**
-        - A module can hook into the processing mechanism by implementing the `$init_processing`, `$init_processing_target`, `$init_processing_syslet` functions. These functions get access to the currently-processed target / syslet obj. This allows the definition of macros etc. that can then be used later by the `index.php` content files, other modules and template files.
+        - A module can hook into the processing mechanism by implementing the `$process_target` and `$process_syslet` functions. These functions get access to the currently-processed target / syslet obj. This allows the definition of macros etc. that can then be used later by the `index.php` content files, other modules and template files.
     - **Templating**
         - A module may serve as a template. There are e.g. `target.php`, `login.php` that both provide a function that renders output for processables, while given access to the currently-processed processable (see more below).
 
@@ -27,18 +27,16 @@
     - `default_config: () -> dict<string, mixed>`
     - Returns the default config of the module; must be complete
 - `preprocessing.php`
-    - Always included; therefore Preprocessing macros (= top level PHP functions) can be defined here
-    - `init_*` defs:
-        - `init_preprocessing:        (Module, PreprocessContext)       -> ()` always called
-        - `init_preprocessing_target: (Module, TargetPreprocessContext) -> ()` only called for target
-        - `init_preprocessing_syslet: (Module, SysletPreprocessContext) -> ()` only called for syslet
+    - Loaded on module activation, or when a preprocessing macro is requested. Top-level definitions are loaded once per PHP execution; entrypoints run separately for each preprocessing context.
+    - Optional entrypoint defs:
+        - `preprocess_target: (Module, TargetPreprocessContext) -> ()` only called for targets
+        - `preprocess_syslet: (Module, SysletPreprocessContext) -> ()` only called for syslets, including login profiles
         - May declare module dependencies by calling `$c->activate_module` etc. Results in a DAG of activated modules.
 - `processing.php`
-    - Always included; therefore: Processing macros (= top level PHP functions) can be defined here
-    - `init_*` defs:
-        - `init_processing:           (Module, Processable $processable) -> ()` always called
-        - `init_processing_target:    (Module, Target      $target)      -> ()` only called for target
-        - `init_processing_syslet:    (Module, Syslet      $syslet)      -> ()` only called for target
+    - Loaded for each activated module before rendering content or a template. Top-level PHP functions can define processing macros even when neither entrypoint is present.
+    - Optional entrypoint defs:
+        - `process_target: (Module, Target $target) -> ()` only called for targets
+        - `process_syslet: (Module, Syslet $syslet, Target $target_root) -> ()` only called for syslets, including login profiles
         - May init state that is needed by this module during the processing phase, e.g. a db connection. Such state should be managed by `$GLOBALS` var
 - `templates/`:
     - `target.php`
@@ -55,8 +53,43 @@
     - Contains resources needed by the module
 
 
-## Dependencies    
-- Declaration via calling `activate_module` during `$init_preprocessing`
+## Entrypoints and local code sharing
+
+The framework calls only the entrypoint matching the current target or syslet. There is no automatically executed common hook. Both entrypoints are optional, and module files may be absent. The filenames remain `preprocessing.php` and `processing.php`; the `$preprocess` and `$process` closures in content and system files are unchanged.
+
+When both entrypoints do exactly the same work, they can reference one local closure using the common argument type:
+
+```php
+<?
+    $preprocess_target = $preprocess_syslet = function(Module $m, PreprocessContext $c) {
+        $c->activate_module('doc-extensions');
+    };
+```
+
+The equivalent processing pattern uses `$process_target = $process_syslet = function(Module $m, Processable $p) { ... };`. A shared closure can omit the additional root-target argument supplied for syslets when it does not need it.
+
+When the work differs, share a local helper and call it explicitly wherever needed:
+
+```php
+<?
+    $activate_common = function(Module $m, PreprocessContext $c) {
+        $c->activate_module('title');
+    };
+
+    $preprocess_target = function(Module $m, TargetPreprocessContext $c) use ($activate_common) {
+        $activate_common($m, $c);
+        $c->activate_module('nav-build');
+    };
+
+    $preprocess_syslet = function(Module $m, SysletPreprocessContext $c) use ($activate_common) {
+        $activate_common($m, $c);
+    };
+```
+
+The module owns the placement of each helper call. Helpers are not automatically invoked by the framework. Derived templates forwarding to another module must call its matching `preprocess_target` or `preprocess_syslet` definition and pass the derived module configuration.
+
+## Dependencies
+- Declaration via calling `activate_module` during `$preprocess_target` or `$preprocess_syslet`
     - These calls form a DAG (must not be circular therefore)
     - These calls are collected in a topological order and saved so that it is very easy during the later processing phase to init all modules in a correct order
 - SCSS dependencies
@@ -211,3 +244,16 @@ The relationship headings have distinct meanings:
 - **A requires B** records a prerequisite that is not expressed as module activation. For example, an icon wrapper may require compatible CSS to be present without choosing or activating a particular CSS module.
 - **A supports B** means A implements B's integration contract when both are active; it does not imply that A activates B. The README for A lists B under `Supported modules`, while the README for B explains the contract under `How to support this module`.
 - **A is used or extended by B** is the reverse view of a dependency or extension relationship. Record it only for important, stable consumers; the source remains authoritative for the complete dependency graph.
+
+
+## Public resources and private implementations
+
+Deployed module directories, including generated CSS directories, live in private storage. Module filesystem paths returned by `ModuleLocation::get_path()` continue to work. Public URLs returned by `get_url()` and `get_css_url()` also stay unchanged, but only their public resources are served, through the public `module-resource.php` bootstrap and its private framework implementation. Source modules expose `res/` files. Compiled directories also expose `.css` and `.css.map` files directly at their root or in compiler-generated subdirectories, preserving URLs such as `/modules-shared-css/template-interbook/print.css`. The handler does not initialize authentication or require preprocessed state because module resources are public.
+
+Keep all browser assets inside `res/`. Templates, preprocessing and processing scripts, SCSS, and default configuration files are implementation details and are not directly accessible over HTTP. Resource requests cannot escape their resource directory using traversal or symlinks. Dotfiles and PHP-related files (`php`, numbered PHP extensions, `phtml`, `phar`, and `inc`) are not served, including mixed-case extensions and symlinks to such files. Do not place secrets in `res/`: its other files are intentionally public.
+
+The handler supports GET, HEAD, Last-Modified conditional requests, and explicit MIME types for JavaScript, CSS, WebAssembly, JSON, SVG, and web fonts. Content resources continue through Conjin's target authorization and now use the same resource-directory containment checks.
+
+## Resource processing
+
+A module may implement `$process_resource = function(Module $module, Target $target, string $resource_path, string $resource_dir): void`. Conjin calls it on the resource owner's activated modules after authorization and successful resolution, before conditional-cache handling. `$resource_path` is the resolved file path relative to the resource directory; `$resource_dir` is `res` for ordinary resources or `inc/<include-path>res` for included resources. Callers interested only in ordinary resources must check this directory explicitly. Missing and unauthorized resources do not invoke this callback. The hook precedes final status determination; defer status-sensitive work until shutdown. Output is discarded, and callback exceptions and warnings are isolated so optional observers do not block file delivery. The module's processing definitions load even when it has no resource callback; top-level processing code should therefore define helpers and callbacks without request-specific side effects.

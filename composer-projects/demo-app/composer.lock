@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e524d7b66ba4ddce20fd2e17ed8a01c2",
+    "content-hash": "1025eb53571f115adc34ca65377bba11",
     "packages": [
         {
             "name": "erusev/parsedown",
@@ -106,11 +106,11 @@
         },
         {
             "name": "lucques/conjin",
-            "version": "2.7.0",
+            "version": "3.0.0",
             "dist": {
                 "type": "path",
                 "url": "../conjin",
-                "reference": "eac0c10533f50f15a3b7ab08831a5da491c31db4"
+                "reference": "29a603445035633d9eae69d129b6b130e79ab636"
             },
             "require": {
                 "erusev/parsedown": "^1.8",

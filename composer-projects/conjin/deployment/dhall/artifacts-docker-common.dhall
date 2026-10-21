@@ -151,7 +151,7 @@ let moduleToString =
 
 let htdocsDir = "/files/htdocs"
 
--- Conjin is mounted into htdocs from its source directory, so its Composer
+-- Conjin is mounted separately from its source directory, so its Composer
 -- package must not also be copied as part of the application's vendor tree.
 let conjinComposerPackagePath = "/vendor/lucques/conjin"
 
@@ -160,8 +160,8 @@ let conjinComposerPackagePath = "/vendor/lucques/conjin"
 -- Volumes --
 -------------
 
--- The following volumes are placed inside of htdocs dir
-let makeHtdocsVols =
+-- Public entrypoints stay in htdocs; implementation and resources use privateDir.
+let makeWebserverVols =
     \(targetDir:   Text) ->
     \(appDir:      Text) ->
     \(conjinDir:   Text) ->
@@ -171,14 +171,12 @@ let makeHtdocsVols =
     -- Volumes may be named (test environment) or bind (otherwise). Therefore
     -- a function is passed
     \(makeModuleCssVol: T.ModuleLocation -> Text -> Compose.ServiceVolume) ->
-    \(withErrorLogDir:   Bool) ->
-    \(withPreprocessDir: Bool) ->
-    \(withStoreDir:      Bool) ->
+    \(privateDir: Text) ->
 
     let makeModuleVol =
         \(m: T.BareModule) ->
         let location = T.bareModuleToLocation m in
-        makeReadonlyVol (makeModuleSourceDir conjinDir appDir location) (makeModuleDir htdocsDir (None Text) location)
+        makeReadonlyVol (makeModuleSourceDir conjinDir appDir location) (makeModuleDir privateDir (None Text) location)
 
     let makeStaticFileVol =
         \(src: Text) ->
@@ -188,38 +186,24 @@ let makeHtdocsVols =
     let makeModuleCssVolOnCompile =
         \(m: T.Module) ->
         let location = T.bareModuleToLocation m.bare in
-        let target = makeModuleDir htdocsDir (Some "css") location in
+        let target = makeModuleDir privateDir (Some "css") location in
         if m.compileScss
             then Some (makeModuleCssVol location target)
             else None Compose.ServiceVolume
     : Optional Compose.ServiceVolume
 
-    let errorLogVol =
-        if withErrorLogDir then Some (makeReadonlyVol (targetDir ++ "/htdocs/logs/error")
-                                                      (htdocsDir ++ "/logs/error"))
-        else None Compose.ServiceVolume
-    : Optional Compose.ServiceVolume
-
-    let preprocessVol =
-        if withPreprocessDir then Some (makeReadonlyVol (targetDir ++ "/htdocs/preprocess")
-                                                        (htdocsDir ++ "/preprocess"))
-        else None Compose.ServiceVolume
-    : Optional Compose.ServiceVolume
-    
-    let storeVol =
-        if withStoreDir then Some (makeReadonlyVol (targetDir ++ "/htdocs/store")
-                                                   (htdocsDir ++ "/store"))
-        else None Compose.ServiceVolume
-    : Optional Compose.ServiceVolume
     in
     [
-        , makeReadonlyVol (appDir    ++ "/src/content")        (htdocsDir ++ "/content")
-        , makeReadonlyVol (appDir    ++ "/src/system")         (htdocsDir ++ "/system")
-        , makeReadonlyVol (conjinDir ++ "/src/conjin")         (htdocsDir ++ "/conjin")
-        , makeReadonlyVol (appDir    ++ "/vendor")             (htdocsDir ++ "/vendor")
+        , makeReadonlyVol (appDir    ++ "/src/content")        (privateDir ++ "/content")
+        , makeReadonlyVol (appDir    ++ "/src/system")         (privateDir ++ "/system")
+        , makeReadonlyVol (conjinDir ++ "/src/conjin")         (privateDir ++ "/framework")
+        , makeReadonlyVol (appDir    ++ "/vendor")             (privateDir ++ "/vendor")
+        , makeReadonlyVol (targetDir ++ "/conjin/.htaccess") (privateDir ++ "/.htaccess")
+        , makeReadonlyVol (targetDir ++ "/htdocs/index.php") (htdocsDir ++ "/index.php")
+        , makeReadonlyVol (targetDir ++ "/htdocs/module-resource.php") (htdocsDir ++ "/module-resource.php")
         , makeReadonlyVol (targetDir ++ "/htdocs/.htaccess")   (htdocsDir ++ "/.htaccess")
-        , makeReadonlyVol (targetDir ++ "/htdocs/config.json") (htdocsDir ++ "/config.json")
-        , makeReadonlyVol (targetDir ++ "/htdocs/users.json")  (htdocsDir ++ "/users.json")
+        , makeReadonlyVol (targetDir ++ "/conjin/config.json") (privateDir ++ "/config.json")
+        , makeReadonlyVol (targetDir ++ "/conjin/users.json")  (privateDir ++ "/users.json")
     ]
     #
     -- Bare modules
@@ -230,10 +214,6 @@ let makeHtdocsVols =
     #
     -- CSS volumes for modules that compile SCSS
     unpackOptionals Compose.ServiceVolume (map T.Module (Optional Compose.ServiceVolume) makeModuleCssVolOnCompile (P.Map.values Text T.Module modules))
-    #
-    -- Error log, preprocess and store volumes are optional (may be placed
-    -- outside of htdocs dir for local deployments)
-    unpackOptionals Compose.ServiceVolume [errorLogVol, preprocessVol, storeVol]
 : List Compose.ServiceVolume
 
 
@@ -343,7 +323,7 @@ in {
     , htdocsDir
     , conjinComposerPackagePath
 
-    , makeHtdocsVols
+    , makeWebserverVols
     , makeTemplateSassCompilation
 
     , extractDockerVolumeSources

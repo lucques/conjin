@@ -34,7 +34,7 @@
             if (!isset($this->activated_modules[$name]))
             {
                 // 1. Determine dependencies and (re)activate recursively
-                $this->init_preprocessing($m);
+                $this->preprocess_module($m);
                 
                 // 2. Only add `$module` *after* its dependencies. This way, the modules of the dependency DAG are topologically sorted.
                 $this->activated_modules[$name] = $m;
@@ -82,7 +82,7 @@
 
         // Internal
 
-        protected abstract function init_preprocessing(Module $m);
+        protected abstract function preprocess_module(Module $m);
     }
 
 
@@ -92,8 +92,8 @@
             parent::__construct();
         }
 
-        protected function init_preprocessing(Module $m) {
-            $m->init_preprocessing_syslet($this);
+        protected function preprocess_module(Module $m) {
+            $m->preprocess_syslet($this);
         }
     }
 
@@ -161,17 +161,16 @@
             // Fixed during construction
             $this->target_ids = $target_ids;
 
-            $is_inline = isset(load_defs_from_script(path_collect($target_ids, 'index.php'))['process']);
-            $is_extra  = file_exists(path_collect($target_ids, 'content.php'));
-            $is_redirect = isset(load_defs_from_script(path_collect($target_ids, 'index.php'))['redirect']);
+            $defs = load_defs_from_script(path_collect($target_ids, 'index.php'));
+            $is_inline = isset($defs['process']);
+            $is_redirect = isset($defs['redirect']);
             // Cannot have both redirect and content
-            assert($is_inline + $is_extra + $is_redirect <= 1, 'More than one content location');
+            assert($is_inline + $is_redirect <= 1, 'More than one content location');
 
             $this->content_location =
                 $is_inline ? ContentLocation::INLINE
-                : ($is_extra ? ContentLocation::EXTRA
-                    : ($is_redirect ? ContentLocation::REDIRECT
-                        : ContentLocation::NONE));
+                : ($is_redirect ? ContentLocation::REDIRECT
+                    : ContentLocation::NONE);
 
             $this->actions_ser_2_actorlist_ser = auth_generate_actions_ser_2_actorlist_ser_for_target($target_ids);
 
@@ -238,8 +237,8 @@
 
         // Internal
 
-        protected function init_preprocessing(Module $m) {
-            $m->init_preprocessing_target($this);
+        protected function preprocess_module(Module $m) {
+            $m->preprocess_target($this);
         }
     }
 
@@ -400,7 +399,7 @@
         }
 
         // If content exists, template must have been set
-        if ($c->content_location == ContentLocation::INLINE || $c->content_location == ContentLocation::EXTRA) {
+        if ($c->content_location == ContentLocation::INLINE) {
             assert($c->template !== null, 'Template not set for ' . path_collect($c->target_ids));
         }
 
@@ -461,5 +460,52 @@
         ////////////
 
         return $new_target;
+    }
+
+    // Separate finished processing data while retaining every Target node in target_root.
+    function preprocess_split_target_data(Target $root, int $split_depth): void {
+        // Remove chunks left by the previous preprocessing run.
+        $chunk_dir = path_preprocess('obj/target-chunks');
+        if (is_dir($chunk_dir)) {
+            $entries = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($chunk_dir, FilesystemIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::CHILD_FIRST
+            );
+            foreach ($entries as $entry) {
+                $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
+            }
+            rmdir($chunk_dir);
+        }
+
+        // Keep all processing data in target_root when splitting is disabled.
+        if ($split_depth === 0) {
+            return;
+        }
+
+        // Group each non-root target's processing data by its owning chunk.
+        $chunks = [];
+        $collect = function(Target $target, array $ids, ?string $owner) use (&$collect, &$chunks, $split_depth): void {
+            $depth = count($ids);
+            if ($depth > 0) {
+                $path = implode('/', $ids);
+                // Start a new chunk at each level covered by the split depth.
+                if ($depth <= $split_depth) {
+                    $owner = $path;
+                }
+                assert($owner !== null);
+                // Move this target's processing data into its chunk record.
+                $chunks[$owner][$path] = $target->detach_processing_data($owner);
+            }
+            // Visit children with the current chunk owner.
+            foreach ($target->id_2_child as $id => $child) {
+                $collect($child, [...$ids, $id], $owner);
+            }
+        };
+        $collect($root, [], null);
+
+        // Write the detached records without serializing Target hierarchy nodes.
+        foreach ($chunks as $owner => $records) {
+            core_save_obj('target-chunks/' . $owner . '/chunk', $records);
+        }
     }
 ?>

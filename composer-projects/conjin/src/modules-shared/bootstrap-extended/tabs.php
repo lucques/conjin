@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $GLOBALS['tabset_cur_id']              = null; // type null | string
         $GLOBALS['tabset_cur_tabs']            = null; // type null | [ 'tab_id' => ['title' => 'some_title', 'content' => 'some_content'] ]
 

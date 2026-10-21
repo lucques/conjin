@@ -163,6 +163,7 @@ let DockerDepl = {
     , appDir               : Text
     , targetDir            : Text
     , cssVolDir            : Text
+    , targetSplitDepth     : Natural
 
     , authentication       : Authentication.Type
     , authorization        : Authorization.Type
@@ -279,6 +280,7 @@ let RemoteDepl = {
     , depl                : DockerDepl
     , desktopIntegration  : DesktopIntegration
     , host                : Text
+    , internalDir         : Text   -- Private code directory beneath pathBase; dynamic sibling names derive from it
     , pathBase            : Text   -- e.g. `/htdocs/my-app-dir` base/root directory in the filesystem
     , urlBase             : Text   -- e.g. `/my-app/`           corresponds to URLs with prefix `https://my-domain.org/my-app/`
     , https               : HTTPS

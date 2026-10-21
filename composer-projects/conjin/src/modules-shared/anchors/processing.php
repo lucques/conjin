@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $GLOBALS['anchors_tree_root']   = []; // nested assoc array
         $GLOBALS['anchors_current_ids'] = []; // list<id>
     };

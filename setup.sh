@@ -11,7 +11,7 @@ integration_test_app_dir="${composer_projects_dir}/integration-test-app"
 # 1. Validate the tools used by the remaining setup phases. Checking everything
 # up front produces a useful error before any dependencies or assets are changed.
 echo "[1/6] Checking required setup tools"
-for command_name in php composer npm curl sha256sum tar unzip dhall dhall-to-json docker; do
+for command_name in python3 php composer npm curl sha256sum tar unzip dhall dhall-to-json docker; do
     command -v "${command_name}" >/dev/null || {
         echo "Required command is not installed: ${command_name}" >&2
         exit 1
@@ -37,12 +37,14 @@ docker compose version --short >/dev/null 2>&1 || {
 }
 
 if ! docker info >/dev/null 2>&1; then
-    echo "Warning: Docker is installed, but its daemon is not currently reachable." >&2
+    echo "Docker must be reachable to prepare the PHP runtime and install development dependencies." >&2
+    exit 1
 fi
 
-# 2. Install the exact PHP dependency versions recorded in composer.lock.
-echo "[2/6] Installing locked Conjin development dependencies"
-composer install --working-dir="${conjin_dir}" --no-interaction
+# 2. Install development dependencies using the test PHP runtime, so PHPUnit
+# does not impose PHP version or extension requirements on the host interpreter.
+echo "[2/6] Preparing PHP test runtime and locked Conjin development dependencies"
+"${repository_dir}/bin/test" prepare php
 
 # 3. Install the human-facing demo app and its locked Conjin package version.
 echo "[3/6] Installing locked demo-app PHP dependencies"

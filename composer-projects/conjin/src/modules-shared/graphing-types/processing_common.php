@@ -78,6 +78,14 @@
         case Low = 3;
     }
 
+    enum FontSize: int {
+        case XS = 1;
+        case SM = 2;
+        case MD = 3;
+        case LG = 4;
+        case XL = 5;
+    }
+
 
     /////////////
     // Helpers //

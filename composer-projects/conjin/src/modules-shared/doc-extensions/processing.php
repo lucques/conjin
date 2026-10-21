@@ -1,5 +1,5 @@
 <?
-    $init_processing = function(Module $module, Processable $processable) {
+    $process_target = $process_syslet = function(Module $module, Processable $processable) {
         $GLOBALS['doc_extensions_head_elements']        = [];
         $GLOBALS['doc_extensions_body_classes']         = [];
         $GLOBALS['doc_extensions_body_top_elements']    = [];

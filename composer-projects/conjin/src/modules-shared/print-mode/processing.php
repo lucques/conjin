@@ -3,7 +3,7 @@
     // Init //
     //////////
 
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $GLOBALS['print_mode_module']      = $module;
         $GLOBALS['print_mode_size']        = strtolower($module->config->get('size'));
         $GLOBALS['print_mode_is_portrait'] = $module->config->get('is_portrait');
@@ -17,19 +17,27 @@
 
     function print_mode_prepare_document(Target $target): void {
         $module = $GLOBALS['print_mode_module'];
-        $paged_js_module = new ModuleLocation('paged-js');
+        $renderer = $module->config->get('renderer');
+        if ($target->has_activated_module('sol-mode') && is_sol_mode_on()) {
+            $renderer = $module->config->get('renderer_in_sol_mode') ?? $renderer;
+        }
+        if (!in_array($renderer, ['pagedjs', 'native'], true)) {
+            throw new InvalidArgumentException('Unknown print-mode renderer: ' . $renderer);
+        }
         $css_path = $module->get_url() . '/res/page-' . $GLOBALS['print_mode_size'] . '-' . ($GLOBALS['print_mode_is_portrait'] ? 'portrait' : 'landscape') . '.css';
 
-        doc_extensions_add_head_element('<script src="'. $paged_js_module->get_url() . '/res/paged.js"></script>');
-        doc_extensions_add_head_element('<link id="print-mode-interface-stylesheet" href="'. $module->get_url() . '/res/interface.css" rel="stylesheet" type="text/css" />');
-        doc_extensions_add_head_element('<script src="'. $module->get_url() . '/res/library.js"></script>');
-
-        if ($target->has_activated_module('mathjax-extensions')) {
-            doc_extensions_add_head_element('<script>setupPrintModeAfterMathJax(\'' . $css_path . '\');</script>');
+        if ($renderer === 'pagedjs') {
+            $paged_js_module = new ModuleLocation('paged-js');
+            doc_extensions_add_head_element('<script src="'. $paged_js_module->get_url() . '/res/paged.js"></script>');
+            doc_extensions_add_head_element('<link id="print-mode-interface-stylesheet" href="'. $module->get_url() . '/res/interface.css" rel="stylesheet" type="text/css" />');
         }
         else {
-            doc_extensions_add_head_element('<script>document.addEventListener("DOMContentLoaded", function() {setupPrintMode(\'' . $css_path . '\')});</script>');
+            doc_extensions_add_body_class('print-mode-native');
+            doc_extensions_add_head_element('<link href="'. $css_path . '" rel="stylesheet" type="text/css" />');
         }
+        doc_extensions_add_head_element('<script src="'. $module->get_url() . '/res/library.js"></script>');
+
+        doc_extensions_add_head_element('<script>setupPrintMode(\'' . $css_path . '\', \'' . $renderer . '\');</script>');
     }
 
     function print_mode_get_css_elements(): array {

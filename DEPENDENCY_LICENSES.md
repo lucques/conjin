@@ -14,15 +14,40 @@ No unresolved licensing blocker is currently identified by this inventory. All l
 | --- | --- | --- | --- |
 | erusev/parsedown | 1.8.0 | MIT | conjin, demo-app, integration-test-app |
 | jumbojett/openid-connect-php | v1.0.2 | Apache-2.0 | conjin, demo-app, integration-test-app |
-| lucques/conjin | 2.7.0 | GPL-3.0-or-later | demo-app, integration-test-app |
+| lucques/conjin | 3.0.0 | GPL-3.0-or-later | demo-app, integration-test-app |
 | monolog/monolog | 3.10.0 | MIT | demo-app, integration-test-app |
 | monolog/monolog | 3.9.0 | MIT | conjin |
+| myclabs/deep-copy | 1.14.0 | MIT | conjin |
+| nikic/php-parser | v5.9.0 | BSD-3-Clause | conjin |
 | paragonie/constant_time_encoding | v3.1.3 | MIT | conjin, demo-app, integration-test-app |
 | paragonie/random_compat | v9.99.100 | MIT | conjin, demo-app, integration-test-app |
+| phar-io/manifest | 2.0.4 | BSD-3-Clause | conjin |
+| phar-io/version | 3.2.1 | BSD-3-Clause | conjin |
 | phpmailer/phpmailer | v6.10.0 | LGPL-2.1-only | conjin |
 | phpmailer/phpmailer | v6.12.0 | LGPL-2.1-only | demo-app, integration-test-app |
 | phpseclib/phpseclib | 3.0.55 | MIT | conjin, demo-app, integration-test-app |
+| phpunit/php-code-coverage | 12.5.7 | BSD-3-Clause | conjin |
+| phpunit/php-file-iterator | 6.0.2 | BSD-3-Clause | conjin |
+| phpunit/php-invoker | 6.0.0 | BSD-3-Clause | conjin |
+| phpunit/php-text-template | 5.0.0 | BSD-3-Clause | conjin |
+| phpunit/php-timer | 8.0.0 | BSD-3-Clause | conjin |
+| phpunit/phpunit | 12.5.35 | BSD-3-Clause | conjin |
 | psr/log | 3.0.2 | MIT | conjin, demo-app, integration-test-app |
+| sebastian/cli-parser | 4.2.1 | BSD-3-Clause | conjin |
+| sebastian/comparator | 7.1.8 | BSD-3-Clause | conjin |
+| sebastian/complexity | 5.0.0 | BSD-3-Clause | conjin |
+| sebastian/diff | 7.0.1 | BSD-3-Clause | conjin |
+| sebastian/environment | 8.1.2 | BSD-3-Clause | conjin |
+| sebastian/exporter | 7.0.3 | BSD-3-Clause | conjin |
+| sebastian/global-state | 8.0.3 | BSD-3-Clause | conjin |
+| sebastian/lines-of-code | 4.0.1 | BSD-3-Clause | conjin |
+| sebastian/object-enumerator | 7.0.0 | BSD-3-Clause | conjin |
+| sebastian/object-reflector | 5.0.0 | BSD-3-Clause | conjin |
+| sebastian/recursion-context | 7.0.1 | BSD-3-Clause | conjin |
+| sebastian/type | 6.0.4 | BSD-3-Clause | conjin |
+| sebastian/version | 6.0.0 | BSD-3-Clause | conjin |
+| staabm/side-effects-detector | 1.0.5 | MIT | conjin |
+| theseer/tokenizer | 2.0.1 | BSD-3-Clause | conjin |
 
 PHP and PHP extensions are platform requirements and are not Composer packages, so their licenses do not appear in Composer lockfile metadata.
 
@@ -48,8 +73,11 @@ PHP and PHP extensions are platform requirements and are not Composer packages, 
 | @playwright/test | 1.61.0 | Apache-2.0 | integration tests |
 | @playwright/test | 1.61.0 | Apache-2.0 | root npm lock |
 | @popperjs/core | 2.11.8 | MIT | root npm lock |
+| @sphinxxxx/color-conversion | 2.2.2 | ISC | root npm lock |
 | abbrev | 1.1.1 | ISC | root npm lock |
+| ace-builds | 1.44.0 | BSD-3-Clause | root npm lock |
 | agent-base | 6.0.2 | MIT | root npm lock |
+| ajv | 6.15.0 | MIT | root npm lock |
 | ansi-regex | 5.0.1 | MIT | root npm lock |
 | aproba | 2.1.0 | ISC | root npm lock |
 | are-we-there-yet | 2.0.0 | ISC | root npm lock |
@@ -82,6 +110,8 @@ PHP and PHP extensions are platform requirements and are not Composer packages, 
 | esniff | 2.0.1 | ISC | root npm lock |
 | event-emitter | 0.3.5 | MIT | root npm lock |
 | ext | 1.7.0 | ISC | root npm lock |
+| fast-deep-equal | 3.1.3 | MIT | root npm lock |
+| fast-json-stable-stringify | 2.1.0 | MIT | root npm lock |
 | fraction.js | 4.3.4 | MIT | root npm lock |
 | fs-minipass | 2.1.0 | ISC | root npm lock |
 | fs.realpath | 1.0.0 | ISC | root npm lock |
@@ -96,6 +126,11 @@ PHP and PHP extensions are platform requirements and are not Composer packages, 
 | inherits | 2.0.4 | ISC | root npm lock |
 | is-fullwidth-code-point | 3.0.0 | MIT | root npm lock |
 | javascript-natural-sort | 0.7.1 | MIT | root npm lock |
+| jmespath | 0.16.0 | Apache-2.0 | root npm lock |
+| json-schema-traverse | 0.4.1 | MIT | root npm lock |
+| json-source-map | 0.6.1 | MIT | root npm lock |
+| jsoneditor | 10.4.3 | Apache-2.0 | root npm lock |
+| jsonrepair | 3.15.0 | ISC | root npm lock |
 | jsxgraph | 1.12.2 | (MIT OR LGPL-3.0-or-later) | root npm lock |
 | make-dir | 3.1.0 | MIT | root npm lock |
 | mathjax | 3.2.2 | Apache-2.0 | root npm lock |
@@ -118,12 +153,14 @@ PHP and PHP extensions are platform requirements and are not Composer packages, 
 | once | 1.4.0 | ISC | root npm lock |
 | pagedjs | 0.4.3 | MIT | root npm lock |
 | path-is-absolute | 1.0.1 | MIT | root npm lock |
+| picomodal | 3.0.0 | MIT | root npm lock |
 | playwright | 1.61.0 | Apache-2.0 | integration tests |
 | playwright | 1.61.0 | Apache-2.0 | root npm lock |
 | playwright-core | 1.61.0 | Apache-2.0 | integration tests |
 | playwright-core | 1.61.0 | Apache-2.0 | root npm lock |
 | preact | 10.12.1 | MIT | root npm lock |
 | prismjs | 1.30.0 | MIT | root npm lock |
+| punycode | 2.3.1 | MIT | root npm lock |
 | readable-stream | 3.6.2 | MIT | root npm lock |
 | regenerator-runtime | 0.13.11 | MIT | root npm lock |
 | rimraf | 3.0.2 | ISC | root npm lock |
@@ -147,7 +184,9 @@ PHP and PHP extensions are platform requirements and are not Composer packages, 
 | tr46 | 0.0.3 | MIT | root npm lock |
 | type | 2.7.3 | ISC | root npm lock |
 | typed-function | 4.2.2 | MIT | root npm lock |
+| uri-js | 4.4.1 | BSD-2-Clause | root npm lock |
 | util-deprecate | 1.0.2 | MIT | root npm lock |
+| vanilla-picker | 2.12.3 | ISC | root npm lock |
 | webidl-conversions | 3.0.1 | BSD-2-Clause | root npm lock |
 | whatwg-url | 5.0.0 | MIT | root npm lock |
 | wide-align | 1.1.5 | ISC | root npm lock |

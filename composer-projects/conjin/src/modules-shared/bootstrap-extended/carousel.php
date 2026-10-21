@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $GLOBALS['carousel_cur_id']            = null; // type null | string
         $GLOBALS['carousel_cur_with_controls'] = null; // type null | bool
         $GLOBALS['carousel_next_id'] = 0;

@@ -129,11 +129,21 @@ def phase_generate_password_hashes(users2tagged_passwords):
     return users_2_hashes
 
 
+def phase_build_public_entrypoints(target_dir, framework_relative_dir):
+    """Generate the only public PHP files; implementations remain private."""
+    for name in ('index.php', 'module-resource.php'):
+        relative = framework_relative_dir.replace('\\', '\\\\').replace("'", "\\'")
+        (target_dir / 'htdocs' / name).write_text(
+            "<?\n    if (!@chdir(__DIR__ . '/" + relative + "')) {\n        http_response_code(503);\n        exit;\n    }\n    require '" + name + "';\n"
+        )
+    (target_dir / 'conjin' / '.htaccess').write_text('Require all denied\n')
+
+
 def phase_build_users_json(target_dir, users_2_hashes):
     print('Building `users.json`...')
 
     users_2_hashes_json = json.dumps(users_2_hashes, indent=4)
-    (target_dir / 'htdocs/users.json').write_text(users_2_hashes_json)
+    (target_dir / 'conjin/users.json').write_text(users_2_hashes_json)
 
 
 def phase_register_passwords(users_2_tagged_passwords, users_2_commands):

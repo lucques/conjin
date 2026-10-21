@@ -1,0 +1,620 @@
+#!/usr/bin/env python3
+"""One entrypoint for repository checks, component tests, and deployed tests."""
+
+import argparse
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import time
+
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / 'tests/support'))
+from reports import read_cases, counts, write_summary
+from php_runtime import Blocked, PhpRuntime, configured_image
+
+CATEGORIES = ('unit', 'component', 'integration', 'e2e', 'smoke', 'repository')
+
+PHP_FLAGS = ['-d', 'short_open_tag=1', '-d', 'zend.assertions=1', '-d', 'assert.exception=1']
+PREPARATION_VERSION = 1
+TEST_PATTERNS = {'php': '*Test.php', 'python': 'test_*.py'}
+
+
+@dataclass(frozen=True)
+class Suite:
+    name: str
+    group: str
+    description: str
+    deployment: str = ''
+    tools: tuple[str, ...] = ()
+    category: str = 'integration'
+    components: tuple[str, ...] = ()
+    project: str = ''
+    requirements: tuple[str, ...] = ()
+
+    @property
+    def tool(self):
+        return {'php': 'phpunit', 'python': 'unittest', 'browser': 'playwright', 'checks': 'license-check', 'http': 'apache-http'}.get(self.group, 'playwright' if self.project else 'linkchecker')
+
+    @property
+    def directory(self):
+        return f'{self.group}/{self.category}'
+
+    def files(self, repo, path=''):
+        needle = path.lower().replace('_', '')
+        return [file for file in sorted((repo / 'tests' / self.directory).rglob(TEST_PATTERNS[self.group]))
+            if needle in str(file.relative_to(repo / 'tests')).lower().replace('_', '')]
+
+
+def registry(repo: Path) -> list[Suite]:
+    data = json.loads((repo / 'tests/suites.json').read_text())
+    suites = [Suite(**{**entry, 'tools': tuple(entry['tools']), 'components': tuple(entry['components'])}) for entry in data]
+    if len({s.name for s in suites}) != len(suites) or any(s.category not in CATEGORIES or not s.components for s in suites):
+        raise ValueError('Invalid or duplicate suite metadata in tests/suites.json')
+    grouped = [s for s in suites if s.group in TEST_PATTERNS]
+    if len({s.directory for s in grouped}) != len(grouped):
+        raise ValueError('Duplicate test category directories in tests/suites.json')
+    covered = {file for suite in grouped for file in suite.files(repo)}
+    discovered = set((repo / 'tests').glob('test_*.py'))
+    for group, pattern in TEST_PATTERNS.items():
+        discovered.update((repo / 'tests' / group).rglob(pattern))
+    if discovered - covered:
+        raise ValueError('Tests must be inside a registered category directory: ' + ', '.join(str(p.relative_to(repo)) for p in sorted(discovered - covered)))
+    return suites
+
+
+def select_suites(suites: list[Suite], target: str, path: str = '', *, repo=REPO) -> list[Suite]:
+    if target == 'all':
+        selected = suites
+    elif target == 'fast':
+        selected = [s for s in suites if s.group in ('checks', 'python', 'php')]
+    elif target in CATEGORIES:
+        selected = [s for s in suites if s.category == target]
+    elif target in ('python', 'php'):
+        selected = [s for s in suites if s.group == target]
+    else:
+        selected = [s for s in suites if s.name == target]
+    if not selected:
+        raise ValueError(f'Unknown test target: {target}. Run bin/test list.')
+    if path:
+        if all(s.group in TEST_PATTERNS for s in selected) and target not in CATEGORIES and target not in ('all', 'fast'):
+            selected = [s for s in selected if s.files(repo, path)]
+            if not selected:
+                raise ValueError(f'No {target} test file matches {path!r}')
+        elif target in ('all', 'fast', 'repository-checks', 'http-layouts', *CATEGORIES):
+            raise ValueError(f'{target} does not accept a path filter')
+    return selected
+
+
+def normalize_path(path: str) -> str:
+    path = path.strip('/')
+    if path.startswith('-') or any(part in ('.', '..') for part in path.split('/')):
+        raise ValueError('Filters must not be options or contain dot path components')
+    return path
+
+
+@contextmanager
+def checkout_lock(cache: Path):
+    cache.mkdir(parents=True, exist_ok=True)
+    with (cache / 'runner.lock').open('a+') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise Blocked('Another bin/test invocation is using this checkout') from None
+        yield
+
+
+def reset_artifacts(root: Path) -> None:
+    if root.exists():
+        shutil.rmtree(root)
+    root.mkdir(parents=True)
+    (root / 'invocation.json').write_text(json.dumps({
+        'command': sys.argv,
+        'commandLine': shlex.join(sys.argv),
+        'workingDirectory': str(Path.cwd()),
+        'startedAt': datetime.now().astimezone().isoformat(),
+    }, indent=4) + '\n')
+
+
+def preparation_fingerprint(repo: Path, app: Path) -> str:
+    """Only preparation inputs: PHP/content/spec edits use live source mounts."""
+    framework = repo / 'composer-projects/conjin'
+    files = {repo / 'bin/test', repo / 'package-lock.json', framework / 'composer.lock', app / 'composer.lock'}
+    for base in (framework / 'deployment', framework / 'ext/dhall', app / 'deployments'):
+        for file in base.rglob('*'):
+            if file.is_file() and not any(part in ('target', 'docker_volumes', 'backup', '__pycache__') for part in file.relative_to(base).parts):
+                if file.suffix in ('.dhall', '.py') or file.name == 'Dockerfile' or (base.name == 'deployments' and file.suffix == ''):
+                    files.add(file)
+    for base in (framework / 'src/modules-shared', framework / 'ext/modules-shared', app / 'src/modules', app / 'ext/modules'):
+        files.update(base.rglob('*.scss'))
+    files.update((repo / 'tests/integration' / name) for name in ('Dockerfile', 'package.json', 'package-lock.json'))
+    # Include Docker contexts, including entrypoint scripts and server config.
+    files.update(p for p in (framework / 'deployment/docker').rglob('*') if p.is_file())
+    digest = hashlib.sha256(str(PREPARATION_VERSION).encode())
+    for file in sorted(files):
+        digest.update(str(file.relative_to(repo)).encode())
+        digest.update(file.read_bytes() if file.is_file() else b'<missing>')
+    return digest.hexdigest()
+
+
+def runtime_compose(config: dict, project: str) -> dict:
+    """Retain prepared CSS; give mutable volumes to the current test project."""
+    config = json.loads(json.dumps(config))
+    config.pop('name', None)
+    css = set()
+    for name, service in list(config['services'].items()):
+        if name.startswith('sass-build-'):
+            css.update(v['source'] for v in service.get('volumes', []) if v.get('type') == 'volume' and v['target'].rstrip('/') == '/css')
+            del config['services'][name]
+    for name, volume in config.get('volumes', {}).items():
+        if name in css:
+            config['volumes'][name] = {'external': True, 'name': volume.get('name', f'{project}_{name}')}
+        elif not volume.get('external'):
+            volume.pop('name', None)
+    for network in config.get('networks', {}).values():
+        if not network.get('external'):
+            network.pop('name', None)
+    for service in config['services'].values():
+        service.pop('build', None)
+        for volume in service.get('volumes', []):
+            if volume.get('source') in css:
+                volume['read_only'] = True
+    return config
+
+
+class Runner:
+    def __init__(self, repo: Path = REPO):
+        self.repo = repo
+        self.artifacts = repo / 'test-artifacts'
+        self.cache = repo / '.cache/test-runner'
+        self.env = dict(os.environ, USER_UID=str(os.getuid()), USER_GID=str(os.getgid()), PYTHONUNBUFFERED='1')
+        self.env.pop('PYTHONOPTIMIZE', None)
+        self.env.setdefault('XDG_CACHE_HOME', '/tmp/conjin-test-dhall-cache')
+        identity = hashlib.sha256(str(repo).encode()).hexdigest()[:10]
+        self.prepared_project = 'conjin-test-prepared-' + identity
+        self.project = self.env.get('CONJIN_TEST_PROJECT', f'conjin-test-{identity}-{os.getpid()}')
+        if not re.fullmatch(r'[a-z0-9][a-z0-9_-]*', self.project) or self.project == 'nginx-proxy':
+            raise ValueError('CONJIN_TEST_PROJECT must be a valid test-specific Compose project name')
+        self.prepared = {}
+        self.started = set()
+        self.used_projects = set()
+        self.start_failures = {}
+        self.checked = set()
+        self.results = []
+        self.cleanup_errors = []
+        self.case_report = None
+        self.log = None
+        self.browser_info = {}
+        self.php = PhpRuntime(repo, self.env, self.command, lambda: self.require('docker-engine'), self.project, self.prepared_project, self.progress)
+
+    def progress(self, message):
+        print('  ' + message, flush=True)
+        if self.log:
+            self.log.write(message + '\n')
+            self.log.flush()
+
+    def command(self, args, *, capture=False, env=None, check=True):
+        args = [str(arg) for arg in args]
+        if self.log:
+            self.log.write('$ ' + shlex.join(args) + '\n')
+            self.log.flush()
+        if capture:
+            result = subprocess.run(args, cwd=self.repo, env=env or self.env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if self.log and result.stderr:
+                self.log.write(result.stderr)
+            if check and result.returncode:
+                if self.log:
+                    self.log.write(result.stdout)
+                raise subprocess.CalledProcessError(result.returncode, args, result.stdout, result.stderr)
+            return result.stdout
+        result = subprocess.run(args, cwd=self.repo, env=env or self.env, stdout=self.log, stderr=subprocess.STDOUT)
+        if check and result.returncode:
+            raise subprocess.CalledProcessError(result.returncode, args)
+        return result.returncode
+
+    def require(self, tool: str):
+        if tool in self.checked:
+            return
+        if tool == 'php':
+            self.php.require()
+            self.checked.add(tool)
+            return
+        executable = 'docker' if tool == 'docker-engine' else tool
+        if shutil.which(executable) is None:
+            raise Blocked(f'Missing {executable}; install the prerequisites described in doc/tests.md')
+        if tool in ('docker', 'docker-engine'):
+            try:
+                self.command(['docker', 'info', '--format', '{{.ServerVersion}}'], capture=True)
+                if tool == 'docker':
+                    self.command(['docker', 'compose', 'version'], capture=True)
+            except subprocess.CalledProcessError as error:
+                raise Blocked('Docker' + (' and the Compose plugin' if tool == 'docker' else '') + ' must be available to this user') from error
+        self.checked.add(tool)
+
+    def require_php_extensions(self, extensions):
+        self.require('php')
+        self.php.require_extensions(extensions)
+
+    def app(self, name):
+        return self.repo / 'composer-projects' / ('demo-app' if name == 'demo' else 'integration-test-app')
+
+    def compose(self, name, *args, preparing=False, capture=False, check=True):
+        if not preparing:
+            self.used_projects.add(name)
+        directory = self.cache / name
+        file = directory / ('prepare-compose.json' if preparing else 'compose.json')
+        project = f'{self.prepared_project if preparing else self.project}-{name}'
+        return self.command(['docker', 'compose', '--file', file, '--project-name', project, *args], capture=capture, check=check)
+
+    def prepare_deployment(self, name):
+        self.progress('Checking Docker and Dhall prerequisites...')
+        self.require('docker')
+        self.require('dhall-to-json')
+        app = self.app(name)
+        directory = self.cache / name
+        directory.mkdir(parents=True, exist_ok=True)
+        state = directory / 'state.json'
+        state.unlink(missing_ok=True)
+        self.env['TEST_ARTIFACTS_DIR'] = str(self.artifacts / 'prepare' / name)
+        Path(self.env['TEST_ARTIFACTS_DIR']).mkdir(parents=True, exist_ok=True)
+        self.progress(f'Generating {name} deployment configuration...')
+        self.command([app / 'vendor/bin/depl', 'build', 'test', app / 'deployments/test/src/config.dhall'])
+        project = f'{self.prepared_project}-{name}'
+        # Generated paths are absolute. Keep the artifact-directory placeholder
+        # unresolved so each suite can bind its own report directory later.
+        config = json.loads(self.command(['docker', 'compose', '--file', app / 'deployments/test/target/docker-compose-test.yml', '--project-name', project, 'config', '--no-interpolate', '--no-path-resolution', '--format', 'json'], capture=True))
+        if 'playwright' in config['services']:
+            image = self.playwright_image()
+            self.progress(f'Preparing shared Playwright image from {image}; Node, Chromium and browser dependencies stay inside Docker...')
+        for service_name, service in config['services'].items():
+            if 'build' in service:
+                service['image'] = f'{project}-{service_name}:latest'
+        preparation = directory / 'prepare-compose.json'
+        preparation.write_text(json.dumps(config, indent=4) + '\n')
+        try:
+            images = sorted({service['image'] for service in config['services'].values() if 'image' in service and 'build' not in service})
+            self.progress('Checking/downloading support images: ' + ', '.join(images))
+            self.compose(name, 'pull', '--ignore-buildable', preparing=True)
+            services = [name for name, service in config['services'].items() if 'build' in service]
+            self.progress('Building deployment images (reusing cached layers): ' + ', '.join(services))
+            self.compose(name, 'build', preparing=True)
+            for service in config['services']:
+                if service.startswith('sass-build-'):
+                    self.progress('Compiling CSS: ' + service.removeprefix('sass-build-'))
+                    self.compose(name, 'run', '--rm', '--no-deps', '--pull', 'never', service, preparing=True)
+        finally:
+            self.progress('Removing preparation containers; keeping compiled CSS volumes...')
+            self.compose(name, 'down', '--remove-orphans', preparing=True)
+        runtime = runtime_compose(config, project)
+        # Test code is live; changing specs does not require rebuilding an image.
+        if 'playwright' in runtime['services']:
+            volumes = runtime['services']['playwright'].setdefault('volumes', [])
+            for path in ('playwright.config.ts', 'specs', 'fixtures', 'lib', 'setup'):
+                volumes.append({'type': 'bind', 'source': str(self.repo / 'tests/integration' / path), 'target': '/tests/' + path, 'read_only': True})
+        (directory / 'compose.json').write_text(json.dumps(runtime, indent=4) + '\n')
+        seed = app / 'deployments/test/target/conjin'
+        if not (seed / 'config.json').is_file() or not (seed / 'users.json').is_file():
+            raise Blocked('Generated test configuration is missing from ' + str(seed))
+        if name == 'integration':
+            self.progress('Saving the compiled Bootstrap CSS snapshot for component tests...')
+            service = config['services']['sass-build-bootstrap-extended-shared']
+            source = next(v['source'] for v in service['volumes'] if v.get('type') == 'volume' and v['target'].rstrip('/') == '/css')
+            volume_name = runtime['volumes'][source]['name']
+            image = config['services']['volume-init']['image']
+            css = self.command(['docker', 'run', '--rm', '--pull', 'never', '--network', 'none', '-v', f'{volume_name}:/css:ro', image, 'cat', '/css/screen.css'], capture=True)
+            (directory / 'bootstrap-extended-screen.css').write_text(css)
+        state.write_text(json.dumps({'fingerprint': preparation_fingerprint(self.repo, app), 'images': sorted({s['image'] for s in runtime['services'].values() if 'image' in s})}, indent=4) + '\n')
+
+    def load_prepared(self, name):
+        self.require('docker')
+        if name not in self.prepared:
+            directory = self.cache / name
+            try:
+                state = json.loads((directory / 'state.json').read_text())
+                config = json.loads((directory / 'compose.json').read_text())
+                if not isinstance(state.get('images'), list) or not state['images'] or 'services' not in config:
+                    raise ValueError('Incomplete preparation metadata')
+            except (OSError, ValueError) as error:
+                previous_log = directory / 'preparation.log'
+                if self.log and previous_log.is_file():
+                    self.log.write('Previous preparation output:\n' + previous_log.read_text() + '\n')
+                raise Blocked(f'No prepared {name} test environment. Run bin/test prepare.') from error
+            if state.get('fingerprint') != preparation_fingerprint(self.repo, self.app(name)):
+                raise Blocked(f'Prepared {name} inputs are outdated. Run bin/test prepare.')
+            try:
+                self.command(['docker', 'image', 'inspect', *state['images']], capture=True)
+                volumes = [v['name'] for v in config.get('volumes', {}).values() if v.get('external')]
+                if volumes:
+                    self.command(['docker', 'volume', 'inspect', *volumes], capture=True)
+            except subprocess.CalledProcessError as error:
+                raise Blocked(f'Prepared {name} images or CSS volumes are missing. Run bin/test prepare.') from error
+            self.prepared[name] = config
+        return self.prepared[name]
+
+    def start(self, name):
+        config = self.load_prepared(name)
+        if name in self.start_failures:
+            raise Blocked(self.start_failures[name])
+        if name in self.started:
+            return
+        self.started.add(name)  # Also clean up partially started deployments.
+        try:
+            services = config['services']
+            if 'volume-init' in services:
+                self.compose(name, 'run', '--rm', '--no-deps', '--pull', 'never', 'volume-init')
+            self.compose(name, 'up', '--detach', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '90', *[s for s in ('db', 'webserver') if s in services])
+            # Read the same configured internal endpoint/user as LinkChecker.
+            env = services['linkchecker']['environment']
+            origin = env['LINKCHECKER_ORIGIN']
+            user = services['webserver']['environment']['CONJIN_TEST_PREPROCESS_USER']
+            php = '''$context = stream_context_create(['http' => ['header' => 'Cookie: user=' . $argv[2], 'ignore_errors' => true]]); $body = file_get_contents($argv[1] . '/preprocess/', false, $context); if (!str_contains($http_response_header[0] ?? '', ' 200 ') || !str_contains($body ?: '', 'Preprocessing done.')) { fwrite(STDERR, ($body ?: 'Preprocessing failed') . "\\n"); exit(1); } echo $body;'''
+            self.compose(name, 'exec', '-T', 'webserver', 'php', '-r', php, origin, user)
+        except subprocess.CalledProcessError as error:
+            message = f'{name} deployment setup failed (exit {error.returncode}); see this suite log'
+            self.start_failures[name] = message
+            raise Blocked(message) from error
+
+    def playwright_image(self):
+        image = configured_image(self.repo, 'imagePlaywright')
+        lock = json.loads((self.repo / 'tests/integration/package-lock.json').read_text())
+        version = lock['packages']['node_modules/@playwright/test']['version']
+        if f':v{version}-' not in image:
+            raise ValueError('imagePlaywright must match the locked @playwright/test version')
+        return image
+
+    def run_components(self, suite, path):
+        self.require_php_extensions(('pdo_sqlite', 'mbstring'))
+        image = self.load_prepared('integration')['services']['playwright']['image']
+        css = self.component_css()
+        folder = self.output_dir(suite)
+        self.case_report = (folder / 'results.json', 'playwright')
+        fixtures = {
+            'feedback-collector': ['feedback_collector_fixture.php'],
+            'bootstrap-extended': ['bootstrap_accordion_fixture.php', 'bootstrap-extended'],
+            'bootstrap-alternative': ['bootstrap_accordion_fixture.php', 'bootstrap-alternative'],
+        }
+        rendered = {name: self.command([*self.php.prefix, *PHP_FLAGS, self.repo / 'tests' / file, *args], capture=True)
+            for name, (file, *args) in fixtures.items()}
+        (folder / 'fixtures.json').write_text(json.dumps(rendered) + '\n')
+        command = [
+            'run', '--rm', '--no-deps', '--pull', 'never',
+            '--volume', f'{self.repo}:/repo:ro',
+            '--volume', f'{self.repo / "tests/components"}:/tests/components:ro',
+            '--volume', f'{css}:/component.css:ro',
+            '--env', 'BOOTSTRAP_EXTENDED_CSS=/component.css',
+            'playwright', 'npm', 'test', '--', '--config', 'components/playwright.config.ts',
+        ]
+        if path:
+            command.append(path)
+        self.browser_info = {'kind': 'docker', 'image': image}
+        print(f'Browser runtime: Docker ({image})', flush=True)
+        self.compose('integration', *command)
+
+    def component_css(self):
+        explicit = self.env.get('BOOTSTRAP_EXTENDED_CSS')
+        path = Path(explicit) if explicit else self.cache / 'integration/bootstrap-extended-screen.css'
+        if not path.is_file():
+            raise Blocked('Compiled Bootstrap extended CSS is required. Run bin/test prepare or set BOOTSTRAP_EXTENDED_CSS.')
+        return path.resolve()
+
+    def run_suite(self, suite, path=''):
+        for tool in suite.tools:
+            self.require(tool)
+        if suite.group == 'checks':
+            self.command([self.repo / 'licenses/generate-report', '--check'])
+            self.command([sys.executable, 'tests/support/document_inventory.py', '--check'])
+        elif suite.group == 'python':
+            output = self.output_dir(suite) / (suite.name + '.json')
+            self.case_report = (output, 'json')
+            command = [sys.executable, 'tests/support/run_unittest.py', '--directory', self.repo / 'tests' / suite.directory, '--output', output]
+            if path:
+                command += suite.files(self.repo, path)
+            self.command(command)
+        elif suite.group == 'php':
+            extensions = ['dom', 'xml', 'xmlwriter', 'mbstring']
+            if suite.category == 'integration':
+                extensions.append('pdo_sqlite')
+            self.require_php_extensions(extensions)
+            executable = self.repo / 'composer-projects/conjin/vendor/bin/phpunit'
+            if not executable.is_file():
+                raise Blocked('PHPUnit is missing. Run bin/test prepare php.')
+            output = self.output_dir(suite) / (suite.name + '.xml')
+            self.case_report = (output, 'junit')
+            command = [*self.php.prefix, *PHP_FLAGS, executable, '-c', 'tests/php/phpunit.xml', '--log-junit', output]
+            command += suite.files(self.repo, path) if path else ['--testsuite', suite.category]
+            self.command(command)
+        elif suite.name == 'component-playwright':
+            self.run_components(suite, path)
+        elif suite.name == 'http-layouts':
+            config = self.load_prepared('integration')
+            self.case_report = (self.output_dir(suite) / 'results.json', 'json')
+            self.command([sys.executable, 'tests/check_private_layout_http.py', '--image', config['services']['webserver']['image'], '--config-dir', self.app('integration') / 'deployments/test/target/conjin'])
+        else:
+            self.start(suite.deployment)
+            if suite.name.endswith('linkchecker'):
+                try:
+                    self.compose(suite.deployment, 'run', '--rm', '--no-deps', '--pull', 'never', '--env', f'LINKCHECKER_PREFIX={path + "/" if path else ""}', 'linkchecker')
+                finally:
+                    output = self.artifacts / 'linkchecker/linkchecker-output.html'
+                    if output.exists():
+                        output.rename(output.with_name(suite.deployment + '.html'))
+            else:
+                self.case_report = (self.output_dir(suite) / 'results.json', 'playwright')
+                command = ['run', '--rm', '--no-deps', '--pull', 'never', 'playwright', 'npm', 'test', '--', '--project=' + suite.project, '--no-deps']
+                if path:
+                    command.append(path.removeprefix('specs/'))
+                self.compose(suite.deployment, *command)
+
+    def output_dir(self, suite):
+        if suite.name.endswith('linkchecker'):
+            return self.artifacts / 'linkchecker'
+        if suite.project:
+            return self.artifacts / suite.name
+        return self.artifacts / (suite.group if suite.group in ('php', 'python') else suite.name)
+
+    def summary(self):
+        write_summary(self.artifacts, self.results, self.cleanup_errors)
+
+    def stop(self, name):
+        if self.env.get('CONJIN_TEST_KEEP') == '1':
+            print(f'Keeping {self.project}-{name} for inspection.')
+            return
+        self.compose(name, 'down', '--volumes', '--remove-orphans')
+
+    def execute(self, selected, *, path=''):
+        interrupted = False
+        try:
+            for suite in selected:
+                folder = self.output_dir(suite)
+                folder.mkdir(parents=True, exist_ok=True)
+                self.env['TEST_ARTIFACTS_DIR'] = str(folder)
+                log_path = folder / (suite.name.replace(':', '-') + '.log')
+                result = {'suite': suite.name, 'status': 'passed', 'exitCode': 0, 'durationSeconds': 0, 'log': str(log_path.relative_to(self.repo))}
+                result.update(category=suite.category, components=suite.components, tool=suite.tool, prerequisites=suite.requirements or suite.tools, tests=[])
+                self.case_report = None
+                start = time.monotonic()
+                with log_path.open('w') as self.log:
+                    try:
+                        print(f'Running {suite.name} (log: {result["log"]})', flush=True)
+                        self.run_suite(suite, path)
+                    except Blocked as error:
+                        result.update(status='blocked', exitCode=1, reason=str(error))
+                    except (subprocess.CalledProcessError, OSError, ValueError) as error:
+                        result.update(status='failed', exitCode=getattr(error, 'returncode', 1) or 1, reason=str(error))
+                    except KeyboardInterrupt:
+                        result.update(status='failed', exitCode=130, reason='Interrupted')
+                        interrupted = True
+                    finally:
+                        if self.case_report and result['status'] != 'blocked':
+                            try:
+                                result['tests'] = read_cases(*self.case_report)
+                                if not result['tests']:
+                                    raise ValueError('The selection matched no tests')
+                                problematic = {c['status'] for c in result['tests']} - {'passed'}
+                                if problematic and result['status'] == 'passed':
+                                    result.update(status='blocked' if problematic == {'skipped'} else 'failed', exitCode=1, reason='Selected tests include ' + ', '.join(sorted(problematic)))
+                            except (OSError, ValueError, KeyError) as error:
+                                if result['status'] == 'passed':
+                                    result.update(status='failed', exitCode=1, reason='Missing or invalid test report: ' + str(error))
+                        result['testCounts'] = counts(result['tests'])
+                        if 'php' in suite.tools:
+                            result['runtime'] = dict(self.php.info)
+                        if suite.name == 'component-playwright':
+                            result['browserRuntime'] = dict(self.browser_info)
+                        if result['status'] in ('failed', 'blocked'):
+                            self.log.write(result['reason'] + '\n')
+                            if suite.deployment in self.started:
+                                self.compose(suite.deployment, 'logs', '--no-color', check=False)
+                self.log = None
+                result['durationSeconds'] = round(time.monotonic() - start, 3)
+                self.results.append(result)
+                self.summary()
+                print(f'{suite.name}: {result["status"]}' + (f' — {result["reason"]}' if 'reason' in result else ''), flush=True)
+                if interrupted:
+                    for remaining in selected[len(self.results):]:
+                        self.results.append({'suite': remaining.name, 'status': 'blocked', 'exitCode': 130, 'durationSeconds': 0, 'reason': 'Invocation interrupted'})
+                    break
+        finally:
+            with (self.artifacts / 'cleanup.log').open('w') as self.log:
+                try:
+                    self.php.close()
+                except (OSError, subprocess.CalledProcessError) as error:
+                    self.cleanup_errors.append(f'php: {error}')
+                for name in sorted(self.used_projects | self.started):
+                    try:
+                        self.stop(name)
+                    except (OSError, subprocess.CalledProcessError) as error:
+                        self.cleanup_errors.append(f'{name}: {error}')
+            self.log = None
+            self.summary()
+        suite_counts = {state: sum(result['status'] == state for result in self.results) for state in ('passed', 'failed', 'blocked', 'skipped')}
+        print(', '.join(f'{count} {state}' for state, count in suite_counts.items()) + f'. Reports: {self.artifacts}')
+        for error in self.cleanup_errors:
+            print('Cleanup failed: ' + error, file=sys.stderr)
+        if interrupted:
+            return 130
+        return next((r['exitCode'] if r['exitCode'] > 0 else 1 for r in self.results if r['status'] in ('failed', 'blocked')), 1 if self.cleanup_errors else 0)
+
+    def prepare(self, names, php=False):
+        failed = False
+        jobs = ([('php', self.php.prepare)] if php else [])
+        jobs += [(name, lambda name=name: self.prepare_deployment(name)) for name in names]
+        if not jobs:
+            print('Nothing to prepare for this target.', flush=True)
+            return 0
+        labels = {'php': 'PHP runtime and Composer dependencies'}
+        for index, (name, action) in enumerate(jobs, 1):
+            folder = self.artifacts / 'prepare'
+            folder.mkdir(exist_ok=True)
+            with (folder / (name + '.log')).open('w') as self.log:
+                start = time.monotonic()
+                result = {'suite': 'prepare:' + name, 'status': 'passed', 'exitCode': 0, 'log': str(Path(self.log.name).relative_to(self.repo))}
+                print(f'[{index}/{len(jobs)}] Preparing {labels.get(name, name + " deployment")} (log: {result["log"]})', flush=True)
+                try:
+                    action()
+                except (Blocked, OSError, ValueError, subprocess.CalledProcessError) as error:
+                    result.update(status='blocked' if isinstance(error, Blocked) else 'failed', exitCode=1, reason=str(error))
+                    self.log.write(str(error) + '\n')
+                    failed = True
+                result['durationSeconds'] = round(time.monotonic() - start, 3)
+                self.results.append(result)
+                self.summary()
+                print(f'prepare:{name}: {result["status"]} ({result["durationSeconds"]:.1f}s)' + (f' — {result["reason"]}' if 'reason' in result else ''), flush=True)
+                self.log.flush()
+                (self.cache / name).mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(self.log.name, self.cache / name / 'preparation.log')
+            self.log = None
+        counts = ', '.join(f'{sum(result["status"] == state for result in self.results)} {state}' for state in ('passed', 'failed', 'blocked'))
+        print(f'Preparation: {counts}. Reports: {self.artifacts}', flush=True)
+        return int(failed)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('target', nargs='?', help='list, prepare, all, fast, python, php, or a suite from list')
+    parser.add_argument('path', nargs='?', default='', help='suite file/path filter; for prepare, a target or group (default all)')
+    args = parser.parse_args(argv)
+    suites = registry(REPO)
+    if args.target is None:
+        parser.print_help()
+        return 0
+    if args.target == 'list':
+        if args.path:
+            parser.error('list does not accept a path')
+        print('Profiles: fast, all; languages: python, php; categories: ' + ', '.join(CATEGORIES) + '\n')
+        for suite in suites:
+            print(f'{suite.name:36} {suite.category:12} {suite.tool:14} {", ".join(suite.components)}\n    {suite.description} [requires: {", ".join(suite.requirements or suite.tools) or "Python standard library"}]')
+        return 0
+    try:
+        path = normalize_path(args.path)
+        if args.target == 'prepare':
+            selected = select_suites(suites, path or 'all')
+        else:
+            selected = select_suites(suites, args.target, path)
+        runner = Runner()
+        with checkout_lock(runner.cache):
+            reset_artifacts(runner.artifacts)
+            if args.target == 'prepare':
+                components = any(s.name == 'component-playwright' for s in selected)
+                names = sorted({s.deployment for s in selected if s.deployment} | ({'integration'} if components else set()))
+                return runner.prepare(names, php=any('php' in s.tools for s in selected))
+            return runner.execute(selected, path=path)
+    except (ValueError, Blocked) as error:
+        print(error, file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        return 130
+
+
+if __name__ == '__main__':
+    sys.exit(main())

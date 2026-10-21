@@ -12,9 +12,9 @@ Build the local demo deployment with `./composer-projects/demo-app/deployments/l
 
 ## Positive test suite
 
-The `./tests/run demo-linkchecker` target builds the isolated `deployments/test` deployment, preprocesses the demo tree, and crawls it with LinkChecker. `./tests/run all` runs this target before the integration-app targets. The command fails when an internal target or resource cannot be retrieved successfully and writes the demo report into the invocation's timestamped directory below `tests/artifacts/`.
+Run `bin/test prepare demo-linkchecker` once to prepare the isolated `deployments/test` environment. `bin/test demo-linkchecker` then preprocesses and crawls the demo tree using its prepared images and CSS. `bin/test all` includes this crawl alongside all other test suites. The command fails when an internal target or resource cannot be retrieved successfully and writes `test-artifacts/linkchecker/demo.html`, replacing reports from the previous invocation.
 
-Each run uses fresh Docker Compose named volumes and removes them afterward. The global `CONJIN_TEST_KEEP` and `CONJIN_TEST_PROJECT` controls apply to both test deployments.
+Each run uses fresh Docker Compose volumes for mutable data and removes them afterward; prepared CSS volumes remain reusable. The `CONJIN_TEST_KEEP` and `CONJIN_TEST_PROJECT` controls apply to both test deployments.
 
 ## License
 

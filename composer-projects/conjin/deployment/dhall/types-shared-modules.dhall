@@ -11,6 +11,7 @@ let SharedBareModule = <
     DynamicToggle: {} |
     Exercise: {} |
     Favicons: {} |
+    FeedbackCollector: {} |
     Footnotes: {} |
     Grading: {} |
     Hamster: {} |
@@ -31,10 +32,12 @@ let SharedBareModule = <
     NavCommon: {} |
     NavView: {} |
     Nuggets: {} |
+    PagePrep: {} |
     PrintMode: {} |
     References: {} |
     SolMode: {} |
     Source: {} |
+    MatomoHttpApi: {} |
     SqlJsExtensions: {} |
     SqlJsKnowledgeTagged: {} |
     SqlJsKnowledgeHistory: {} |
@@ -52,6 +55,7 @@ let SharedBareModule = <
     BootstrapIcons: {} |
     ChartJs: {} |
     Fullcalendar: {} |
+    JsonEditor: {} |
     JsxGraph: {} |
     Mathjax: {} |
     Mathjs: {} |
@@ -78,6 +82,7 @@ let sharedBareModuleToLocation = \(id: SharedBareModule) ->
         Grading                = \(t: {}) -> { dirName = "grading",                  isExternal = False },
         Hamster                = \(t: {}) -> { dirName = "hamster",                  isExternal = False },
         Html                   = \(t: {}) -> { dirName = "html",                     isExternal = False },
+        FeedbackCollector      = \(t: {}) -> { dirName = "feedback-collector",       isExternal = False },
         IssueTracker           = \(t: {}) -> { dirName = "issue-tracker",            isExternal = False },
         JavaWorlds             = \(t: {}) -> { dirName = "java-worlds",              isExternal = False },
         JsStandardLib          = \(t: {}) -> { dirName = "js-standard-lib",          isExternal = False },
@@ -94,10 +99,12 @@ let sharedBareModuleToLocation = \(id: SharedBareModule) ->
         NavCommon              = \(t: {}) -> { dirName = "nav-common",               isExternal = False },
         NavView                = \(t: {}) -> { dirName = "nav-view",                 isExternal = False },
         Nuggets                = \(t: {}) -> { dirName = "nuggets",                  isExternal = False },
+        PagePrep               = \(t: {}) -> { dirName = "page-prep",                isExternal = False },
         PrintMode              = \(t: {}) -> { dirName = "print-mode",               isExternal = False },
         References             = \(t: {}) -> { dirName = "references",               isExternal = False },
         SolMode                = \(t: {}) -> { dirName = "sol-mode",                 isExternal = False },
         Source                 = \(t: {}) -> { dirName = "source",                   isExternal = False },
+        MatomoHttpApi          = \(t: {}) -> { dirName = "matomo-http-api", isExternal = False },
         SqlJsExtensions        = \(t: {}) -> { dirName = "sql-js-extensions",        isExternal = False },
         SqlJsKnowledgeTagged   = \(t: {}) -> { dirName = "sql-js-knowledge-tagged",  isExternal = False },
         SqlJsKnowledgeHistory  = \(t: {}) -> { dirName = "sql-js-knowledge-history", isExternal = False },
@@ -115,6 +122,7 @@ let sharedBareModuleToLocation = \(id: SharedBareModule) ->
         BootstrapIcons         = \(t: {}) -> { dirName = "bootstrap-icons",          isExternal = True },
         ChartJs                = \(t: {}) -> { dirName = "chart-js",                 isExternal = True },
         Fullcalendar           = \(t: {}) -> { dirName = "fullcalendar",             isExternal = True },
+        JsonEditor             = \(t: {}) -> { dirName = "json-editor",               isExternal = True },
         Mathjax                = \(t: {}) -> { dirName = "mathjax",                  isExternal = True },
         Mathjs                 = \(t: {}) -> { dirName = "mathjs",                   isExternal = True },
         Nerdamer               = \(t: {}) -> { dirName = "nerdamer",                 isExternal = True },
@@ -145,6 +153,7 @@ let sharedBareModuleToScssDeps = \(id: SharedBareModule) ->
         Grading                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Hamster                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Html                   = \(t: {}) -> P.List.empty SharedModuleLocation,
+        FeedbackCollector      = \(t: {}) -> P.List.empty SharedModuleLocation,
         IssueTracker           = \(t: {}) -> P.List.empty SharedModuleLocation,
         JavaWorlds             = \(t: {}) -> P.List.empty SharedModuleLocation,
         JsStandardLib          = \(t: {}) -> P.List.empty SharedModuleLocation,
@@ -161,10 +170,12 @@ let sharedBareModuleToScssDeps = \(id: SharedBareModule) ->
         NavCommon              = \(t: {}) -> P.List.empty SharedModuleLocation,
         NavView                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Nuggets                = \(t: {}) -> P.List.empty SharedModuleLocation,
+        PagePrep               = \(t: {}) -> P.List.empty SharedModuleLocation,
         PrintMode              = \(t: {}) -> P.List.empty SharedModuleLocation,
         References             = \(t: {}) -> P.List.empty SharedModuleLocation,
         SolMode                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Source                 = \(t: {}) -> P.List.empty SharedModuleLocation,
+        MatomoHttpApi          = \(t: {}) -> P.List.empty SharedModuleLocation,
         SqlJsExtensions        = \(t: {}) -> P.List.empty SharedModuleLocation,
         SqlJsKnowledgeTagged   = \(t: {}) -> P.List.empty SharedModuleLocation,
         SqlJsKnowledgeHistory  = \(t: {}) -> P.List.empty SharedModuleLocation,
@@ -192,6 +203,7 @@ let sharedBareModuleToScssDeps = \(id: SharedBareModule) ->
         BootstrapIcons         = \(t: {}) -> P.List.empty SharedModuleLocation,
         ChartJs                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Fullcalendar           = \(t: {}) -> P.List.empty SharedModuleLocation,
+        JsonEditor             = \(t: {}) -> P.List.empty SharedModuleLocation,
         Mathjax                = \(t: {}) -> P.List.empty SharedModuleLocation,
         Mathjs                 = \(t: {}) -> P.List.empty SharedModuleLocation,
         Nerdamer               = \(t: {}) -> P.List.empty SharedModuleLocation,

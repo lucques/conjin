@@ -10,6 +10,7 @@
         $c->add_subpage('bootstrap-icons');
         $c->add_subpage('chart-js');
         $c->add_subpage('fullcalendar');
+        $c->add_subpage('json-editor');
         $c->add_subpage('jsxgraph');
         $c->add_subpage('mathjax');
         $c->add_subpage('mathjs');

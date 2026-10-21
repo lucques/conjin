@@ -1,6 +1,7 @@
 /vendor/
 /composer-projects/*/vendor/
 /node_modules/
+/test-artifacts/
 /tests/artifacts/
 /dist/
 __pycache__/

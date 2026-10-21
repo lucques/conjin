@@ -3,7 +3,8 @@
     // Init //
     //////////
 
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
+        $GLOBALS['sql_js_tagged_page_prep_active'] = $target->has_activated_module('page-prep');
         if ($module->config->get('import_from_url') !== null) {
             doc_extensions_add_head_element('<script src="'. $module->config->get('import_from_url') . '/res/library.js"></script>');
         }
@@ -110,11 +111,15 @@
     function sql_js_print_tagged_db(string $db_var): void {
         $tags_view_id = 'sql_js_print_tagged_db_tags_' . next_unique_id();
         $items_view_id = 'sql_js_print_tagged_db_items_' . next_unique_id();
+        $task_prefix = $GLOBALS['sql_js_tagged_page_prep_active']
+            ? 'pagePrep.track({ id: ' . sql_js_aux_encode_string_for_js('sql-tagged:' . $items_view_id) . ", before: 'initialContentReady', promise: "
+            : '';
+        $task_suffix = $GLOBALS['sql_js_tagged_page_prep_active'] ? ' });' : ';';
 ?>
         <div id="<?= $tags_view_id ?>"></div>
         <div id="<?= $items_view_id ?>"></div>
         <script>
-            sql_js_installTaggedDb(<?= $db_var ?>, '<?= $tags_view_id ?>', '<?= $items_view_id ?>');
+            <?= $task_prefix ?>sql_js_installTaggedDb(<?= $db_var ?>, '<?= $tags_view_id ?>', '<?= $items_view_id ?>')<?= $task_suffix ?>
         </script>
 <?
     }

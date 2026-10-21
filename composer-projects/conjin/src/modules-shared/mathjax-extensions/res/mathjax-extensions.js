@@ -58,6 +58,10 @@ window.MathJax = {
             // Read the hooks only after the initial rendering is complete. Content scripts in
             // the document body may not have registered their hooks yet when `ready()` runs.
             MathJax.startup.promise.then(() => {
+                // Page-prep runs these hooks after its single explicit typeset pass.
+                if (MathJax.config.startup.typeset === false) {
+                    return;
+                }
                 if (typeof mathJaxAfterRenderingHooks !== 'undefined') {
                     for (const func of mathJaxAfterRenderingHooks) {
                         MathJax.startup.promise.then(func);

@@ -49,3 +49,19 @@
 .sheet.a5-landscape {
   page: a5-landscape;
 }
+
+@media screen {
+    .print-mode-native #content {
+        padding: 15mm 12mm;
+    }
+}
+
+.print-mode-native .sheet {
+    page-break-after: auto;
+}
+
+@media print {
+    .print-mode-native .sheet + .sheet {
+        break-before: page;
+    }
+}

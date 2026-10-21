@@ -41,6 +41,16 @@ let hasRemoteStore =
     } s
     : Bool
 
+-- The public bootstrap changes into <internalDir>/framework. All runtime
+-- paths follow that fixed layout, independent of the host's absolute paths.
+let makeRuntimePaths =
+    \(internalDir: Text) ->
+    { path_base = ".."
+    , path_preprocess = "../../" ++ internalDir ++ "-dyn-preprocessing"
+    , path_store = "../../" ++ internalDir ++ "-dyn-data/store"
+    , errorlog_dir = "../../" ++ internalDir ++ "-dyn-data/logs/error"
+    }
+
 
 ---------------------------------------------------
 -- All config files bundled together in a record --
@@ -49,6 +59,7 @@ let hasRemoteStore =
 let makeArtifacts =
     \(config: T.RemoteDepl) ->
     let docker = makeRemoteDeplCompose config
+    let paths = makeRuntimePaths config.internalDir
     let https =
         merge {
             , Off = \(_: {}) -> False
@@ -63,9 +74,10 @@ let makeArtifacts =
             : List Text
         , config-json
             = tagConfigJsonFile {
-                path_base = config.pathBase,
-                path_preprocess = config.pathBase ++ "/preprocess",
-                path_store = if (hasRemoteStore config.store) then Some (config.pathBase ++ "/store") else None Text,
+                path_base = paths.path_base,
+                path_preprocess = paths.path_preprocess,
+                target_split_depth = config.depl.targetSplitDepth,
+                path_store = if (hasRemoteStore config.store) then Some paths.path_store else None Text,
                 https,
                 host = config.host,
                 url_base = config.urlBase,
@@ -75,11 +87,12 @@ let makeArtifacts =
                 module_2_config = P.Map.map Text T.Module P.JSON.Type (\(m: T.Module) -> m.config) config.depl.modules,
                 mail = config.mail,
                 errorlog_display = config.errors.display,
-                errorlog_dir = if (isRemoteErrorLogging config.errors.logging) then Some (config.pathBase ++ "/logs/error") else None Text
+                errorlog_dir = if (isRemoteErrorLogging config.errors.logging) then Some paths.errorlog_dir else None Text
             }
             : ConfigJsonFileT
     }
 
 in {
     , makeArtifacts
+    , makeRuntimePaths
 }

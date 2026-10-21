@@ -1,233 +1,13 @@
 <?
     namespace Conjin\Modules\IssueTracker;
 
-    use Closure; 
     use PDO;
     use PDOException;
     use PHPMailer\PHPMailer\PHPMailer;
 
 
-    /////////////////////
-    // Pure data types //
-    /////////////////////
-
-    readonly class MailConfig {
-        public function __construct(
-            public array $always_notify_addresses,
-            public Closure $new_issue_template_subject,
-            public Closure $new_issue_template_body,
-            public Closure $new_post_template_subject,
-            public Closure $new_post_template_body,
-        ) {}
-    }
-
-    readonly class ViewConfig {
-        public function __construct(
-            public string $issue_column_width,
-            public string $tag_column_width,
-            public string $date_column_width,
-            public string $author_column_width,
-            public string $status_column_width,
-            public string $issue_desc_short,
-            public string $issue_desc_long,
-            public string $post_desc_short,
-            public string $post_desc_long,
-            public string $tag_desc,
-            public Closure $author_identity_to_label, // deserialized author identity -> string
-            public Closure $status_to_variant,        // string -> string
-            public Closure $status_to_label           // string -> string
-        ) {}
-    }
-
-    readonly class Config {
-        public function __construct(
-            public string $file_name,
-            public array $view_target_ids,
-            public array $tag_names,
-            public string $privilege_admin,
-            public string $privilege_write,
-            public int $may_edit_own_content_within_n_minutes,
-            public ViewConfig $view,
-            public ?MailConfig $mail
-        ) {
-            if ($may_edit_own_content_within_n_minutes < 0) {
-                throw new \InvalidArgumentException('may_edit_own_content_within_n_minutes must not be negative');
-            }
-        }
-    }
-
-    // NIR stands for NewIssueResult
-    enum HandleNewIssueResultKind {
-        case SuccessWithMails;
-        case SuccessButMailsFailed;
-        case SuccessWithoutMails;
-        case ErrorIncomplete;
-        case ErrorDb;
-    }
-    interface HandleNewIssueResult {
-        function kind(): HandleNewIssueResultKind;
-    }
-    readonly class SuccessWithMailsNIR implements HandleNewIssueResult {
-        function __construct(public array $addresses) {}
-        function kind(): HandleNewIssueResultKind { return HandleNewIssueResultKind::SuccessWithMails; }
-    }
-    readonly class SuccessButMailsFailedNIR implements HandleNewIssueResult {
-        function kind(): HandleNewIssueResultKind { return HandleNewIssueResultKind::SuccessButMailsFailed; }
-    }
-    readonly class SuccessWithoutMailsNIR implements HandleNewIssueResult {
-        function kind(): HandleNewIssueResultKind { return HandleNewIssueResultKind::SuccessWithoutMails; }
-    }
-    readonly class ErrorIncompleteNIR implements HandleNewIssueResult {
-        function __construct(public array $selected_tags) {}
-        function kind(): HandleNewIssueResultKind { return HandleNewIssueResultKind::ErrorIncomplete; }
-    }
-    readonly class ErrorDbNIR implements HandleNewIssueResult {
-        function __construct(public string $details) {}
-        function kind(): HandleNewIssueResultKind { return HandleNewIssueResultKind::ErrorDb; }
-    }
-
-    // NPR stands for NewPostResult
-    enum HandleNewPostResultKind {
-        case SuccessWithMails;
-        case SuccessButMailsFailed;
-        case SuccessWithoutMails;
-        case ErrorIncomplete;
-        case ErrorDb;
-    }
-    interface HandleNewPostResult {
-        function kind(): HandleNewPostResultKind;
-        function issue_id(): int;
-    }
-    readonly class SuccessWithMailsNPR implements HandleNewPostResult {
-        function __construct(public int $issue_id, public array $addresses) {}
-        function kind(): HandleNewPostResultKind { return HandleNewPostResultKind::SuccessWithMails; }
-        function issue_id(): int { return $this->issue_id; }
-    }
-    readonly class SuccessButMailsFailedNPR implements HandleNewPostResult {
-        function __construct(public int $issue_id) {}
-        function kind(): HandleNewPostResultKind { return HandleNewPostResultKind::SuccessButMailsFailed; }
-        function issue_id(): int { return $this->issue_id; }
-    }
-    readonly class SuccessWithoutMailsNPR implements HandleNewPostResult {
-        function __construct(public int $issue_id) {}
-        function kind(): HandleNewPostResultKind { return HandleNewPostResultKind::SuccessWithoutMails; }
-        function issue_id(): int { return $this->issue_id; }
-    }
-    readonly class ErrorIncompleteNPR implements HandleNewPostResult {
-        function __construct(public int $issue_id, public string $selected_status) {}
-        function kind(): HandleNewPostResultKind { return HandleNewPostResultKind::ErrorIncomplete; }
-        function issue_id(): int { return $this->issue_id; }
-    }
-    readonly class ErrorDbNPR implements HandleNewPostResult {
-        function __construct(public int $issue_id, public string $details) {}
-        function kind(): HandleNewPostResultKind { return HandleNewPostResultKind::ErrorDb; }
-        function issue_id(): int { return $this->issue_id; }
-    }
-
-    // EIR stands for EditIssueResult
-    enum HandleEditIssueResultKind {
-        case Success;
-        case ErrorDb;
-    }
-    interface HandleEditIssueResult {
-        function kind(): HandleEditIssueResultKind;
-        function issue_id(): int;
-    }
-    readonly class SuccessEIR implements HandleEditIssueResult {
-        function __construct(public int $issue_id) {}
-        function kind(): HandleEditIssueResultKind { return HandleEditIssueResultKind::Success; }
-        function issue_id(): int { return $this->issue_id; }
-    }
-    readonly class ErrorDbEIR implements HandleEditIssueResult {
-        function __construct(public int $issue_id, public string $details) {}
-        function kind(): HandleEditIssueResultKind { return HandleEditIssueResultKind::ErrorDb; }
-        function issue_id(): int { return $this->issue_id; }
-    }
-
-    // EPR stands for EditPostResult
-    enum HandleEditPostResultKind {
-        case Success;
-        case ErrorIncomplete;
-        case ErrorDb;
-    }
-    interface HandleEditPostResult {
-        function kind(): HandleEditPostResultKind;
-        function issue_id(): int;
-        function post_id(): int;
-    }
-    readonly class SuccessEPR implements HandleEditPostResult {
-        function __construct(public int $issue_id, public int $post_id) {}
-        function kind(): HandleEditPostResultKind { return HandleEditPostResultKind::Success; }
-        function issue_id(): int { return $this->issue_id; }
-        function post_id(): int { return $this->post_id; }
-    }
-    readonly class ErrorIncompleteEPR implements HandleEditPostResult {
-        function __construct(
-            public int $issue_id,
-            public int $post_id,
-            public string $content,
-            public string $selected_status
-        ) {}
-        function kind(): HandleEditPostResultKind { return HandleEditPostResultKind::ErrorIncomplete; }
-        function issue_id(): int { return $this->issue_id; }
-        function post_id(): int { return $this->post_id; }
-    }
-    readonly class ErrorDbEPR implements HandleEditPostResult {
-        function __construct(public int $issue_id, public int $post_id, public string $details) {}
-        function kind(): HandleEditPostResultKind { return HandleEditPostResultKind::ErrorDb; }
-        function issue_id(): int { return $this->issue_id; }
-        function post_id(): int { return $this->post_id; }
-    }
-
-    // DIR stands for DeleteIssueResult
-    enum HandleDeleteIssueResultKind {
-        case Success;
-        case ErrorDb;
-    }
-    interface HandleDeleteIssueResult {
-        function kind(): HandleDeleteIssueResultKind;
-        function issue_id(): int;
-    }
-    readonly class SuccessDIR implements HandleDeleteIssueResult {
-        function __construct(public int $issue_id) {}
-        function kind(): HandleDeleteIssueResultKind { return HandleDeleteIssueResultKind::Success; }
-        function issue_id(): int { return $this->issue_id; }
-    }
-    readonly class ErrorDbDIR implements HandleDeleteIssueResult {
-        function __construct(public int $issue_id, public string $details) {}
-        function kind(): HandleDeleteIssueResultKind { return HandleDeleteIssueResultKind::ErrorDb; }
-        function issue_id(): int { return $this->issue_id; }
-    }
-
-    // DPR stands for DeletePostResult
-    enum HandleDeletePostResultKind {
-        case Success;
-        case ErrorDb;
-    }
-    interface HandleDeletePostResult {
-        function kind(): HandleDeletePostResultKind;
-        function issue_id(): int;
-        function post_id(): int;
-        function issue_deleted(): bool;
-    }
-    readonly class SuccessDPR implements HandleDeletePostResult {
-        function __construct(
-            public int $issue_id,
-            public int $post_id,
-            public bool $issue_deleted
-        ) {}
-        function kind(): HandleDeletePostResultKind { return HandleDeletePostResultKind::Success; }
-        function issue_id(): int { return $this->issue_id; }
-        function post_id(): int { return $this->post_id; }
-        function issue_deleted(): bool { return $this->issue_deleted; }
-    }
-    readonly class ErrorDbDPR implements HandleDeletePostResult {
-        function __construct(public int $issue_id, public int $post_id, public string $details) {}
-        function kind(): HandleDeletePostResultKind { return HandleDeletePostResultKind::ErrorDb; }
-        function issue_id(): int { return $this->issue_id; }
-        function post_id(): int { return $this->post_id; }
-        function issue_deleted(): bool { return false; }
-    }
+    require_once __DIR__ . '/datatypes.php';
+    require_once __DIR__ . '/processing_view.php';
 
 
     ////////////////
@@ -235,6 +15,7 @@
     ////////////////
 
     class IssueTracker {
+        use View;
 
         private ?PDO $db = null;
 
@@ -254,6 +35,24 @@
             );
         }
 
+        // Shared modals select their record in JavaScript, so their scope binds
+        // to tracker/action. Inline per-issue forms also bind to the issue ID.
+        private function submission_scope(string $action, ?int $issue_id = null): string {
+            return serialize(['issue-tracker', $this->config->file_name, $action, $issue_id]);
+        }
+
+        private function issue_submission_token(string $action, ?int $issue_id = null): string {
+            return \auth_issue_submission_token($this->submission_scope($action, $issue_id));
+        }
+
+        private function accept_submission_token(string $action, ?int $issue_id = null): bool {
+            $result = \auth_consume_submission_token($_POST['request_uuid'] ?? null, $this->submission_scope($action, $issue_id));
+            if ($result === \SubmissionTokenResult::Invalid) {
+                send_response_and_exit(403, 'Das Formular ist abgelaufen oder ungültig. Bitte laden Sie die Seite neu und versuchen Sie es erneut.');
+            }
+            return $result === \SubmissionTokenResult::Valid;
+        }
+
         private function current_user_identity_serialized(): string {
             return auth_aux_serialize_user(auth_get_user()->get_user_identity());
         }
@@ -267,7 +66,7 @@
         }
 
         /** @return array{identity: string, email: ?string} */
-        private function new_issue_author(): array {
+        private function submitted_author(): array {
             $author = [
                 'identity' => $this->current_user_identity_serialized(),
                 'email' => auth_get_user_email()
@@ -392,26 +191,104 @@
         FOREIGN KEY("issue_id") REFERENCES "issue"("id")
     );
     CREATE TABLE IF NOT EXISTS "tag" (
-        "id"	INTEGER NOT NULL,
+        "id"	TEXT NOT NULL,
         "name"	TEXT NOT NULL,
-        PRIMARY KEY("id" AUTOINCREMENT)
+        "client_data"	TEXT,
+        "url"	TEXT,
+        PRIMARY KEY("id")
     );
     CREATE TABLE IF NOT EXISTS "issue_x_tag" (
         "issue_id"	INTEGER NOT NULL,
-        "tag_id"	INTEGER NOT NULL,
+        "tag_id"	TEXT NOT NULL,
         FOREIGN KEY("issue_id") REFERENCES "issue"("id"),
         FOREIGN KEY("tag_id") REFERENCES "tag"("id")
     );
+    CREATE TABLE IF NOT EXISTS "tag_x_additional_email" (
+        "tag_id"	TEXT NOT NULL,
+        "email_address"	TEXT NOT NULL COLLATE NOCASE,
+        PRIMARY KEY("tag_id", "email_address"),
+        FOREIGN KEY("tag_id") REFERENCES "tag"("id") ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS "issue_x_additional_email" (
+        "id"	INTEGER NOT NULL,
+        "issue_id"	INTEGER NOT NULL,
+        "created_on"	TEXT NOT NULL,
+        "author_identity"	TEXT NOT NULL,
+        "author_email"	TEXT,
+        "email_address"	TEXT NOT NULL COLLATE NOCASE,
+        PRIMARY KEY("id" AUTOINCREMENT),
+        UNIQUE("issue_id", "email_address"),
+        FOREIGN KEY("issue_id") REFERENCES "issue"("id") ON DELETE CASCADE
+    );
     SQL;
 
-                if (count($this->config->tag_names) > 0) {
-                    $sql .= 'INSERT INTO "tag" (name) VALUES ' . implode(', ', array_map(fn($name) => "('$name')", $this->config->tag_names)) . ';';
+                if (count($this->config->tags) > 0) {
+                    $sql .= 'INSERT INTO "tag" (id, name, client_data, url) VALUES ' . implode(', ', array_map(
+                        fn(array $tag) => '('
+                            . $this->db->quote($tag['id']) . ', '
+                            . $this->db->quote($tag['name']) . ', '
+                            . (($tag['client_data'] ?? null) === null ? 'NULL' : $this->db->quote($tag['client_data']))
+                            . ', '
+                            . (($tag['url'] ?? null) === null ? 'NULL' : $this->db->quote($tag['url']))
+                            . ')',
+                        $this->config->tags
+                    )) . ';';
+
+                    $initial_tag_additional_email_rows = [];
+                    foreach ($this->config->tags as $tag) {
+                        $seen_addresses = [];
+                        foreach ($tag['additional_email_addresses'] ?? [] as $address) {
+                            $address = trim($address);
+                            $deduplication_key = strtolower($address);
+                            if (isset($seen_addresses[$deduplication_key])) {
+                                continue;
+                            }
+
+                            $seen_addresses[$deduplication_key] = true;
+                            $initial_tag_additional_email_rows[] = '('
+                                . $this->db->quote($tag['id']) . ', '
+                                . $this->db->quote($address)
+                                . ')';
+                        }
+                    }
+
+                    if (count($initial_tag_additional_email_rows) > 0) {
+                        $sql .= 'INSERT INTO "tag_x_additional_email" (tag_id, email_address) VALUES '
+                            . implode(', ', $initial_tag_additional_email_rows) . ';';
+                    }
                 }
 
                 $sql .= ' COMMIT;';
 
                 $this->db->exec($sql);
             }
+
+            $tag_columns = $this->db->query('PRAGMA table_info(tag)')->fetchAll(PDO::FETCH_ASSOC);
+            if (!in_array('url', array_column($tag_columns, 'name'), true)) {
+                $this->db->exec('ALTER TABLE tag ADD COLUMN url TEXT');
+            }
+
+            // Existing databases are reused, so additive schema changes must
+            // also be applied after their initial creation.
+            $this->db->exec(<<<SQL
+    CREATE TABLE IF NOT EXISTS "issue_x_additional_email" (
+        "id"	INTEGER NOT NULL,
+        "issue_id"	INTEGER NOT NULL,
+        "created_on"	TEXT NOT NULL,
+        "author_identity"	TEXT NOT NULL,
+        "author_email"	TEXT,
+        "email_address"	TEXT NOT NULL COLLATE NOCASE,
+        PRIMARY KEY("id" AUTOINCREMENT),
+        UNIQUE("issue_id", "email_address"),
+        FOREIGN KEY("issue_id") REFERENCES "issue"("id") ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS "tag_x_additional_email" (
+        "tag_id"	TEXT NOT NULL,
+        "email_address"	TEXT NOT NULL COLLATE NOCASE,
+        PRIMARY KEY("tag_id", "email_address"),
+        FOREIGN KEY("tag_id") REFERENCES "tag"("id") ON DELETE CASCADE
+    );
+    SQL);
         }
 
         function fetch_issues_with_posts_open() {
@@ -423,7 +300,16 @@
 
         function fetch_issues_with_posts_open_by_tag(string $tag_name) {
             return $this->fetch_issues_with_posts(
-                where: 'WHERE issue.last_post_status = "open" AND tag.name = "' . $tag_name . '"',
+                where: 'WHERE issue.last_post_status = "open" AND tag.name = ?',
+                where_parameters: [$tag_name],
+                order_by: 'ORDER BY issue.first_post_created_on DESC'
+            );
+        }
+
+        function fetch_issues_with_posts_open_by_tag_id(string $tag_id) {
+            return $this->fetch_issues_with_posts(
+                where: 'WHERE issue.last_post_status = "open" AND tag.id = ?',
+                where_parameters: [$tag_id],
                 order_by: 'ORDER BY issue.first_post_created_on DESC'
             );
         }
@@ -457,13 +343,28 @@
 
         function fetch_issues_with_posts_closed_by_tag(string $tag_name, ?int $how_many = 3) {
             return $this->fetch_issues_with_posts(
-                where: 'WHERE issue.last_post_status = "closed" AND tag.name = "' . $tag_name . '"',
+                where: 'WHERE issue.last_post_status = "closed" AND tag.name = ?',
+                where_parameters: [$tag_name],
                 order_by: 'ORDER BY issue.last_post_created_on DESC',
                 limit: $how_many !== null ? 'LIMIT ' . $how_many : ''
             );
         }
 
-        private function fetch_issues_with_posts($where = '', $order_by = '', $limit = '') {
+        function fetch_issues_with_posts_closed_by_tag_id(string $tag_id, ?int $how_many = 3) {
+            return $this->fetch_issues_with_posts(
+                where: 'WHERE issue.last_post_status = "closed" AND tag.id = ?',
+                where_parameters: [$tag_id],
+                order_by: 'ORDER BY issue.last_post_created_on DESC',
+                limit: $how_many !== null ? 'LIMIT ' . $how_many : ''
+            );
+        }
+
+        private function fetch_issues_with_posts(
+            string $where = '',
+            array $where_parameters = [],
+            string $order_by = '',
+            string $limit = ''
+        ) {
             // Collect data in this assoc array.
             $issues_to_posts = [];
 
@@ -479,7 +380,8 @@
             $query .= $order_by . ' ';
             $query .= $limit;
 
-            $result = $this->db->query($query);
+            $result = $this->db->prepare($query);
+            $result->execute($where_parameters);
 
             foreach ($result as $row) {
                 $issues_to_posts[$row['id']] = [
@@ -490,7 +392,8 @@
                     'last_post_status' => $row['last_post_status'], 
                     'tags' => '',
                     'tag_ids' => [],
-                    'posts' => []
+                    'posts' => [],
+                    'additional_emails' => []
                 ];
             }
 
@@ -534,11 +437,30 @@
                 ];
             }
 
+            // Select additional e-mail events for these issues. They are kept
+            // separate from posts in the model and merged only for rendering,
+            // because they do not change an issue's status.
+            $query  = 'SELECT issue_id, id, created_on, author_identity, author_email, email_address ';
+            $query .= 'FROM issue_x_additional_email ';
+            $query .= 'WHERE issue_id IN (' . implode(',', $issue_ids) . ') ';
+            $query .= 'ORDER BY issue_id, created_on, id';
+            $result = $this->db->query($query);
+
+            foreach ($result as $row) {
+                $issues_to_posts[$row['issue_id']]['additional_emails'][] = [
+                    'id' => $row['id'],
+                    'created_on' => $row['created_on'],
+                    'author_identity' => $row['author_identity'],
+                    'author_email' => $row['author_email'],
+                    'email_address' => $row['email_address']
+                ];
+            }
+
             return $issues_to_posts;
         }
 
         function fetch_tags() {
-            $query = $this->db->query('SELECT id, name FROM tag ORDER BY name');
+            $query = $this->db->query('SELECT id, name FROM tag ORDER BY name COLLATE NOCASE, id');
             $tags = [];
 
             foreach ($query as $row) {
@@ -546,6 +468,142 @@
                     'id' => $row['id'],
                     'name' => $row['name']
                 ];
+            }
+
+            return $tags;
+        }
+
+        /** @return list<string> */
+        private function fetch_issue_tag_names(int $issue_id): array {
+            $query = $this->db->prepare(
+                'SELECT tag.name FROM tag '
+                . 'WHERE tag.id IN (SELECT tag_id FROM issue_x_tag WHERE issue_id = ?) '
+                . 'ORDER BY tag.name COLLATE NOCASE, tag.id'
+            );
+            $query->execute([$issue_id]);
+
+            return $query->fetchAll(PDO::FETCH_COLUMN);
+        }
+
+        function fetch_tag_client_data(string $tag_id): ?string {
+            $query = $this->db->prepare('SELECT client_data FROM tag WHERE id = ?');
+            $query->execute([$tag_id]);
+            $client_data = $query->fetchColumn();
+
+            return $client_data === false ? null : $client_data;
+        }
+
+        /**
+         * @return ?array{
+         *     id: string,
+         *     name: string,
+         *     client_data: ?string,
+         *     url: ?string,
+         *     additional_email_addresses: list<string>
+         * }
+         */
+        function fetch_tag_details(string $tag_id): ?array {
+            $query = $this->db->prepare(
+                'SELECT tag.id, tag.name, tag.client_data, tag.url, tag_x_additional_email.email_address '
+                . 'FROM tag '
+                . 'LEFT JOIN tag_x_additional_email ON tag.id = tag_x_additional_email.tag_id '
+                . 'WHERE tag.id = ? '
+                . 'ORDER BY tag_x_additional_email.email_address COLLATE NOCASE'
+            );
+            $query->execute([$tag_id]);
+
+            $tag = null;
+            foreach ($query as $row) {
+                if ($tag === null) {
+                    $tag = [
+                        'id' => $row['id'],
+                        'name' => $row['name'],
+                        'client_data' => $row['client_data'],
+                        'url' => $row['url'],
+                        'additional_email_addresses' => []
+                    ];
+                }
+
+                if ($row['email_address'] !== null) {
+                    $tag['additional_email_addresses'][] = $row['email_address'];
+                }
+            }
+
+            return $tag;
+        }
+
+        /**
+         * @param ?array{name: string, additional_email_addresses: list<string>} $tag
+         * @return list<array{email_address: string, reasons: list<string>}>
+         */
+        function notification_recipients_for_tag(?array $tag): array {
+            if ($this->config->mail === null) {
+                return [];
+            }
+
+            $recipients = [];
+            foreach ($this->config->mail->always_notify_addresses as $email_address) {
+                if (is_string($email_address)) {
+                    $this->add_notification_recipient(
+                        $recipients,
+                        $email_address,
+                        $this->config->mail->reason_always_notify
+                    );
+                }
+            }
+
+            if ($tag !== null) {
+                foreach ($tag['additional_email_addresses'] as $email_address) {
+                    $this->add_tag_notification_recipient(
+                        $recipients,
+                        $email_address,
+                        $tag['name']
+                    );
+                }
+            }
+
+            return array_values($recipients);
+        }
+
+        function fetch_tags_with_issue_counts(): array {
+            $query = $this->db->query(
+                'SELECT tag.id, tag.name, tag.client_data, tag.url, '
+                . 'COUNT(DISTINCT CASE WHEN issue.last_post_status = "closed" THEN issue.id END) AS solved_issue_count, '
+                . 'COUNT(DISTINCT CASE WHEN issue.last_post_status = "open" THEN issue.id END) AS unsolved_issue_count '
+                . 'FROM tag '
+                . 'LEFT JOIN issue_x_tag ON tag.id = issue_x_tag.tag_id '
+                . 'LEFT JOIN issue ON issue_x_tag.issue_id = issue.id '
+                . 'GROUP BY tag.id, tag.name, tag.client_data, tag.url '
+                . 'ORDER BY tag.name COLLATE NOCASE, tag.id'
+            );
+
+            $tags = [];
+            foreach ($query as $row) {
+                $tags[] = [
+                    'id' => $row['id'],
+                    'name' => $row['name'],
+                    'client_data' => $row['client_data'],
+                    'url' => $row['url'],
+                    'additional_email_addresses' => [],
+                    'solved_issue_count' => (int)$row['solved_issue_count'],
+                    'unsolved_issue_count' => (int)$row['unsolved_issue_count']
+                ];
+            }
+
+            $tag_indexes_by_id = [];
+            foreach ($tags as $index => $tag) {
+                $tag_indexes_by_id[$tag['id']] = $index;
+            }
+
+            $query = $this->db->query(
+                'SELECT tag_id, email_address FROM tag_x_additional_email '
+                . 'ORDER BY tag_id, email_address COLLATE NOCASE'
+            );
+            foreach ($query as $row) {
+                if (isset($tag_indexes_by_id[$row['tag_id']])) {
+                    $tags[$tag_indexes_by_id[$row['tag_id']]]['additional_email_addresses'][] =
+                        $row['email_address'];
+                }
             }
 
             return $tags;
@@ -563,24 +621,38 @@
                     isset($_POST['req']) &&
                     $_POST['req'] === 'new-issue' &&
                     isset($_POST['content']) &&
-                    $this->may_write() &&
-                    auth_has_postdedup_uuid()
+                    $this->may_write()
                 ) {
-                    if (auth_register_check_postdedup_uuid()) {
+                    if ($this->accept_submission_token('new-issue')) {
+                        $email_addresses = $this->parse_email_address_list(
+                            $this->may_administer() && is_string($_POST['additional_email_addresses'] ?? null)
+                                ? $_POST['additional_email_addresses']
+                                : ''
+                        );
+                        if ($_POST['content'] === '' || $email_addresses['invalid'] !== []) {
+                            return new ErrorIncompleteNIR(
+                                is_array($_POST['tags'] ?? null) ? $_POST['tags'] : [],
+                                $_POST['content'],
+                                $email_addresses['submitted'],
+                                $email_addresses['invalid']
+                            );
+                        }
                         if ($_POST['content'] !== '') {
                             $tags_ids = array_map(fn($tag) => $tag['id'], $tags);
 
                             $date            = date('Y-m-d H:i:s');
                             $content         = $_POST['content'] ?? '';
                             $status          = 'open';
-                            $author          = $this->new_issue_author();
+                            $author          = $this->submitted_author();
                             $author_identity = $author['identity'];
                             $author_email    = $author['email'];
+
+                            $this->db->beginTransaction();
 
                             // Insert issue
                             $query = $this->db->prepare("INSERT INTO issue (summary, last_post_status, last_post_created_on, first_post_created_on, first_post_author_identity) VALUES (?, ?, ?, ?, ?)");
                             $query->execute([$content, $status, $date, $date, $author_identity]);
-                            $issue_id = $this->db->lastInsertId();
+                            $issue_id = (int)$this->db->lastInsertId();
 
                             // Insert post
                             $query = $this->db->prepare("INSERT INTO post (issue_id, created_on, author_identity, author_email, content, new_status) VALUES (?, ?, ?, ?, ?, ?)");
@@ -597,29 +669,55 @@
                                 }
                             }
 
+                            // Attribute additional-email events to the acting administrator.
+                            $query = $this->db->prepare(
+                                'INSERT INTO issue_x_additional_email '
+                                . '(issue_id, created_on, author_identity, author_email, email_address) '
+                                . 'VALUES (?, ?, ?, ?, ?)'
+                            );
+                            foreach ($email_addresses['valid'] as $email_address) {
+                                $query->execute([
+                                    $issue_id, $date, $this->current_user_identity_serialized(),
+                                    auth_get_user_email(), $email_address
+                                ]);
+                            }
+                            $this->db->commit();
+
                             // Send e-mails
                             if (isset_global_config('mail') && $this->config->mail !== null) {
-                                // Collect addresses:
-                                // - Addresses that are always notified
-                                // - Address of author, if available and not already in the list
-                                $addresses = $this->config->mail->always_notify_addresses;
-                                if ($author_email !== null && !in_array($author_email, $addresses)) {
-                                    $addresses[] = $author_email;
-                                }
+                                $notification_recipients = $this->collect_notification_recipients(
+                                    (int)$issue_id
+                                );
 
-                                $subject = ($this->config->mail->new_issue_template_subject)($issue_id, $content);
+                                $tag_names = $this->fetch_issue_tag_names($issue_id);
+                                $subject = ($this->config->mail->new_issue_template_subject)(
+                                    $issue_id,
+                                    $content,
+                                    $tag_names
+                                );
                                 $body = ($this->config->mail->new_issue_template_body)(
                                     $issue_id,
                                     url_full_collect($this->config->view_target_ids) . '#' . IssueTracker::make_view_issue_html_id($issue_id),
                                     $date,
                                     ($this->config->view->author_identity_to_label)($author_identity),
-                                    $content
+                                    $content,
+                                    $tag_names
+                                );
+                                $body = $this->append_notification_block(
+                                    $body,
+                                    $notification_recipients
                                 );
 
-                                $mail_successful = $this->send_mail_and_log($addresses, $subject, $body);
+                                $mail_successful = $this->send_mail_and_log(
+                                    $notification_recipients,
+                                    $subject,
+                                    $body
+                                );
 
                                 if ($mail_successful) {
-                                    return new SuccessWithMailsNIR($addresses);
+                                    return new SuccessWithMailsNIR(
+                                        $notification_recipients
+                                    );
                                 }
                                 else {
                                     return new SuccessButMailsFailedNIR();
@@ -649,11 +747,16 @@
                 }
             }
             catch (PDOException $e) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
                 return new ErrorDbNIR((string)$e);
             }
         }
 
         function handle_new_post(): ?HandleNewPostResult {
+            $issue_id = (int)($_POST['issue_id'] ?? 0);
+
             try {
                 if (
                     $_SERVER['REQUEST_METHOD'] === 'POST' &&
@@ -661,22 +764,22 @@
                     $_POST['req'] === 'new-post' &&
                     isset($_POST['issue_id']) &&
                     isset($_POST['new_status']) &&
-                    $this->may_write() &&
-                    auth_has_postdedup_uuid()
+                    $this->may_write()
                 ) {
-                    if (auth_register_check_postdedup_uuid()) {
+                    if ($this->accept_submission_token('new-post', (int)$_POST['issue_id'])) {
                         if ($_POST['content'] !== '') {
-                            $issue_id     = $_POST['issue_id'];
                             $date         = date('Y-m-d H:i:s');
                             $content      = $_POST['content'] ?? '';
                             $new_status   = $_POST['new_status'];
 
-                            $author_identity = $this->current_user_identity_serialized();
-                            $author_email    = auth_get_user_email();
+                            $author          = $this->submitted_author();
+                            $author_identity = $author['identity'];
+                            $author_email    = $author['email'];
 
                             // Insert post
                             $query = $this->db->prepare("INSERT INTO post (issue_id, created_on, author_identity, author_email, content, new_status) VALUES (?, ?, ?, ?, ?, ?)");
                             $query->execute([$issue_id, $date, $author_identity, $author_email, $content, $new_status]);
+                            $post_id = (int)$this->db->lastInsertId();
 
                             // Update the issue's last post status and timestamp
                             $query = $this->db->prepare("UPDATE issue SET last_post_status = ?, last_post_created_on = ? WHERE id = ?");
@@ -684,32 +787,61 @@
 
                             // Send e-mails
                             if (isset_global_config('mail') && $this->config->mail !== null) {
-                                // Collect addresses:
-                                // - Addresses that are always notified
-                                // - Fetch all users from db that are subscribed to this issue
-                                $addresses = $this->config->mail->always_notify_addresses;
-                                $query = $this->db->prepare("SELECT DISTINCT author_email FROM post WHERE issue_id = ? AND author_email IS NOT NULL");
-                                $query->execute([$issue_id]);
-                                $addresses = array_values(array_unique(array_merge(
-                                    $addresses,
-                                    $query->fetchAll(PDO::FETCH_COLUMN, 0)
-                                )));
+                                $notification_recipients = $this->collect_notification_recipients(
+                                    (int)$issue_id
+                                );
 
                                 // Prepare e-mail
-                                $subject = ($this->config->mail->new_post_template_subject)($issue_id);
+                                $query = $this->db->prepare(
+                                    'SELECT created_on, author_identity, content, new_status '
+                                    . 'FROM post WHERE issue_id = ? AND id < ? '
+                                    . 'ORDER BY created_on, id'
+                                );
+                                $query->execute([$issue_id, $post_id]);
+
+                                $previous_posts = [];
+                                foreach ($query as $previous_post) {
+                                    $previous_posts[] = [
+                                        'date' => $previous_post['created_on'],
+                                        'author' => ($this->config->view->author_identity_to_label)(
+                                            $previous_post['author_identity']
+                                        ),
+                                        'content' => $previous_post['content'],
+                                        'status' => $previous_post['new_status']
+                                    ];
+                                }
+
+                                $tag_names = $this->fetch_issue_tag_names($issue_id);
+                                $subject = ($this->config->mail->new_post_template_subject)(
+                                    $issue_id,
+                                    $tag_names
+                                );
                                 $body = ($this->config->mail->new_post_template_body)(
                                     $issue_id,
                                     url_full_collect($this->config->view_target_ids) . '#' . IssueTracker::make_view_issue_html_id($issue_id),
                                     $date,
-                                    auth_get_user_name(),
+                                    ($this->config->view->author_identity_to_label)($author_identity),
                                     $content,
-                                    $new_status
+                                    $new_status,
+                                    $previous_posts,
+                                    $tag_names
                                 );
-                                
-                                $mail_successful = $this->send_mail_and_log($addresses, $subject, $body);
+                                $body = $this->append_notification_block(
+                                    $body,
+                                    $notification_recipients
+                                );
+
+                                $mail_successful = $this->send_mail_and_log(
+                                    $notification_recipients,
+                                    $subject,
+                                    $body
+                                );
 
                                 if ($mail_successful) {
-                                    return new SuccessWithMailsNPR($issue_id, $addresses);
+                                    return new SuccessWithMailsNPR(
+                                        $issue_id,
+                                        $notification_recipients
+                                    );
                                 }
                                 else {
                                     return new SuccessButMailsFailedNPR($issue_id);
@@ -740,6 +872,303 @@
             }
         }
 
+        function handle_new_additional_email(): ?HandleNewAdditionalEmailResult {
+            if (
+                $_SERVER['REQUEST_METHOD'] !== 'POST' ||
+                !isset($_POST['req']) ||
+                $_POST['req'] !== 'new-additional-email' ||
+                !isset($_POST['issue_id']) ||
+                !(is_string($_POST['issue_id']) || is_int($_POST['issue_id'])) ||
+                !isset($_POST['email_address']) ||
+                !is_string($_POST['email_address']) ||
+                !$this->may_administer() ||
+                !$this->accept_submission_token('new-additional-email', (int)$_POST['issue_id'])
+            ) {
+                return null;
+            }
+
+            $issue_id = (int)$_POST['issue_id'];
+            $email_address = trim($_POST['email_address']);
+            if (filter_var($email_address, FILTER_VALIDATE_EMAIL) === false) {
+                return new ErrorIncompleteNAER($issue_id, $email_address);
+            }
+
+            try {
+                $query = $this->db->prepare(
+                    'INSERT OR IGNORE INTO issue_x_additional_email '
+                    . '(issue_id, created_on, author_identity, author_email, email_address) '
+                    . 'VALUES (?, ?, ?, ?, ?)'
+                );
+                $query->execute([
+                    $issue_id,
+                    date('Y-m-d H:i:s'),
+                    $this->current_user_identity_serialized(),
+                    auth_get_user_email(),
+                    $email_address
+                ]);
+
+                if ($query->rowCount() === 0) {
+                    return new ErrorDuplicateNAER($issue_id, $email_address);
+                }
+
+                return new SuccessNAER($issue_id, $email_address);
+            }
+            catch (PDOException $e) {
+                return new ErrorDbNAER($issue_id, (string)$e);
+            }
+        }
+
+        function handle_new_tag(): ?HandleNewTagResult {
+            if (
+                $_SERVER['REQUEST_METHOD'] !== 'POST' ||
+                !isset($_POST['req']) ||
+                $_POST['req'] !== 'new-tag' ||
+                !isset($_POST['tag_id']) ||
+                !is_string($_POST['tag_id']) ||
+                !isset($_POST['name']) ||
+                !is_string($_POST['name']) ||
+                (isset($_POST['has_client_data']) && (!isset($_POST['client_data']) || !is_string($_POST['client_data']))) ||
+                (isset($_POST['additional_email_addresses']) && !is_string($_POST['additional_email_addresses'])) ||
+                (isset($_POST['url']) && !is_string($_POST['url'])) ||
+                !$this->may_administer() ||
+                !$this->accept_submission_token('new-tag')
+            ) {
+                return null;
+            }
+
+            $tag_id = trim($_POST['tag_id']);
+            $name = trim($_POST['name']);
+            $client_data = isset($_POST['has_client_data']) ? $_POST['client_data'] : null;
+            $url = trim($_POST['url'] ?? '');
+            $url = $url === '' ? null : $url;
+            $parsed_email_addresses = $this->parse_email_address_list(
+                $_POST['additional_email_addresses'] ?? ''
+            );
+            if ($tag_id === '' || $name === '') {
+                return new ErrorIncompleteNTR(
+                    $tag_id,
+                    $name,
+                    $client_data,
+                    $parsed_email_addresses['submitted'],
+                    $url
+                );
+            }
+            if (!$this->valid_tag_url($url)) {
+                return new ErrorInvalidUrlNTR($tag_id, $name, $client_data, $parsed_email_addresses['submitted'], $url);
+            }
+            if (count($parsed_email_addresses['invalid']) > 0) {
+                return new ErrorInvalidEmailAddressesNTR(
+                    $tag_id,
+                    $name,
+                    $client_data,
+                    $parsed_email_addresses['submitted'],
+                    $url
+                );
+            }
+
+            try {
+                $this->db->beginTransaction();
+                $query = $this->db->prepare('INSERT INTO tag (id, name, client_data, url) VALUES (?, ?, ?, ?)');
+                $query->execute([$tag_id, $name, $client_data, $url]);
+                $this->insert_tag_additional_email_addresses(
+                    $tag_id,
+                    $parsed_email_addresses['valid']
+                );
+                $this->db->commit();
+
+                return new SuccessNTR(
+                    $tag_id,
+                    $name,
+                    $client_data,
+                    $parsed_email_addresses['valid'],
+                    $url
+                );
+            }
+            catch (PDOException $e) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+                return new ErrorDbNTR(
+                    $tag_id,
+                    $name,
+                    $client_data,
+                    $parsed_email_addresses['submitted'],
+                    (string)$e,
+                    $url
+                );
+            }
+        }
+
+        function handle_edit_tag(): ?HandleEditTagResult {
+            if (
+                $_SERVER['REQUEST_METHOD'] !== 'POST' ||
+                !isset($_POST['req']) ||
+                $_POST['req'] !== 'edit-tag' ||
+                !isset($_POST['tag_id']) ||
+                !is_string($_POST['tag_id']) ||
+                !isset($_POST['name']) ||
+                !is_string($_POST['name']) ||
+                (isset($_POST['has_client_data']) && (!isset($_POST['client_data']) || !is_string($_POST['client_data']))) ||
+                (isset($_POST['additional_email_addresses']) && !is_string($_POST['additional_email_addresses'])) ||
+                (isset($_POST['url']) && !is_string($_POST['url'])) ||
+                !$this->may_administer() ||
+                !$this->accept_submission_token('edit-tag')
+            ) {
+                return null;
+            }
+
+            $tag_id = $_POST['tag_id'];
+            $name = trim($_POST['name']);
+            $client_data = isset($_POST['has_client_data']) ? $_POST['client_data'] : null;
+            $url = trim($_POST['url'] ?? '');
+            $url = $url === '' ? null : $url;
+            $parsed_email_addresses = $this->parse_email_address_list(
+                $_POST['additional_email_addresses'] ?? ''
+            );
+            if ($tag_id === '' || $name === '') {
+                return new ErrorIncompleteETR(
+                    $tag_id,
+                    $name,
+                    $client_data,
+                    $parsed_email_addresses['submitted'],
+                    $url
+                );
+            }
+            if (!$this->valid_tag_url($url)) {
+                return new ErrorInvalidUrlETR($tag_id, $name, $client_data, $parsed_email_addresses['submitted'], $url);
+            }
+            if (count($parsed_email_addresses['invalid']) > 0) {
+                return new ErrorInvalidEmailAddressesETR(
+                    $tag_id,
+                    $name,
+                    $client_data,
+                    $parsed_email_addresses['submitted'],
+                    $url
+                );
+            }
+
+            try {
+                $query = $this->db->prepare('SELECT 1 FROM tag WHERE id = ?');
+                $query->execute([$tag_id]);
+                if ($query->fetchColumn() === false) {
+                    return null;
+                }
+
+                $this->db->beginTransaction();
+                $query = $this->db->prepare('UPDATE tag SET name = ?, client_data = ?, url = ? WHERE id = ?');
+                $query->execute([$name, $client_data, $url, $tag_id]);
+                $query = $this->db->prepare('DELETE FROM tag_x_additional_email WHERE tag_id = ?');
+                $query->execute([$tag_id]);
+                $this->insert_tag_additional_email_addresses(
+                    $tag_id,
+                    $parsed_email_addresses['valid']
+                );
+                $this->db->commit();
+
+                return new SuccessETR(
+                    $tag_id,
+                    $name,
+                    $client_data,
+                    $parsed_email_addresses['valid'],
+                    $url
+                );
+            }
+            catch (PDOException $e) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+                return new ErrorDbETR(
+                    $tag_id,
+                    $name,
+                    $client_data,
+                    $parsed_email_addresses['submitted'],
+                    (string)$e,
+                    $url
+                );
+            }
+        }
+
+        /** @return ?array{kind: string, subject?: string, content?: string, sent?: list<array{name: string, addresses: list<string>}>, skipped?: list<string>, failed?: list<array{name: string, addresses: list<string>, error: string}>, details?: string} */
+        function handle_mail_tags(): ?array {
+            if (
+                ($_SERVER['REQUEST_METHOD'] ?? null) !== 'POST' ||
+                ($_POST['req'] ?? null) !== 'mail-tags' ||
+                !isset($_POST['subject'], $_POST['content']) ||
+                !is_string($_POST['subject']) ||
+                !is_string($_POST['content']) ||
+                !$this->may_administer() ||
+                $this->config->mail === null ||
+                !$this->accept_submission_token('mail-tags')
+            ) {
+                return null;
+            }
+
+            $subject = $_POST['subject'];
+            $content = $_POST['content'];
+            if (trim($subject) === '' || trim($content) === '') {
+                return ['kind' => 'incomplete', 'subject' => $subject, 'content' => $content];
+            }
+
+            try {
+                $tags = $this->fetch_tags_with_issue_counts();
+            }
+            catch (PDOException $e) {
+                return ['kind' => 'error_db', 'subject' => $subject, 'content' => $content, 'details' => (string)$e];
+            }
+
+            $sent = [];
+            $skipped = [];
+            $failed = [];
+            foreach ($tags as $tag) {
+                if ($tag['additional_email_addresses'] === []) {
+                    $skipped[] = $tag['name'];
+                    continue;
+                }
+
+                $values = [
+                    '{{url}}' => $tag['url'] ?? '(nicht vorhanden)',
+                    '{{tag}}' => $tag['name'],
+                    '{{client_data}}' => $tag['client_data'] ?? '(nicht vorhanden)'
+                ];
+                $error = $this->send_tag_mail(
+                    $tag['additional_email_addresses'],
+                    strtr($subject, $values),
+                    strtr($content, $values)
+                );
+                if ($error === null) {
+                    $sent[] = ['name' => $tag['name'], 'addresses' => $tag['additional_email_addresses']];
+                }
+                else {
+                    $failed[] = ['name' => $tag['name'], 'addresses' => $tag['additional_email_addresses'], 'error' => $error];
+                    log_error_silently('Failed to send tag e-mail for ' . $tag['id'] . ': ' . $error);
+                }
+            }
+
+            return ['kind' => 'done', 'sent' => $sent, 'skipped' => $skipped, 'failed' => $failed];
+        }
+
+        /** @param list<string> $addresses Returns an error message, or NULL on success. */
+        private function send_tag_mail(array $addresses, string $subject, string $body): ?string {
+            try {
+                $mail = new PHPMailer();
+                $mail->CharSet = 'UTF-8';
+                if (!$mail->setFrom(get_global_config('mail', 'senderEmail'))) {
+                    return $mail->ErrorInfo !== '' ? $mail->ErrorInfo : 'Unbekannter E-Mail-Fehler';
+                }
+                foreach ($addresses as $address) {
+                    if (!$mail->addAddress($address)) {
+                        return $mail->ErrorInfo !== '' ? $mail->ErrorInfo : 'Unbekannter E-Mail-Fehler';
+                    }
+                }
+                $mail->Subject = $subject;
+                $mail->Body = $body;
+                return $mail->send() ? null : ($mail->ErrorInfo !== '' ? $mail->ErrorInfo : 'Unbekannter E-Mail-Fehler');
+            }
+            catch (\Throwable $e) {
+                return $e->getMessage();
+            }
+        }
+
         function handle_edit_issue(array $tags): ?HandleEditIssueResult {
             if (
                 $_SERVER['REQUEST_METHOD'] !== 'POST' ||
@@ -750,8 +1179,7 @@
                 !isset($_POST['summary']) ||
                 !is_string($_POST['summary']) ||
                 !$this->may_administer_issue_by_id((int)$_POST['issue_id']) ||
-                !auth_has_postdedup_uuid() ||
-                !auth_register_check_postdedup_uuid()
+                !$this->accept_submission_token('edit-issue')
             ) {
                 return null;
             }
@@ -810,8 +1238,7 @@
                 !is_string($_POST['new_status']) ||
                 !in_array($_POST['new_status'], ['open', 'closed'], strict: true) ||
                 !$this->may_administer_post_by_id((int)$_POST['issue_id'], (int)$_POST['post_id']) ||
-                !auth_has_postdedup_uuid() ||
-                !auth_register_check_postdedup_uuid()
+                !$this->accept_submission_token('edit-post')
             ) {
                 return null;
             }
@@ -865,8 +1292,7 @@
                 !isset($_POST['issue_id']) ||
                 !(is_string($_POST['issue_id']) || is_int($_POST['issue_id'])) ||
                 !$this->may_administer_issue_by_id((int)$_POST['issue_id']) ||
-                !auth_has_postdedup_uuid() ||
-                !auth_register_check_postdedup_uuid()
+                !$this->accept_submission_token('delete-issue')
             ) {
                 return null;
             }
@@ -877,6 +1303,9 @@
                 $this->db->beginTransaction();
 
                 $query = $this->db->prepare('DELETE FROM issue_x_tag WHERE issue_id = ?');
+                $query->execute([$issue_id]);
+
+                $query = $this->db->prepare('DELETE FROM issue_x_additional_email WHERE issue_id = ?');
                 $query->execute([$issue_id]);
 
                 $query = $this->db->prepare('DELETE FROM post WHERE issue_id = ?');
@@ -908,8 +1337,7 @@
                 !isset($_POST['post_id']) ||
                 !(is_string($_POST['post_id']) || is_int($_POST['post_id'])) ||
                 !$this->may_administer_post_by_id((int)$_POST['issue_id'], (int)$_POST['post_id']) ||
-                !auth_has_postdedup_uuid() ||
-                !auth_register_check_postdedup_uuid()
+                !$this->accept_submission_token('delete-post')
             ) {
                 return null;
             }
@@ -937,6 +1365,9 @@
                 $issue_deleted = $first_post === false;
                 if ($issue_deleted) {
                     $query = $this->db->prepare('DELETE FROM issue_x_tag WHERE issue_id = ?');
+                    $query->execute([$issue_id]);
+
+                    $query = $this->db->prepare('DELETE FROM issue_x_additional_email WHERE issue_id = ?');
                     $query->execute([$issue_id]);
 
                     $query = $this->db->prepare('DELETE FROM issue WHERE id = ?');
@@ -976,17 +1407,218 @@
             }
         }
 
+        function handle_delete_additional_email(): ?HandleDeleteAdditionalEmailResult {
+            if (
+                $_SERVER['REQUEST_METHOD'] !== 'POST' ||
+                !isset($_POST['req']) ||
+                $_POST['req'] !== 'delete-additional-email' ||
+                !isset($_POST['issue_id']) ||
+                !(is_string($_POST['issue_id']) || is_int($_POST['issue_id'])) ||
+                !isset($_POST['additional_email_id']) ||
+                !(is_string($_POST['additional_email_id']) || is_int($_POST['additional_email_id'])) ||
+                !$this->may_administer() ||
+                !$this->accept_submission_token('delete-additional-email')
+            ) {
+                return null;
+            }
+
+            $issue_id = (int)$_POST['issue_id'];
+            $additional_email_id = (int)$_POST['additional_email_id'];
+
+            try {
+                $query = $this->db->prepare(
+                    'DELETE FROM issue_x_additional_email WHERE id = ? AND issue_id = ?'
+                );
+                $query->execute([$additional_email_id, $issue_id]);
+                if ($query->rowCount() === 0) {
+                    return null;
+                }
+
+                return new SuccessDAER($issue_id, $additional_email_id);
+            }
+            catch (PDOException $e) {
+                return new ErrorDbDAER($issue_id, $additional_email_id, (string)$e);
+            }
+        }
+
         
         /////////////////////////
         // Controller: Helpers //
         /////////////////////////
 
-        private function send_mail_and_log(array $addresses, string $subject, string $body): bool {
+        private function valid_tag_url(?string $url): bool {
+            if ($url === null) {
+                return true;
+            }
+            if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+                return false;
+            }
+            return in_array(strtolower(parse_url($url, PHP_URL_SCHEME) ?? ''), ['http', 'https'], true);
+        }
+
+        /**
+         * @return array{submitted: list<string>, valid: list<string>, invalid: list<string>}
+         */
+        private function parse_email_address_list(string $input): array {
+            $tokens = preg_split('/[\s,;]+/u', trim($input), -1, PREG_SPLIT_NO_EMPTY);
+            $tokens = $tokens === false ? [] : $tokens;
+            $submitted = [];
+            $valid = [];
+            $invalid = [];
+            $seen_addresses = [];
+
+            foreach ($tokens as $address) {
+                $address = trim($address);
+                $deduplication_key = strtolower($address);
+                if ($address === '' || isset($seen_addresses[$deduplication_key])) {
+                    continue;
+                }
+
+                $seen_addresses[$deduplication_key] = true;
+                $submitted[] = $address;
+                if (filter_var($address, FILTER_VALIDATE_EMAIL) === false) {
+                    $invalid[] = $address;
+                }
+                else {
+                    $valid[] = $address;
+                }
+            }
+
+            return [
+                'submitted' => $submitted,
+                'valid' => $valid,
+                'invalid' => $invalid
+            ];
+        }
+
+        /** @param list<string> $addresses */
+        private function insert_tag_additional_email_addresses(
+            string $tag_id,
+            array $addresses
+        ): void {
+            $query = $this->db->prepare(
+                'INSERT INTO tag_x_additional_email (tag_id, email_address) VALUES (?, ?)'
+            );
+            foreach ($addresses as $address) {
+                $query->execute([$tag_id, $address]);
+            }
+        }
+
+        /** @return list<array{email_address: string, reasons: list<string>}> */
+        private function collect_notification_recipients(int $issue_id): array {
+            $recipients = [];
+            foreach ($this->config->mail->always_notify_addresses as $email_address) {
+                if (is_string($email_address)) {
+                    $this->add_notification_recipient(
+                        $recipients,
+                        $email_address,
+                        $this->config->mail->reason_always_notify
+                    );
+                }
+            }
+
+            $query = $this->db->prepare(
+                'SELECT author_email AS email_address FROM post '
+                . 'WHERE issue_id = ? AND author_email IS NOT NULL '
+                . 'UNION ALL '
+                . 'SELECT author_email AS email_address FROM issue_x_additional_email '
+                . 'WHERE issue_id = ? AND author_email IS NOT NULL '
+                . 'UNION ALL '
+                . 'SELECT email_address FROM issue_x_additional_email WHERE issue_id = ?'
+            );
+            $query->execute([$issue_id, $issue_id, $issue_id]);
+            foreach ($query as $row) {
+                $this->add_notification_recipient(
+                    $recipients,
+                    $row['email_address'],
+                    $this->config->mail->reason_participates_in_issue
+                );
+            }
+
+            $query = $this->db->prepare(
+                'SELECT tag_x_additional_email.email_address, tag.name AS tag_name '
+                . 'FROM issue_x_tag '
+                . 'JOIN tag ON issue_x_tag.tag_id = tag.id '
+                . 'JOIN tag_x_additional_email ON tag.id = tag_x_additional_email.tag_id '
+                . 'WHERE issue_x_tag.issue_id = ? '
+                . 'ORDER BY tag.name COLLATE NOCASE, tag.id, '
+                . 'tag_x_additional_email.email_address COLLATE NOCASE'
+            );
+            $query->execute([$issue_id]);
+
+            foreach ($query as $row) {
+                $this->add_tag_notification_recipient(
+                    $recipients,
+                    $row['email_address'],
+                    $row['tag_name']
+                );
+            }
+
+            return array_values($recipients);
+        }
+
+        /** @param array<string, array{email_address: string, reasons: list<string>}> $recipients */
+        private function add_notification_recipient(
+            array &$recipients,
+            string $email_address,
+            string $reason
+        ): void {
+            $email_address = trim($email_address);
+            $reason = trim($reason);
+            if ($email_address === '') {
+                return;
+            }
+
+            $deduplication_key = strtolower($email_address);
+            $recipients[$deduplication_key] ??= [
+                'email_address' => $email_address,
+                'reasons' => []
+            ];
+            if (!in_array($reason, $recipients[$deduplication_key]['reasons'], true)) {
+                $recipients[$deduplication_key]['reasons'][] = $reason;
+            }
+        }
+
+        /** @param array<string, array{email_address: string, reasons: list<string>}> $recipients */
+        private function add_tag_notification_recipient(
+            array &$recipients,
+            string $email_address,
+            string $tag_name
+        ): void {
+            $email_address = trim($email_address);
+            $email_address = $recipients[strtolower($email_address)]['email_address'] ?? $email_address;
+            $this->add_notification_recipient(
+                $recipients,
+                $email_address,
+                strtr($this->config->mail->reason_tag_additional_email, [
+                    '{email_address}' => $email_address,
+                    '{tag_name}' => $tag_name
+                ])
+            );
+        }
+
+        /** @param list<array{email_address: string, reasons: list<string>}> $recipients */
+        private function append_notification_block(string $body, array $recipients): string {
+            if (count($recipients) === 0) {
+                return $body;
+            }
+
+            $notification_block = trim(
+                ($this->config->mail->notification_block)($recipients)
+            );
+
+            return $notification_block === ''
+                ? $body
+                : $body . "\n\n" . $notification_block;
+        }
+
+        /** @param list<array{email_address: string, reasons: list<string>}> $recipients */
+        private function send_mail_and_log(array $recipients, string $subject, string $body): bool {
             $mail = new PHPMailer();
             $mail->CharSet = 'UTF-8';
             $mail->setFrom(get_global_config('mail', 'senderEmail'));
-            foreach ($addresses as $address) {
-                $mail->addAddress($address);
+            foreach ($recipients as $recipient) {
+                $mail->addAddress($recipient['email_address']);
             }
             $mail->Subject = $subject;
             $mail->Body = $body;
@@ -1000,1028 +1632,6 @@
 
                 return false;
             }
-        }
-
-
-        //////////
-        // View //
-        //////////
-
-        private function at_sentence_start(string $text): string {
-            return ucfirst($text);
-        }
-
-        private function own_content_edit_window_hint(string $content_desc): string {
-            $minutes = $this->config->may_edit_own_content_within_n_minutes;
-            if ($minutes === 0 || $this->may_administer()) {
-                return '';
-            }
-
-            $unit = $minutes === 1 ? 'Minute' : 'Minuten';
-
-            return '<p><em>' . $this->at_sentence_start($content_desc)
-                . ' kann noch ' . $minutes . ' ' . $unit
-                . ' lang von Ihnen bearbeitet oder gelöscht werden.</em></p>';
-        }
-
-        // Display success or error message of the new-issue-handling
-        function print_handle_new_issue_res(?HandleNewIssueResult $res) {
-            // Only display something if there is something to display
-            if ($res !== null) {
-                if (
-                    $res->kind() == HandleNewIssueResultKind::SuccessWithMails ||
-                    $res->kind() == HandleNewIssueResultKind::SuccessButMailsFailed ||
-                    $res->kind() == HandleNewIssueResultKind::SuccessWithoutMails
-                ) {
-                    $message = match ($res->kind()) {
-                        HandleNewIssueResultKind::SuccessWithMails =>
-                            '<p>' . $this->at_sentence_start($this->config->view->issue_desc_long)
-                            . ' wurde angelegt und E-Mails zur Benachrichtigung wurden gesendet an:</p><ul>'
-                            . implode('', array_map(fn($addr) => "<li>{$addr}</li>", $res->addresses))
-                            . '</ul>',
-                        HandleNewIssueResultKind::SuccessButMailsFailed =>
-                            '<p>' . $this->at_sentence_start($this->config->view->issue_desc_long)
-                            . ' wurde angelegt, aber E-Mails zur Benachrichtigung konnten nicht gesendet werden. Das Problem mit der fehlgeschlagenen E-Mail-Benachrichtigung wurde gemeldet.</p>',
-                        HandleNewIssueResultKind::SuccessWithoutMails =>
-                            '<p>' . $this->at_sentence_start($this->config->view->issue_desc_long)
-                            . ' wurde angelegt, jedoch wurden keine E-Mails zur Benachrichtigung gesendet (dies entspricht der gewünschten Konfiguration).</p>'
-                    };
-                    $message .= $this->own_content_edit_window_hint(
-                        $this->config->view->issue_desc_long
-                    );
-
-                    echo '<div class="alert alert-success">' . $message . '</div>';
-                }
-                elseif (
-                    // Incomplete form data error is not displayed here (already displayed in modal)
-                    $res->kind() == HandleNewIssueResultKind::ErrorDb
-                ) {
-                    $message =
-                        'Fehler: Es ist ein Datenbankfehler aufgetreten.<pre>'
-                        . htmlspecialchars($res->details, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-                        . '</pre>';
-
-                    echo '<div class="alert alert-danger">' . $message . '</div>';
-                }
-            }
-        }
-
-        // Display success or error message of the new-post-handling
-        function print_handle_new_post_res(?HandleNewPostResult $res) {
-            // Only display something if there is something to display
-            if ($res !== null) {
-                if (
-                    $res->kind() == HandleNewPostResultKind::SuccessWithMails ||
-                    $res->kind() == HandleNewPostResultKind::SuccessButMailsFailed ||
-                    $res->kind() == HandleNewPostResultKind::SuccessWithoutMails
-                ) {
-                    $message = match ($res->kind()) {
-                        HandleNewPostResultKind::SuccessWithMails =>
-                            '<p>' . $this->at_sentence_start($this->config->view->post_desc_long)
-                            . ' wurde angelegt und E-Mails zur Benachrichtigung wurden gesendet an:</p><ul>'
-                            . implode('', array_map(fn($addr) => "<li>{$addr}</li>", $res->addresses))
-                            . '</ul>',
-                        HandleNewPostResultKind::SuccessButMailsFailed =>
-                            '<p>' . $this->at_sentence_start($this->config->view->post_desc_long)
-                            . ' wurde angelegt, aber E-Mails zur Benachrichtigung konnten nicht gesendet werden. Das Problem mit der fehlgeschlagenen E-Mail-Benachrichtigung wurde gemeldet.</p>',
-                        HandleNewPostResultKind::SuccessWithoutMails =>
-                            '<p>' . $this->at_sentence_start($this->config->view->post_desc_long)
-                            . ' wurde angelegt, jedoch wurden keine E-Mails zur Benachrichtigung gesendet (dies entspricht der gewünschten Konfiguration).</p>'
-                    };
-                    $message .= $this->own_content_edit_window_hint(
-                        $this->config->view->post_desc_long
-                    );
-
-                    echo '<div class="alert alert-success">' . $message . '</div>';
-                }
-                else {
-                    $message = match ($res->kind()) {
-                        HandleNewPostResultKind::ErrorIncomplete =>
-                            'Fehler: Bitte füllen Sie alle erforderlichen Felder aus.',
-                        HandleNewPostResultKind::ErrorDb =>
-                            'Fehler: Es ist ein Datenbankfehler aufgetreten.<pre>'
-                            . htmlspecialchars($res->details, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-                            . '</pre>'
-                    };
-
-                    echo '<div class="alert alert-danger">' . $message . '</div>';
-                }
-            }
-        }
-
-        // Display success or error message of the edit-issue handling
-        function print_handle_edit_issue_res(?HandleEditIssueResult $res) {
-            if ($res === null) {
-                return;
-            }
-
-            if ($res->kind() === HandleEditIssueResultKind::Success) {
-                echo '<div class="alert alert-success"><p>'
-                    . $this->at_sentence_start($this->config->view->issue_desc_long)
-                    . ' #' . $res->issue_id()
-                    . ' wurde bearbeitet.</p></div>';
-            }
-            elseif ($res->kind() === HandleEditIssueResultKind::ErrorDb) {
-                $message = 'Fehler: Beim Bearbeiten von '
-                    . $this->config->view->issue_desc_long . ' #' . $res->issue_id()
-                    . ' ist ein Datenbankfehler aufgetreten.<pre>'
-                    . htmlspecialchars($res->details, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-                    . '</pre>';
-
-                echo '<div class="alert alert-danger">' . $message . '</div>';
-            }
-        }
-
-        // Display success or error message of the edit-post handling
-        function print_handle_edit_post_res(?HandleEditPostResult $res) {
-            if ($res === null) {
-                return;
-            }
-
-            if ($res->kind() === HandleEditPostResultKind::Success) {
-                echo '<div class="alert alert-success"><p>'
-                    . $this->at_sentence_start($this->config->view->post_desc_long)
-                    . ' #' . $res->post_id()
-                    . ' wurde bearbeitet.</p></div>';
-            }
-            elseif ($res->kind() === HandleEditPostResultKind::ErrorDb) {
-                $message = 'Fehler: Beim Bearbeiten von '
-                    . $this->config->view->post_desc_long . ' #' . $res->post_id()
-                    . ' ist ein Datenbankfehler aufgetreten.<pre>'
-                    . htmlspecialchars($res->details, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-                    . '</pre>';
-
-                echo '<div class="alert alert-danger">' . $message . '</div>';
-            }
-        }
-
-        // Display success or error message of the delete-issue handling
-        function print_handle_delete_issue_res(?HandleDeleteIssueResult $res) {
-            if ($res === null) {
-                return;
-            }
-
-            if ($res->kind() === HandleDeleteIssueResultKind::Success) {
-                echo '<div class="alert alert-success"><p>'
-                    . $this->at_sentence_start($this->config->view->issue_desc_long)
-                    . ' #' . $res->issue_id()
-                    . ' wurde vollständig gelöscht.</p></div>';
-            }
-            elseif ($res->kind() === HandleDeleteIssueResultKind::ErrorDb) {
-                $message = 'Fehler: Beim Löschen von '
-                    . $this->config->view->issue_desc_long . ' #' . $res->issue_id()
-                    . ' ist ein Datenbankfehler aufgetreten.<pre>'
-                    . htmlspecialchars($res->details, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-                    . '</pre>';
-
-                echo '<div class="alert alert-danger">' . $message . '</div>';
-            }
-        }
-
-        // Display success or error message of the delete-post handling
-        function print_handle_delete_post_res(?HandleDeletePostResult $res) {
-            if ($res === null) {
-                return;
-            }
-
-            if ($res->kind() === HandleDeletePostResultKind::Success) {
-                $message = $this->at_sentence_start($this->config->view->post_desc_long)
-                    . ' #' . $res->post_id()
-                    . ' wurde vollständig gelöscht.';
-                if ($res->issue_deleted()) {
-                    $message .= ' Da dies der letzte Eintrag war, wurde auch '
-                        . $this->config->view->issue_desc_long . ' #' . $res->issue_id()
-                        . ' gelöscht.';
-                }
-
-                echo '<div class="alert alert-success"><p>' . $message . '</p></div>';
-            }
-            elseif ($res->kind() === HandleDeletePostResultKind::ErrorDb) {
-                $message = 'Fehler: Beim Löschen von '
-                    . $this->config->view->post_desc_long . ' #' . $res->post_id()
-                    . ' ist ein Datenbankfehler aufgetreten.<pre>'
-                    . htmlspecialchars($res->details, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-                    . '</pre>';
-
-                echo '<div class="alert alert-danger">' . $message . '</div>';
-            }
-        }
-
-        function print_edit_issue_modal(array $tags): ?string {
-            $id = next_unique_id();
-            $modal_id = 'edit-issue-modal-' . $id;
-            $modal_title_id = $modal_id . '-title';
-            $summary_id = $modal_id . '-summary';
-            $tags_id = $modal_id . '-tags';
-?>
-<div class="modal" id="<?= $modal_id ?>" tabindex="-1" aria-labelledby="<?= $modal_title_id ?>" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" id="<?= $modal_title_id ?>"><?= $this->config->view->issue_desc_short ?> bearbeiten</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-            </div>
-            <form method="post">
-                <input type="hidden" name="req" value="edit-issue">
-                <input type="hidden" name="request_uuid" value="<?= auth_get_cur_postdedup_uuid() ?>">
-                <input type="hidden" name="issue_id" value="">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="<?= $tags_id ?>" class="form-label"><?= $this->config->view->tag_desc ?></label>
-                        <select class="form-select tom-select" id="<?= $tags_id ?>" name="tags[]" multiple>
-<?
-            foreach ($tags as $tag) {
-                echo '<option value="' . htmlspecialchars((string)$tag['id'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">'
-                    . htmlspecialchars($tag['name']) . '</option>';
-            }
-?>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="<?= $summary_id ?>" class="form-label">Zusammenfassung</label>
-                        <input type="text" class="form-control" id="<?= $summary_id ?>" name="summary" value="">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Speichern</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-<script>
-(() => {
-    const modalId = <?= json_encode($modal_id, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const issueLabel = <?= json_encode($this->config->view->issue_desc_short, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const modal = document.getElementById(modalId);
-    const form = modal?.querySelector('form');
-    const title = modal?.querySelector('.modal-title');
-    const issueIdInput = form?.querySelector('[name="issue_id"]');
-    const summaryInput = form?.querySelector('[name="summary"]');
-    const tagsSelect = form?.querySelector('[name="tags[]"]');
-
-    document.addEventListener('click', event => {
-        const trigger = event.target.closest('[data-issue-edit-modal]');
-        if (!trigger || trigger.dataset.issueEditModal !== modalId || !form) return;
-
-        form.reset();
-        issueIdInput.value = trigger.dataset.issueId;
-        summaryInput.value = trigger.dataset.issueSummary;
-
-        const selectedTagIds = new Set(JSON.parse(trigger.dataset.issueTagIds || '[]').map(String));
-        [...tagsSelect.options].forEach(option => {
-            option.selected = selectedTagIds.has(option.value);
-        });
-        tagsSelect.tomselect?.sync?.();
-
-        title.textContent = `${issueLabel} #${trigger.dataset.issueId} bearbeiten`;
-    }, true);
-})();
-</script>
-<?
-            return $modal_id;
-        }
-
-        function print_edit_post_modal(
-            ?HandleEditPostResult $handle_edit_post_res = null
-        ): ?string {
-            $id = next_unique_id();
-            $modal_id = 'edit-post-modal-' . $id;
-            $modal_title_id = $modal_id . '-title';
-            $status_id = $modal_id . '-status';
-            $content_id = $modal_id . '-content';
-            $form_was_incomplete = $handle_edit_post_res !== null &&
-                $handle_edit_post_res->kind() === HandleEditPostResultKind::ErrorIncomplete;
-?>
-<div class="modal" id="<?= $modal_id ?>" tabindex="-1" aria-labelledby="<?= $modal_title_id ?>" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" id="<?= $modal_title_id ?>"><?= $this->config->view->post_desc_short ?> bearbeiten</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-            </div>
-            <form method="post">
-                <input type="hidden" name="req" value="edit-post">
-                <input type="hidden" name="request_uuid" value="<?= auth_get_cur_postdedup_uuid() ?>">
-                <input type="hidden" name="issue_id" value="">
-                <input type="hidden" name="post_id" value="">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="<?= $status_id ?>" class="form-label">Status</label>
-                        <select class="form-select" id="<?= $status_id ?>" name="new_status">
-<?
-            foreach (['open', 'closed'] as $status) {
-                $label = ($this->config->view->status_to_label)($status);
-?>
-                            <option value="<?= $status ?>"><?= $label ?></option>
-<?
-            }
-?>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="<?= $content_id ?>" class="form-label">Beschreibung</label>
-                        <textarea class="form-control<?= $form_was_incomplete ? ' is-invalid' : '' ?>" id="<?= $content_id ?>" name="content" rows="5"></textarea>
-<?
-            if ($form_was_incomplete) {
-?>
-                        <div class="invalid-feedback">
-                            Bitte füllen Sie dieses Feld aus.
-                        </div>
-<?
-            }
-?>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Speichern</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-<script>
-(() => {
-    const modalId = <?= json_encode($modal_id, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const postLabel = <?= json_encode($this->config->view->post_desc_short, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const incompleteEdit = <?= json_encode($form_was_incomplete ? [
-        'issueId' => (string)$handle_edit_post_res->issue_id(),
-        'postId' => (string)$handle_edit_post_res->post_id(),
-        'content' => $handle_edit_post_res->content,
-        'status' => $handle_edit_post_res->selected_status
-    ] : null, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const modal = document.getElementById(modalId);
-    const form = modal?.querySelector('form');
-    const title = modal?.querySelector('.modal-title');
-    const issueIdInput = form?.querySelector('[name="issue_id"]');
-    const postIdInput = form?.querySelector('[name="post_id"]');
-    const statusSelect = form?.querySelector('[name="new_status"]');
-    const contentInput = form?.querySelector('[name="content"]');
-
-    document.addEventListener('click', event => {
-        const trigger = event.target.closest('[data-post-edit-modal]');
-        if (!trigger || trigger.dataset.postEditModal !== modalId || !form) return;
-
-        form.reset();
-        issueIdInput.value = trigger.dataset.issueId;
-        postIdInput.value = trigger.dataset.postId;
-        const isIncompleteEdit = incompleteEdit &&
-            incompleteEdit.issueId === trigger.dataset.issueId &&
-            incompleteEdit.postId === trigger.dataset.postId;
-        statusSelect.value = isIncompleteEdit ? incompleteEdit.status : trigger.dataset.postStatus;
-        contentInput.value = isIncompleteEdit ? incompleteEdit.content : trigger.dataset.postContent;
-        title.textContent = `${postLabel} #${trigger.dataset.postId} bearbeiten`;
-    }, true);
-
-    if (incompleteEdit) {
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelector(
-                `[data-post-edit-modal="${modalId}"][data-issue-id="${incompleteEdit.issueId}"][data-post-id="${incompleteEdit.postId}"]`
-            )?.click();
-        }, { once: true });
-    }
-})();
-</script>
-<?
-            return $modal_id;
-        }
-
-        function print_delete_issue_modal(): ?string {
-            $id = next_unique_id();
-            $modal_id = 'delete-issue-modal-' . $id;
-            $modal_title_id = $modal_id . '-title';
-?>
-<div class="modal" id="<?= $modal_id ?>" tabindex="-1" aria-labelledby="<?= $modal_title_id ?>" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" id="<?= $modal_title_id ?>"><?= $this->config->view->issue_desc_short ?> löschen</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-            </div>
-            <form method="post">
-                <input type="hidden" name="req" value="delete-issue">
-                <input type="hidden" name="request_uuid" value="<?= auth_get_cur_postdedup_uuid() ?>">
-                <input type="hidden" name="issue_id" value="">
-                <div class="modal-body">
-                    <p data-delete-issue-confirmation></p>
-                    <p><strong>Alle zugehörigen Einträge und Zuordnungen werden ebenfalls gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.</strong></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-danger">Endgültig löschen</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-<script>
-(() => {
-    const modalId = <?= json_encode($modal_id, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const issueLabel = <?= json_encode($this->config->view->issue_desc_short, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const modal = document.getElementById(modalId);
-    const form = modal?.querySelector('form');
-    const title = modal?.querySelector('.modal-title');
-    const confirmation = modal?.querySelector('[data-delete-issue-confirmation]');
-    const issueIdInput = form?.querySelector('[name="issue_id"]');
-
-    document.addEventListener('click', event => {
-        const trigger = event.target.closest('[data-issue-delete-modal]');
-        if (!trigger || trigger.dataset.issueDeleteModal !== modalId || !form) return;
-
-        form.reset();
-        issueIdInput.value = trigger.dataset.issueId;
-        title.textContent = `${issueLabel} #${trigger.dataset.issueId} löschen`;
-        confirmation.textContent = trigger.dataset.issueSummary
-            ? `${issueLabel} #${trigger.dataset.issueId} „${trigger.dataset.issueSummary}“ wirklich löschen?`
-            : `${issueLabel} #${trigger.dataset.issueId} wirklich löschen?`;
-    }, true);
-})();
-</script>
-<?
-            return $modal_id;
-        }
-
-        function print_delete_post_modal(): ?string {
-            $id = next_unique_id();
-            $modal_id = 'delete-post-modal-' . $id;
-            $modal_title_id = $modal_id . '-title';
-?>
-<div class="modal" id="<?= $modal_id ?>" tabindex="-1" aria-labelledby="<?= $modal_title_id ?>" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" id="<?= $modal_title_id ?>"><?= $this->config->view->post_desc_short ?> löschen</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-            </div>
-            <form method="post">
-                <input type="hidden" name="req" value="delete-post">
-                <input type="hidden" name="request_uuid" value="<?= auth_get_cur_postdedup_uuid() ?>">
-                <input type="hidden" name="issue_id" value="">
-                <input type="hidden" name="post_id" value="">
-                <div class="modal-body">
-                    <p data-delete-post-confirmation></p>
-                    <p data-delete-post-consequence hidden><strong></strong></p>
-                    <p><strong>Dieser Vorgang kann nicht rückgängig gemacht werden.</strong></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-danger">Endgültig löschen</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-<script>
-(() => {
-    const modalId = <?= json_encode($modal_id, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const issueLabel = <?= json_encode($this->config->view->issue_desc_short, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const postLabel = <?= json_encode($this->config->view->post_desc_short, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const modal = document.getElementById(modalId);
-    const form = modal?.querySelector('form');
-    const title = modal?.querySelector('.modal-title');
-    const confirmation = modal?.querySelector('[data-delete-post-confirmation]');
-    const consequence = modal?.querySelector('[data-delete-post-consequence]');
-    const issueIdInput = form?.querySelector('[name="issue_id"]');
-    const postIdInput = form?.querySelector('[name="post_id"]');
-
-    document.addEventListener('click', event => {
-        const trigger = event.target.closest('[data-post-delete-modal]');
-        if (!trigger || trigger.dataset.postDeleteModal !== modalId || !form) return;
-
-        form.reset();
-        issueIdInput.value = trigger.dataset.issueId;
-        postIdInput.value = trigger.dataset.postId;
-        title.textContent = `${postLabel} vom ${trigger.dataset.postCreatedOn} löschen`;
-        confirmation.textContent = `${postLabel} vom ${trigger.dataset.postCreatedOn} aus ${issueLabel} #${trigger.dataset.issueId} wirklich löschen?`;
-
-        const deletesIssue = Number(trigger.dataset.issuePostCount) === 1;
-        consequence.hidden = !deletesIssue;
-        consequence.querySelector('strong').textContent = deletesIssue
-            ? `Dies ist der letzte Eintrag. ${issueLabel} #${trigger.dataset.issueId} wird ebenfalls gelöscht.`
-            : '';
-    }, true);
-})();
-</script>
-<?
-            return $modal_id;
-        }
-
-        // Precondition: Any handling result's issue_id must correspond to `$issue`.
-        function print_issue_as_acc_item(
-            array $issue,
-            ?HandleNewPostResult     $handle_new_post_res,
-            ?HandleEditIssueResult   $handle_edit_issue_res,
-            ?HandleEditPostResult    $handle_edit_post_res,
-            ?HandleDeleteIssueResult $handle_delete_issue_res,
-            ?HandleDeletePostResult  $handle_delete_post_res,
-            bool $show_issue_admin_actions,
-            bool $may_administer_issue,
-            bool $show_post_admin_actions,
-            array $may_administer_posts,
-            ?string $edit_issue_modal_id,
-            ?string $edit_post_modal_id,
-            ?string $delete_issue_modal_id,
-            ?string $delete_post_modal_id
-        ) {
-            $issue_status_variant = ($this->config->view->status_to_variant)($issue['last_post_status']);
-
-            $header_actions_html = '';
-            if ($show_issue_admin_actions && ($edit_issue_modal_id !== null || $delete_issue_modal_id !== null)) {
-                ob_start();
-                if ($edit_issue_modal_id !== null) {
-                    if ($may_administer_issue) {
-                        $issue_tag_ids_json = json_encode(array_values(array_map('strval', $issue['tag_ids'])));
-?>
-                <button type="button" class="accordion-header-action" data-bs-toggle="modal" data-bs-target="#<?= $edit_issue_modal_id ?>" data-issue-edit-modal="<?= $edit_issue_modal_id ?>" data-issue-id="<?= htmlspecialchars((string)$issue['id'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-issue-summary="<?= htmlspecialchars($issue['summary'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-issue-tag-ids="<?= htmlspecialchars($issue_tag_ids_json, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" aria-label="<?= $this->config->view->issue_desc_short ?> bearbeiten" title="<?= $this->config->view->issue_desc_short ?> bearbeiten">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M3 13l1-3 7.5-7.5a1.4 1.4 0 0 1 2 2L6 12l-3 1z"></path>
-                        <path d="M10 4l2 2M4 10l2 2"></path>
-                    </svg>
-                </button>
-<?
-                    }
-                    else {
-?>
-                <span class="accordion-header-action" style="box-sizing: border-box; cursor: default; pointer-events: none;" aria-hidden="true"></span>
-<?
-                    }
-                }
-                if ($delete_issue_modal_id !== null) {
-                    if ($may_administer_issue) {
-?>
-                <button type="button" class="accordion-header-action" data-bs-toggle="modal" data-bs-target="#<?= $delete_issue_modal_id ?>" data-issue-delete-modal="<?= $delete_issue_modal_id ?>" data-issue-id="<?= htmlspecialchars((string)$issue['id'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-issue-summary="<?= htmlspecialchars($issue['summary'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" aria-label="<?= $this->config->view->issue_desc_short ?> löschen" title="<?= $this->config->view->issue_desc_short ?> löschen">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M3 4h10M6 4V2h4v2M5 6l.6 8h4.8l.6-8M7 7v5M9 7v5"></path>
-                    </svg>
-                </button>
-<?
-                    }
-                    else {
-?>
-                <span class="accordion-header-action" style="box-sizing: border-box; cursor: default; pointer-events: none;" aria-hidden="true"></span>
-<?
-                    }
-                }
-                $header_actions_html = ob_get_clean();
-            }
-
-            // Prepare the accordion item's header
-            ob_start();
-?>
-        <span style="display: flex; column-gap: 1rem; width: 100%; text-align: left;">
-            <span style="flex: 0 0 <?= $this->config->view->issue_column_width ?>;">
-                <strong>#<?= $issue['id'] ?></strong>
-            </span>
-            <span style="flex: 1 1 <?= $this->config->view->tag_column_width ?>; min-width: 0; overflow-wrap: anywhere;">
-                <?= $issue['summary'] !== null ? htmlspecialchars($issue['summary']) : '' ?>
-            </span>
-            <span style="flex: 0 1 <?= $this->config->view->tag_column_width ?>; min-width: 0; max-width: <?= $this->config->view->tag_column_width ?>; overflow-wrap: anywhere;">
-<?
-            if ($issue['tags'] != '') {
-?>
-            <span><?= $this->config->view->tag_desc ?>: <strong><?= htmlspecialchars($issue['tags']) ?></strong></span>
-<?
-            }
-?>
-            </span>
-        </span>
-<?
-            $header_html = ob_get_clean();
-?>
-    <? acc_item_start($header_html, variant: $issue_status_variant, id: IssueTracker::make_view_issue_html_id($issue['id']), open: $handle_new_post_res !== null || $handle_edit_issue_res !== null || $handle_edit_post_res !== null || $handle_delete_issue_res !== null || $handle_delete_post_res !== null, header_actions: $header_actions_html); ?>
-    <div class="d-flex flex-column gap-3">
-        <table class="table" style="margin-bottom: 0;">
-            <thead>
-                <tr>
-<?
-            if ($show_post_admin_actions) {
-?>
-                    <th scope="col" aria-label="Bearbeiten" style="width: 2.25rem;"></th>
-                    <th scope="col" aria-label="Löschen" style="width: 2.25rem;"></th>
-<?
-            }
-?>
-                    <th style="width:<?= $this->config->view->date_column_width ?>;">Datum</th>
-                    <th style="width:<?= $this->config->view->author_column_width ?>;">Autor/in</th>
-                    <th><?= $this->config->view->post_desc_short ?></th>
-                    <th style="width:<?= $this->config->view->status_column_width ?>;">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-<?
-    foreach ($issue['posts'] as $i => $post) {
-        $is_last_post = ($i === count($issue['posts']) - 1);
-        $may_administer_post = $may_administer_posts[$post['id']];
-
-        $post_status_variant = ($this->config->view->status_to_variant)($post['new_status']);
-        $post_status_label = ($this->config->view->status_to_label)($post['new_status']);
-        $post_status_opacity = $is_last_post ? '100' : '50';
-
-        $timestamp = strtotime($post['created_on']);
-        $timestamp_short = date('d.m.Y', $timestamp);
-        $timestamp_long  = date('d.m.Y, H:i:s', $timestamp);
-?>
-                <tr id="issue-<?= $issue['id'] ?>-post-<?= $post['id'] ?>">
-<?
-        if ($show_post_admin_actions) {
-?>
-                    <td>
-<?
-            if ($edit_post_modal_id !== null && $may_administer_post) {
-?>
-                        <button type="button" class="btn btn-secondary" style="display: inline-flex; align-items: center; justify-content: center; padding: .25rem; line-height: 1;" data-bs-toggle="modal" data-bs-target="#<?= $edit_post_modal_id ?>" data-post-edit-modal="<?= $edit_post_modal_id ?>" data-issue-id="<?= htmlspecialchars((string)$issue['id'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-post-id="<?= htmlspecialchars((string)$post['id'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-post-status="<?= htmlspecialchars($post['new_status'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-post-content="<?= htmlspecialchars($post['content'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" aria-label="<?= $this->config->view->post_desc_short ?> bearbeiten" title="<?= $this->config->view->post_desc_short ?> bearbeiten">
-                            <svg viewBox="0 0 16 16" width=".9rem" height=".9rem" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M3 13l1-3 7.5-7.5a1.4 1.4 0 0 1 2 2L6 12l-3 1z"></path>
-                                <path d="M10 4l2 2M4 10l2 2"></path>
-                            </svg>
-                        </button>
-<?
-            }
-?>
-                    </td>
-                    <td>
-<?
-            if ($delete_post_modal_id !== null && $may_administer_post) {
-?>
-                        <button type="button" class="btn btn-secondary" style="display: inline-flex; align-items: center; justify-content: center; padding: .25rem; line-height: 1;" data-bs-toggle="modal" data-bs-target="#<?= $delete_post_modal_id ?>" data-post-delete-modal="<?= $delete_post_modal_id ?>" data-issue-id="<?= htmlspecialchars((string)$issue['id'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-post-id="<?= htmlspecialchars((string)$post['id'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-post-created-on="<?= htmlspecialchars($timestamp_long, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-issue-post-count="<?= count($issue['posts']) ?>" aria-label="<?= $this->config->view->post_desc_short ?> löschen" title="<?= $this->config->view->post_desc_short ?> löschen">
-                            <svg viewBox="0 0 16 16" width=".9rem" height=".9rem" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M3 4h10M6 4V2h4v2M5 6l.6 8h4.8l.6-8M7 7v5M9 7v5"></path>
-                            </svg>
-                        </button>
-<?
-            }
-?>
-                    </td>
-<?
-        }
-?>
-                    <td>
-                        <span data-bs-toggle="tooltip" title="<?= $timestamp_long ?>">
-                            <?= $timestamp_short ?>
-                        </span>
-                    </td>
-                    <td class="text-truncate" style="max-width:<?= $this->config->view->author_column_width ?>;">
-<?
-        $author_label = ($this->config->view->author_identity_to_label)($post['author_identity']);
-?>
-                        <span data-bs-toggle="tooltip" title="<?= htmlspecialchars($author_label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-bs-placement="left">
-                            <?= htmlspecialchars($author_label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
-                        </span>
-                    </td>
-                    <td><?= nl2br(htmlspecialchars($post['content'])) ?></td>
-                    <td>
-                        <span class="badge bg-<?= $post_status_variant ?> bg-opacity-<?= $post_status_opacity ?>">
-                            <?= $post_status_label ?>
-                        </span>
-                    </td>
-                </tr>
-<?
-    }
-?>
-            </tbody>
-        </table>
-<?
-    ///////////////////
-    // New post form //
-    ///////////////////
-
-    if ($this->may_write()) {
-        // Show form only if there was a problem with the last submission
-        $new_post_form_was_incomplete = $handle_new_post_res !== null && $handle_new_post_res->kind() === HandleNewPostResultKind::ErrorIncomplete;
-        $current_author_label = ($this->config->view->author_identity_to_label)(
-            $this->current_user_identity_serialized()
-        );
-?>
-        <div>
-            <div class="d-flex">
-<?
-    $new_post_collapse_id = collapse_button($this->config->view->post_desc_short . ' hinzufügen', variant: 'secondary');
-?>
-            </div>
-            <div id="<?= $new_post_collapse_id ?>" class="collapse<?= $new_post_form_was_incomplete ? ' show' : '' ?>">
-                <form method="post">
-                    <input type="hidden" name="req" value="new-post">
-                    <input type="hidden" name="request_uuid" value="<?= auth_get_cur_postdedup_uuid() ?>">
-                    <input type="hidden" name="issue_id" value="<?= $issue['id'] ?>">
-                    <table class="table">
-                        <tbody>
-                            <tr>
-<?
-    if ($show_post_admin_actions) {
-?>
-                                <td style="width: 2.25rem;"></td>
-                                <td style="width: 2.25rem;"></td>
-<?
-    }
-?>
-                                <td style="width:<?= $this->config->view->date_column_width ?>;" class="text-center">
-                                    <em>Jetzt</em>
-                                </td>
-                                <td class="text-truncate" style="width:<?= $this->config->view->author_column_width ?>; max-width:<?= $this->config->view->author_column_width ?>;">
-                                    <span data-bs-toggle="tooltip" title="<?= htmlspecialchars($current_author_label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-bs-placement="left">
-                                        <?= htmlspecialchars($current_author_label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="input-group has-validation">
-                                        <textarea class="form-control<?= $new_post_form_was_incomplete ? ' is-invalid' : '' ?>" name="content" rows="3"></textarea>
-<?
-    if ($new_post_form_was_incomplete) {
-?>
-                                        <div class="invalid-feedback">
-                                            Bitte füllen Sie dieses Feld aus.
-                                        </div>
-<?
-    }
-?>
-                                    </div>
-                                </td>
-                                <td style="width:<?= $this->config->view->status_column_width ?>;">
-                                    <select class="form-select" id="new_status" name="new_status">
-<?
-    $status_options = ['open', 'closed'];
-
-    foreach ($status_options as $status) {
-        $label = ($this->config->view->status_to_label)($status);
-
-        if (
-            ($handle_new_post_res !== null &&
-            $handle_new_post_res->kind() === HandleNewPostResultKind::ErrorIncomplete &&
-            $handle_new_post_res->selected_status === $status) ||
-            ($handle_new_post_res === null && $issue['last_post_status'] === $status)
-        ) {
-?>
-                                        <option value="<?= $status ?>" selected><?= $label ?></option>
-<?
-        }
-        else {
-?>
-                                        <option value="<?= $status ?>"><?= $label ?></option>
-<?
-        }
-    }
-?>
-                                    </select>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div class="d-flex justify-content-center">
-                        <button type="submit" class="btn btn-primary">Abschicken</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-<?
-    }
-?>
-    </div>
-    <? acc_item_end(); ?>
-<?
-        }
-
-        function print_issues_as_acc(
-            array $issues_to_posts,
-            string $message_none,
-            ?HandleNewPostResult $handle_new_post_res,
-            ?HandleEditIssueResult $handle_edit_issue_res,
-            ?HandleEditPostResult $handle_edit_post_res,
-            ?HandleDeleteIssueResult $handle_delete_issue_res,
-            ?HandleDeletePostResult $handle_delete_post_res,
-            ?string $edit_issue_modal_id,
-            ?string $edit_post_modal_id,
-            ?string $delete_issue_modal_id,
-            ?string $delete_post_modal_id
-        ) {
-            if (count($issues_to_posts) > 0) {
-                $may_administer_issues = [];
-                $show_issue_admin_actions = false;
-                $may_administer_posts = [];
-                $show_post_admin_actions = [];
-                foreach ($issues_to_posts as $issue) {
-                    $may_administer_issue = $this->may_administer_issue($issue);
-                    $may_administer_issues[$issue['id']] = $may_administer_issue;
-                    $show_issue_admin_actions = $show_issue_admin_actions || $may_administer_issue;
-
-                    $may_administer_posts[$issue['id']] = [];
-                    $show_post_admin_actions[$issue['id']] = false;
-                    foreach ($issue['posts'] as $post) {
-                        $may_administer_post = $this->may_administer_post($post);
-                        $may_administer_posts[$issue['id']][$post['id']] = $may_administer_post;
-                        $show_post_admin_actions[$issue['id']] =
-                            $show_post_admin_actions[$issue['id']] || $may_administer_post;
-                    }
-                }
-?>
-<? acc_start(); ?>
-<?
-                foreach ($issues_to_posts as $issue) {
-                    $issue_handle_post_res = (
-                        $handle_new_post_res != null &&
-                        $handle_new_post_res->issue_id() === $issue['id']
-                    ) ? $handle_new_post_res : null;
-                    $issue_handle_edit_res = (
-                        $handle_edit_issue_res != null &&
-                        $handle_edit_issue_res->issue_id() === $issue['id']
-                    ) ? $handle_edit_issue_res : null;
-                    $issue_handle_edit_post_res = (
-                        $handle_edit_post_res != null &&
-                        $handle_edit_post_res->issue_id() === $issue['id']
-                    ) ? $handle_edit_post_res : null;
-                    $issue_handle_delete_res = (
-                        $handle_delete_issue_res != null &&
-                        $handle_delete_issue_res->issue_id() === $issue['id']
-                    ) ? $handle_delete_issue_res : null;
-                    $issue_handle_delete_post_res = (
-                        $handle_delete_post_res != null &&
-                        $handle_delete_post_res->issue_id() === $issue['id']
-                    ) ? $handle_delete_post_res : null;
-
-                    $this->print_issue_as_acc_item(
-                        $issue,
-                        handle_new_post_res: $issue_handle_post_res,
-                        handle_edit_issue_res: $issue_handle_edit_res,
-                        handle_edit_post_res: $issue_handle_edit_post_res,
-                        handle_delete_issue_res: $issue_handle_delete_res,
-                        handle_delete_post_res: $issue_handle_delete_post_res,
-                        show_issue_admin_actions: $show_issue_admin_actions,
-                        may_administer_issue: $may_administer_issues[$issue['id']],
-                        show_post_admin_actions: $show_post_admin_actions[$issue['id']],
-                        may_administer_posts: $may_administer_posts[$issue['id']],
-                        edit_issue_modal_id: $edit_issue_modal_id,
-                        edit_post_modal_id: $edit_post_modal_id,
-                        delete_issue_modal_id: $delete_issue_modal_id,
-                        delete_post_modal_id: $delete_post_modal_id
-                    );
-                }
-?>
-<? acc_end(); ?>
-<?
-            }
-            else {
-?>
-<p>
-    <em><?= $message_none ?></em>
-</p>
-<?
-            }
-        }
-
-        function print_new_issue_form(
-            array $tags,
-            ?HandleNewIssueResult $handle_issue_res,
-            array $preselected_tag_names = []
-        ) {
-            if (!$this->may_write()) {
-                return;
-            }
-
-            $id = next_unique_id();
-            $form_was_incomplete = $handle_issue_res !== null && $handle_issue_res->kind() === HandleNewIssueResultKind::ErrorIncomplete;
-            $modal_id = 'new-issue-modal-' . $id;
-            $modal_title_id = $modal_id . '-title';
-            $openid_provider_names = $this->openid_provider_names();
-            $show_author_override = $this->may_administer() && count($openid_provider_names) > 0;
-            $set_other_openid_author = $show_author_override && $form_was_incomplete && isset($_POST['set_other_openid_author']);
-            $selected_openid_provider = $set_other_openid_author && is_string($_POST['author_openid_provider'] ?? null)
-                ? $_POST['author_openid_provider']
-                : $openid_provider_names[0] ?? '';
-            $other_openid_id = $set_other_openid_author && is_string($_POST['author_openid_id'] ?? null)
-                ? $_POST['author_openid_id']
-                : '';
-            $other_openid_email = $set_other_openid_author && is_string($_POST['author_openid_email'] ?? null)
-                ? $_POST['author_openid_email']
-                : '';
-            $author_override_id = 'form-author-override-' . $id;
-            $author_override_fields_id = $author_override_id . '-fields';
-?>
-<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#<?= $modal_id ?>">
-    Neues <?= $this->config->view->issue_desc_short ?> anlegen
-</button>
-<div class="modal" id="<?= $modal_id ?>" tabindex="-1" aria-labelledby="<?= $modal_title_id ?>" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" id="<?= $modal_title_id ?>">Neues <?= $this->config->view->issue_desc_short ?> anlegen</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-            </div>
-            <form method="post">
-                <input type="hidden" name="req" value="new-issue">
-                <input type="hidden" name="request_uuid" value="<?= auth_get_cur_postdedup_uuid() ?>">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="form-tags-<?= $id ?>" class="form-label"><?= $this->config->view->tag_desc ?></label>
-                        <select class="form-select tom-select" id="form-tags-<?= $id ?>" name="tags[]" multiple>
-<?
-            foreach ($tags as $tag) {
-                $selected =
-                    (($form_was_incomplete && in_array($tag['id'], $handle_issue_res->selected_tags)) ||
-                    (!$form_was_incomplete && in_array($tag['name'], $preselected_tag_names)))
-                    ? ' selected'
-                    : '';
-                echo '<option value="' . $tag['id'] . '"' . $selected . '>' . htmlspecialchars($tag['name']) . '</option>';
-            }
-?>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="form-content-<?= $id ?>" class="form-label">Beschreibung</label>
-                        <div class="input-group has-validation">
-                            <textarea class="form-control<?= $form_was_incomplete ? ' is-invalid' : '' ?>" id="form-content-<?= $id ?>" name="content" rows="3"></textarea>
-<?
-            if ($form_was_incomplete) {
-?>
-                            <div class="invalid-feedback">
-                                Bitte füllen Sie dieses Feld aus.
-                            </div>
-<?
-            }
-?>
-                        </div>
-                    </div>
-<?
-            if ($show_author_override) {
-?>
-                    <div class="mt-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="<?= $author_override_id ?>" name="set_other_openid_author" value="1" aria-controls="<?= $author_override_fields_id ?>"<?= $set_other_openid_author ? ' checked' : '' ?>>
-                            <label class="form-check-label" for="<?= $author_override_id ?>">
-                                Anderen OpenID-Benutzer als Autor setzen
-                            </label>
-                        </div>
-                        <div id="<?= $author_override_fields_id ?>" class="mt-3<?= $set_other_openid_author ? '' : ' d-none' ?>">
-                            <div class="mb-3">
-                                <label for="form-author-openid-provider-<?= $id ?>" class="form-label">OpenID-Provider</label>
-                                <select class="form-select" id="form-author-openid-provider-<?= $id ?>" name="author_openid_provider" data-author-override-required>
-<?
-                foreach ($openid_provider_names as $provider_name) {
-                    $selected = $provider_name === $selected_openid_provider ? ' selected' : '';
-                    echo '<option value="' . htmlspecialchars($provider_name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"' . $selected . '>'
-                        . htmlspecialchars($provider_name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</option>';
-                }
-?>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="form-author-openid-id-<?= $id ?>" class="form-label">OpenID-ID</label>
-                                <input class="form-control" type="text" id="form-author-openid-id-<?= $id ?>" name="author_openid_id" value="<?= htmlspecialchars($other_openid_id, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" data-author-override-required>
-                            </div>
-                            <div>
-                                <label for="form-author-openid-email-<?= $id ?>" class="form-label">E-Mail-Adresse (optional)</label>
-                                <input class="form-control" type="email" id="form-author-openid-email-<?= $id ?>" name="author_openid_email" value="<?= htmlspecialchars($other_openid_email, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
-                            </div>
-                        </div>
-                    </div>
-<?
-            }
-?>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary"><?= $this->config->view->issue_desc_short ?> anlegen</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-<? if ($show_author_override) { ?>
-<script>
-    (() => {
-        const checkbox = document.getElementById('<?= $author_override_id ?>');
-        const fields = document.getElementById('<?= $author_override_fields_id ?>');
-        const controls = fields?.querySelectorAll('select, input') ?? [];
-        const update = () => {
-            const enabled = checkbox?.checked ?? false;
-            fields?.classList.toggle('d-none', !enabled);
-            controls.forEach(control => {
-                control.disabled = !enabled;
-                control.required = enabled && control.hasAttribute('data-author-override-required');
-            });
-        };
-        checkbox?.addEventListener('change', update);
-        update();
-    })();
-</script>
-<? } ?>
-<? if ($form_was_incomplete) { ?>
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelector('[data-bs-target="#<?= $modal_id ?>"]')?.click();
-    }, { once: true });
-</script>
-<? } ?>
-<?
-        }
-
-
-        /////////////
-        // Helpers //
-        /////////////
-
-        static function make_view_issue_html_id(string $issue_id): string {
-            return 'issue-' . $issue_id;
         }
     }
 ?>

@@ -4,7 +4,7 @@
         // Init modules
         foreach ($login_profile->activated_modules as $name => $module) {
             ob_start();
-            $module->init_processing_syslet($login_profile, core_load_obj('target_root'));
+            $module->process_syslet($login_profile, core_load_obj('target_root'));
             ob_end_clean();
         }
 
@@ -23,7 +23,7 @@
         // Init modules
         foreach ($syslet->activated_modules as $name => $module) {
             ob_start();
-            $module->init_processing_syslet($syslet, core_load_obj('target_root'));
+            $module->process_syslet($syslet, core_load_obj('target_root'));
             ob_end_clean();
         }
 
@@ -44,7 +44,7 @@
         // Init modules
         foreach ($syslet->activated_modules as $name => $module) {
             ob_start();
-            $module->init_processing_syslet($syslet, core_load_obj('target_root'));
+            $module->process_syslet($syslet, core_load_obj('target_root'));
             ob_end_clean();
         }
 
@@ -55,15 +55,15 @@
     }
 
     function process(Target $target): void {
-        assert($target->content_location == ContentLocation::INLINE || $target->content_location == ContentLocation::EXTRA, 'Can only process targets with inline or extra content location');
+        assert($target->content_location == ContentLocation::INLINE, 'Can only process targets with inline content location');
 
         //////////////////
         // Init modules //
         //////////////////
 
-        foreach ($target->activated_modules as $name => $module) {
+        foreach ($target->get_activated_modules() as $name => $module) {
             ob_start();
-            $module->init_processing_target($target);
+            $module->process_target($target);
             ob_end_clean();
         }
 
@@ -72,25 +72,14 @@
         // Pass-through //
         //////////////////
 
-        if ($target->content_location == ContentLocation::INLINE) {
-            $script_path = $target->path('index.php');
-            $defs = load_defs_from_script($script_path);
-            assert($defs['process'] !== null, 'Missing `$process` function');
+        $script_path = $target->path('index.php');
+        $defs = load_defs_from_script($script_path);
+        assert($defs['process'] !== null, 'Missing `$process` function');
 
-            // Process
-            ob_start();
-            $defs['process']($target);
-            $content = ob_get_clean();
-        }
-        else // ContentLocation::EXTRA
-        {
-            $script_path = $target->path('content.php');
-
-            // Process
-            ob_start();
-            require($script_path);
-            $content = ob_get_clean();
-        }
+        // Process
+        ob_start();
+        $defs['process']($target);
+        $content = ob_get_clean();
 
         // Render
         $target->get_template()->render_target($target, $content);

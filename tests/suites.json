@@ -1,0 +1,207 @@
+[
+    {
+        "name": "repository-checks",
+        "group": "checks",
+        "category": "repository",
+        "components": [
+            "dependencies"
+        ],
+        "description": "Dependency-license inventory",
+        "tools": [],
+        "deployment": "",
+        "project": "",
+        "requirements": [
+            "Python 3"
+        ]
+    },
+    {
+        "name": "unit-unittest",
+        "group": "python",
+        "category": "unit",
+        "components": [
+            "deployment"
+        ],
+        "description": "Python logic and validation",
+        "tools": [],
+        "requirements": [
+            "Python 3"
+        ]
+    },
+    {
+        "name": "integration-unittest",
+        "group": "python",
+        "category": "integration",
+        "components": [
+            "deployment",
+            "test-runner"
+        ],
+        "description": "Python filesystem, runner and deployment contracts",
+        "tools": [],
+        "requirements": [
+            "Python 3",
+            "dhall-to-json",
+            "rclone"
+        ]
+    },
+    {
+        "name": "unit-phpunit",
+        "group": "php",
+        "category": "unit",
+        "components": [
+            "feedback-collector",
+            "jsxgraph-helpers"
+        ],
+        "description": "PHP configuration and value logic",
+        "tools": [
+            "php"
+        ],
+        "requirements": [
+            "Python 3",
+            "Docker + prepared PHP runtime",
+            "PHPUnit 12.5 (prepared)"
+        ]
+    },
+    {
+        "name": "integration-phpunit",
+        "group": "php",
+        "category": "integration",
+        "components": [
+            "bootstrap-extended",
+            "feedback-collector",
+            "issue-tracker",
+            "module-dispatch",
+            "resource-resolver",
+            "template-interbook"
+        ],
+        "description": "PHP modules, SQLite, filesystem and notification contracts",
+        "tools": [
+            "php"
+        ],
+        "requirements": [
+            "Python 3",
+            "Docker + prepared PHP runtime",
+            "PHPUnit 12.5 (prepared)"
+        ]
+    },
+    {
+        "name": "component-playwright",
+        "group": "browser",
+        "category": "component",
+        "components": [
+            "bootstrap-extended",
+            "bootstrap-alternative",
+            "feedback-collector"
+        ],
+        "description": "Isolated PHP-rendered browser components",
+        "tools": [
+            "php"
+        ],
+        "deployment": "",
+        "project": "",
+        "requirements": [
+            "Python 3",
+            "Docker + prepared PHP runtime",
+            "Docker Compose + shared prepared Playwright image",
+            "compiled Bootstrap CSS and JavaScript"
+        ]
+    },
+    {
+        "name": "http-layouts",
+        "group": "http",
+        "category": "integration",
+        "components": [
+            "deployment",
+            "authorization",
+            "resource-resolver"
+        ],
+        "description": "Apache/PHP in local, remote and nested layouts",
+        "tools": [
+            "docker",
+            "dhall-to-json"
+        ],
+        "deployment": "integration",
+        "project": "",
+        "requirements": [
+            "Python 3",
+            "docker",
+            "dhall-to-json",
+            "prepared integration environment"
+        ]
+    },
+    {
+        "name": "demo-linkchecker",
+        "group": "deployed",
+        "category": "smoke",
+        "components": [
+            "demo-content"
+        ],
+        "description": "Demo content crawl",
+        "tools": [
+            "docker"
+        ],
+        "deployment": "demo",
+        "project": "",
+        "requirements": [
+            "Python 3",
+            "docker",
+            "prepared demo environment"
+        ]
+    },
+    {
+        "name": "integration-linkchecker",
+        "group": "deployed",
+        "category": "smoke",
+        "components": [
+            "integration-content"
+        ],
+        "description": "Integration content crawl",
+        "tools": [
+            "docker"
+        ],
+        "deployment": "integration",
+        "project": "",
+        "requirements": [
+            "Python 3",
+            "docker",
+            "prepared integration environment"
+        ]
+    },
+    {
+        "name": "integration-http",
+        "group": "deployed",
+        "category": "integration",
+        "components": [
+            "http-contracts"
+        ],
+        "description": "Deployed HTTP contracts and expected errors",
+        "tools": [
+            "docker"
+        ],
+        "deployment": "integration",
+        "project": "http",
+        "requirements": [
+            "Python 3",
+            "docker",
+            "prepared integration environment"
+        ]
+    },
+    {
+        "name": "e2e-playwright",
+        "group": "deployed",
+        "category": "e2e",
+        "components": [
+            "browser-flows"
+        ],
+        "description": "Deployed browser behavior and module flows",
+        "tools": [
+            "docker"
+        ],
+        "deployment": "integration",
+        "project": "chromium",
+        "requirements": [
+            "Python 3",
+            "docker",
+            "prepared integration environment"
+        ]
+    }
+]

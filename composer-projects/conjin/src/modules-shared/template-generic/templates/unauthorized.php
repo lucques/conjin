@@ -52,7 +52,14 @@
         }
 ?>
         <div style="width: 300px; margin:20px auto; border-radius:4px; padding:20px; background-color:white;">
-            Sie haben leider nicht die Berechtigung, um die Seite zu sehen. Sie können sich <a href="<?= auth_get_logout_url() ?>">auszuloggen</a> und mit einem anderen Benutzer anzumelden, der die Berechtigung hat.
+            <form method="post" action="<?= htmlspecialchars(auth_get_logout_url(), ENT_QUOTES, 'UTF-8') ?>">
+                <input type="hidden" name="logout_token" value="<?= htmlspecialchars(auth_issue_submission_token('auth:logout'), ENT_QUOTES, 'UTF-8') ?>">
+                <p>
+                    Sie haben leider nicht die Berechtigung, um die Seite zu sehen. Sie können sich
+                    <button type="submit" style="background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; font: inherit; cursor: pointer;">ausloggen</button>
+                    und mit einem anderen Benutzer anmelden, der die Berechtigung hat.
+                </p>
+            </form>
         </div>
 <?
         if ($module_doc_extensions_active) {
@@ -71,6 +78,9 @@
             echo implode("\n", doc_extensions_get_body_bottom_elements());
         }
 ?>
+<? if ($syslet->has_activated_module('page-prep')) { ?>
+        <script>pagePrep.closeRegistration();</script>
+<? } ?>
     </body>
 </html>
 <?

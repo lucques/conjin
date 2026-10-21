@@ -41,7 +41,10 @@
             bool $open_all = false,
             bool $hide_solutions = false,
             string $class = '',
-            string $style = ''
+            string $style = '',
+            ?string $title = null,
+            bool $advance_number = true,
+            array $solution_titles = []  // Main item solution titles, in solution order
         ) {
 
             //////////////////////////////
@@ -73,22 +76,24 @@
             // Print main item
             
             // Title
-            $title = $numbered
-                ? '<strong>Aufgabe ' . $this->cur_ex_number . '</strong>'
-                : '<strong>Aufgabe</strong>';
-            if ($exercise->main_item->name !== null) {
-                $title .= ': ' . $exercise->main_item->name;
-            }
-
-            if ($show_source && $exercise->source !== null) {
-                $title .= ' <em>(' . $exercise->source;
-                if ($exercise->source_detail !== null) {
-                    $title .= ', ' . $exercise->source_detail;
+            if ($title === null) {
+                $title = $numbered
+                    ? '<strong>Aufgabe ' . $this->cur_ex_number . '</strong>'
+                    : '<strong>Aufgabe</strong>';
+                if ($exercise->main_item->name !== null) {
+                    $title .= ': ' . $exercise->main_item->name;
                 }
-                $title .= ')</em>';
-            }
-            else if ($show_source_detail && $exercise->source_detail !== null) {
-                $title .= ' <em>(' . $exercise->source_detail . ')</em>';
+
+                if ($show_source && $exercise->source !== null) {
+                    $title .= ' <em>(' . $exercise->source;
+                    if ($exercise->source_detail !== null) {
+                        $title .= ', ' . $exercise->source_detail;
+                    }
+                    $title .= ')</em>';
+                }
+                else if ($show_source_detail && $exercise->source_detail !== null) {
+                    $title .= ' <em>(' . $exercise->source_detail . ')</em>';
+                }
             }
 
             $open = $open_all || $open_main || in_array($exercise->main_item->content_id, $open_content_ids);
@@ -102,11 +107,11 @@
                 $open = $open_all || in_array($hint->content_id, $open_content_ids);
                 $this->print_exercise_hint($defs, $config_final, $hint, $open);
             }
-            foreach ($exercise->main_item->solutions as $solution) {
+            foreach ($exercise->main_item->solutions as $solution_index => $solution) {
                 $open = $open_all || in_array($solution->content_id, $open_content_ids);
 
                 if (!$hide_solutions) {
-                    $this->print_exercise_solution($defs, $config_final, $solution, $open);
+                    $this->print_exercise_solution($defs, $config_final, $solution, $open, $solution_titles[$solution_index] ?? null);
                 }
             }
 
@@ -154,7 +159,9 @@
 
             acc_end();
 
-            $this->cur_ex_number++;
+            if ($advance_number) {
+                $this->cur_ex_number++;
+            }
         }
 
 
@@ -170,8 +177,8 @@
             acc_item_end();
         }
 
-        private function print_exercise_solution($defs, $config, ExerciseSol $solution, bool $open) {
-            $title = $solution->title ?? '<strong>Lösungsvorschlag</strong>';
+        private function print_exercise_solution($defs, $config, ExerciseSol $solution, bool $open, ?string $title = null) {
+            $title = $title ?? $solution->title ?? '<strong>Lösungsvorschlag</strong>';
 
             acc_item_start($title, variant: 'solution', open: $open);
             call_print_fun($defs['print_' . $solution->content_id], $config);

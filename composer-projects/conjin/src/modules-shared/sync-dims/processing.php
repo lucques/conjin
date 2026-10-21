@@ -1,8 +1,21 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         doc_extensions_add_head_element('<script src="' . $module->get_url() . '/res/js/script.js"></script>');
 
-        // Register early, so MathJax can call this after its initial rendering changed element dimensions.
+        if ($target->has_activated_module('page-prep')) {
+            doc_extensions_add_head_element(<<<'HTML'
+<script>
+pagePrep.register({
+    id: 'sync-dims:final',
+    after: 'layoutResourcesReady',
+    before: 'readyForPagination',
+    run: () => setupAndSyncDims(),
+});
+</script>
+HTML);
+        }
+
+        // Register early, so MathJax can call this after rendering changed element dimensions.
         doc_extensions_add_head_element(<<<HTML
 <script>
 if (typeof window.mathJaxAfterRenderingHooks !== 'undefined') {

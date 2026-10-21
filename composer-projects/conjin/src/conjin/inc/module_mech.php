@@ -155,25 +155,19 @@
         // Preprocessing //
         ///////////////////
 
-        public function init_preprocessing_syslet(SysletPreprocessContext $c): void {
+        public function preprocess_syslet(SysletPreprocessContext $c): void {
             $defs = load_defs_from_script($this->get_path() . '/preprocessing.php');
 
-            if (isset($defs['init_preprocessing'])) {
-                $defs['init_preprocessing']($this, $c);
-            }
-            if (isset($defs['init_preprocessing_syslet'])) {
-                $defs['init_preprocessing_syslet']($this, $c);
+            if (isset($defs['preprocess_syslet'])) {
+                $defs['preprocess_syslet']($this, $c);
             }
         }
 
-        public function init_preprocessing_target(TargetPreprocessContext $c): void {
+        public function preprocess_target(TargetPreprocessContext $c): void {
             $defs = load_defs_from_script($this->get_path() . '/preprocessing.php');
 
-            if (isset($defs['init_preprocessing'])) {
-                $defs['init_preprocessing']($this, $c);
-            }
-            if (isset($defs['init_preprocessing_target'])) {
-                $defs['init_preprocessing_target']($this, $c);
+            if (isset($defs['preprocess_target'])) {
+                $defs['preprocess_target']($this, $c);
             }
         }
 
@@ -182,25 +176,38 @@
         // Processing //
         ////////////////
 
-        public function init_processing_syslet(Syslet $syslet, Target $target_root): void {
+        public function process_syslet(Syslet $syslet, Target $target_root): void {
             $defs = load_defs_from_script($this->get_path() . '/processing.php');
 
-            if (isset($defs['init_processing'])) {
-                $defs['init_processing']($this, $syslet);
-            }
-            if (isset($defs['init_processing_syslet'])) {
-                $defs['init_processing_syslet']($this, $syslet, $target_root);
+            if (isset($defs['process_syslet'])) {
+                $defs['process_syslet']($this, $syslet, $target_root);
             }
         }
 
-        public function init_processing_target(Target $target): void {
+        // Resource paths are relative to the target; included resources carry their directory separately.
+        public function process_resource(Target $target, string $resource_path, string $resource_dir = 'res'): void {
+            // Conjin's normal warning handler terminates the response. Optional
+            // resource observers instead turn warnings into catchable exceptions.
+            set_error_handler(static function(int $severity, string $message, string $file, int $line): never {
+                throw new ErrorException($message, 0, $severity, $file, $line);
+            });
+            try {
+                $defs = load_defs_from_script($this->get_path() . '/processing.php');
+                if (isset($defs['process_resource'])) {
+                    $defs['process_resource']($this, $target, $resource_path, $resource_dir);
+                }
+            } catch (Throwable) {
+                // Optional observers must not prevent resource delivery.
+            } finally {
+                restore_error_handler();
+            }
+        }
+
+        public function process_target(Target $target): void {
             $defs = load_defs_from_script($this->get_path() . '/processing.php');
 
-            if (isset($defs['init_processing'])) {
-                $defs['init_processing']($this, $target);
-            }
-            if (isset($defs['init_processing_target'])) {
-                $defs['init_processing_target']($this, $target);
+            if (isset($defs['process_target'])) {
+                $defs['process_target']($this, $target);
             }
         }
 

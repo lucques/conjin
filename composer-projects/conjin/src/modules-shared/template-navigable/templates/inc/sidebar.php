@@ -99,9 +99,10 @@
         if (auth_is_logged_in()) {
 ?>
                 <span id="sidebar-footer-user"><?= auth_get_user_name() ?></span>
-                <span id="sidebar-footer-actions">
-                    &nbsp;| <a href="<?= auth_get_logout_url() ?>">Logout</a>
-                </span>
+                <form id="sidebar-footer-actions" class="d-inline" method="post" action="<?= htmlspecialchars(auth_get_logout_url(), ENT_QUOTES, 'UTF-8') ?>">
+                    &nbsp;| <input type="hidden" name="logout_token" value="<?= htmlspecialchars(auth_issue_submission_token('auth:logout'), ENT_QUOTES, 'UTF-8') ?>">
+                    <button type="submit" class="btn btn-link p-0 border-0 align-baseline" style="font: inherit;">Logout</button>
+                </form>
 <?
         }
         else {

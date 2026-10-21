@@ -1,6 +1,6 @@
 function sql_js_printHistoryDb(db, divId)
 {   
-    db.then(function(db) {
+    return db.then(function(db) {
         const results = db.exec('SELECT date_begin, date_end, time_unit, title, description FROM events ORDER BY date_begin');
 
         if (results.length === 0 || results.every(result => result.values.length === 0)) {

@@ -2,6 +2,7 @@
     $file_name = $_GET['name'];
     $query = $_POST['query'] ?? '';
     $result = null;
+    $script_executed = false;
     $error = null;
 
     if ($query !== '') {
@@ -9,7 +10,13 @@
             $db = new PDO('sqlite:' . path_store($file_name));
             $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $db->exec('PRAGMA foreign_keys = ON');
-            $result = $db->query($query);
+            if (($_POST['execution'] ?? 'query') == 'script') {
+                $db->exec($query);
+                $script_executed = true;
+            }
+            else {
+                $result = $db->query($query);
+            }
         }
         catch (Throwable $e) {
             $error = $e->getMessage();
@@ -21,11 +28,15 @@
     echo 'Query:';
     echo '<form method="post" action="?what=store-file-sqlite&amp;name=' . urlencode($file_name) . '">';
     echo '<textarea name="query" rows="10" cols="100">' . htmlspecialchars($query) . '</textarea><br>';
-    echo '<button type="submit">Execute</button>';
+    echo '<button type="submit" name="execution" value="query">query (single statement)</button> ';
+    echo '<button type="submit" name="execution" value="script">execute (script)</button>';
     echo '</form>';
 
     if ($error !== null) {
         echo '<h2>Error</h2><pre>' . htmlspecialchars($error) . '</pre>';
+    }
+    elseif ($script_executed) {
+        echo '<h2>Result</h2><p>Script executed successfully.</p>';
     }
     elseif ($result !== null && $result->columnCount() > 0) {
         $rows = $result->fetchAll(PDO::FETCH_ASSOC);

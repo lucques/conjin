@@ -1,7 +1,7 @@
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
-const artifactsDir = process.env.TEST_ARTIFACTS_DIR ?? path.resolve(__dirname, "..", "artifacts");
+const artifactsDir = process.env.TEST_ARTIFACTS_DIR ?? path.resolve(__dirname, "..", "..", "test-artifacts", "playwright");
 
 export default defineConfig({
   testDir: ".",
@@ -12,6 +12,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   outputDir: path.join(artifactsDir, "test-results"),
   reporter: [
+        ['json', { outputFile: path.join(artifactsDir, 'results.json') }],
     ["line"],
     ["html", { outputFolder: path.join(artifactsDir, "playwright-report"), open: "never" }],
     ["junit", { outputFile: path.join(artifactsDir, "junit.xml") }],
@@ -27,9 +28,14 @@ export default defineConfig({
       testMatch: "setup/**/*.setup.ts",
     },
     {
+      name: "http",
+      dependencies: ["setup"],
+      testMatch: "specs/http/**/*.spec.ts",
+    },
+    {
       name: "chromium",
       dependencies: ["setup"],
-      testMatch: "specs/**/*.spec.ts",
+      testMatch: "specs/e2e/**/*.spec.ts",
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: { args: ["--no-sandbox"] },

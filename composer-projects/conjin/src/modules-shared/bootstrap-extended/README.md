@@ -6,6 +6,7 @@ This module extends Bootstrap with additional features such as stacks, slices, a
 
 - Extends Bootstrap with stacks, slices, further colors, and related styles.
 - Provides PHP macros for Bootstrap components.
+- Automatically opens enclosing accordion panels for URL fragments, including nested accordions, on page load and hash changes.
 
 ## Usage
 
@@ -140,6 +141,25 @@ Treating all these just as colors without any semantic meaning is fine even if u
 
 ## Accordion with item and block
 
+Links such as `#details` to an element with `id="details"` inside an accordion automatically open all enclosing panels, from the outermost to the innermost, and scroll to the target after the transitions finish. A fragment can also identify an `.accordion-collapse` panel itself. Exclusive groups retain their usual behavior, closing sibling panels as needed.
+
+The module loads `res/acc.js` automatically through `doc-extensions`, alongside the Bootstrap JavaScript loaded by its dependency. No project-specific `custom.js` or manual script tag is needed.
+
+Pass `with_anchor: true` to `acc_item_start()` or `acc_block_start()` to add a secondary-colored `#` permalink on the right of the title, before the collapse icon when present. The link targets the item or block, not the accordion set. The optional `id` defaults to `kebabize($title)` for these anchored items; a title without usable slug characters falls back to the usual generated numeric ID. Supply distinct explicit IDs for repeated titles. Calls without `with_anchor` retain their existing ID behavior.
+
+```php
+acc_start();
+acc_item_start('Details', with_anchor: true); // #details
+// Collapsible content
+acc_item_end();
+acc_block_start('Summary', id: 'my-summary', with_anchor: true); // #my-summary
+// Permanent content
+acc_block_end();
+acc_end();
+```
+
+The single-item helpers `acc_single_item_start()` and `acc_single_block_start()` also accept `with_anchor: true`; their `item_id` and `block_id` parameters override the generated item IDs independently of `acc_id`. The permalink is an `a.accordion-anchor` sibling of the collapse button, so hovering it does not hover the button and clicking it does not toggle an open panel closed. Following an item permalink opens that item and its enclosing panels, then scrolls to its title. This also works when clicking the current fragment again after manually closing the item. Blocks only require enclosing panels to open. Existing header actions remain separate controls.
+
 - An **accordion** consists of multiple **items** (collapsible) and **blocks** (non-collapsible)
 - Item
     - Collapsable
@@ -173,6 +193,7 @@ Treating all these just as colors without any semantic meaning is fine even if u
 
 ### Supported modules
 
+- `html`: Styles `.html-heading-anchor` permalinks in Bootstrap's secondary color, including headings rendered by `nav_h_with_anchor()`.
 - `math`
     - How? CSS styles
 - `mathjax-extensions`

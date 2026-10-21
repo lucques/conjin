@@ -3,12 +3,12 @@
     // Init defs //
     ///////////////
 
-    $init_processing_syslet = function(Module $module, Syslet $syslet, Target $target_root) {
+    $process_syslet = function(Module $module, Syslet $syslet, Target $target_root) {
         // Use root target
         $GLOBALS['nav_view_target_ids'] = [];
     };
 
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $GLOBALS['nav_view_target_ids'] = $target->get_ids();
     };
     

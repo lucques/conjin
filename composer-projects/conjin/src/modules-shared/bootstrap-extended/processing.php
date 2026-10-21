@@ -3,17 +3,19 @@
     // PROCESSING //
     ////////////////
 
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
+        doc_extensions_add_head_element('<script src="' . $module->get_url() . '/res/acc.js?v=3" defer></script>');
+
         if ($module->config->get('import_standalone_css')) {
             doc_extensions_add_head_element('<link rel="stylesheet" media="screen" href="' . $module->get_css_url() . '/screen.css">');
             doc_extensions_add_head_element('<link rel="stylesheet" media="print" href="' . $module->get_css_url() . '/print.css">');
         }
 
-        load_def_from_script_and_call(__DIR__ . '/acc.php', 'init_processing_target', $module, $target);
-        load_def_from_script_and_call(__DIR__ . '/carousel.php', 'init_processing_target', $module, $target);
-        load_def_from_script_and_call(__DIR__ . '/tabs.php', 'init_processing_target', $module, $target);
-        load_def_from_script_and_call(__DIR__ . '/modals.php', 'init_processing_target', $module, $target);
-        load_def_from_script_and_call(__DIR__ . '/collapse.php', 'init_processing_target', $module, $target);
+        load_def_from_script_and_call(__DIR__ . '/acc.php', 'process_target', $module, $target);
+        load_def_from_script_and_call(__DIR__ . '/carousel.php', 'process_target', $module, $target);
+        load_def_from_script_and_call(__DIR__ . '/tabs.php', 'process_target', $module, $target);
+        load_def_from_script_and_call(__DIR__ . '/modals.php', 'process_target', $module, $target);
+        load_def_from_script_and_call(__DIR__ . '/collapse.php', 'process_target', $module, $target);
     };
 
 

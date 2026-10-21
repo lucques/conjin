@@ -248,6 +248,149 @@
 <?
         }
 
+        private function get_statistics_buckets(array $bucket_sizes): array {
+            $grades = array_reverse(array_keys($this->grading_config['min_relative']));
+            foreach ($bucket_sizes as $size) {
+                if (!is_int($size) || $size <= 0) {
+                    throw new InvalidArgumentException('Bucket sizes must be positive integers.');
+                }
+            }
+            if (array_sum($bucket_sizes) !== count($grades)) {
+                throw new InvalidArgumentException('Bucket sizes must cover every grade exactly.');
+            }
+
+            $buckets = [];
+            $grade_buckets = [];
+            $offset = 0;
+            foreach ($bucket_sizes as $size) {
+                $bucket_grades = array_slice($grades, $offset, $size);
+                $label = (string) $bucket_grades[0];
+                if ($size > 1) {
+                    $label .= ' bis ' . $bucket_grades[$size - 1];
+                }
+                $bucket_index = count($buckets);
+                $buckets[] = ['label' => $label, 'count' => 0];
+                foreach ($bucket_grades as $grade) {
+                    $grade_buckets[$grade] = $bucket_index;
+                }
+                $offset += $size;
+            }
+
+            foreach ($this->entries as $entry) {
+                if ($entry->points === null) {
+                    continue;
+                }
+                $grade = $entry->get_grade($this->grading_config, $this->get_total_max_points());
+                $buckets[$grade_buckets[$grade]]['count']++;
+            }
+            return $buckets;
+        }
+
+        public function print_statistics_table(array $bucket_sizes): void {
+            $buckets = $this->get_statistics_buckets($bucket_sizes);
+            $total = array_sum(array_column($buckets, 'count'));
+?>
+<table class="table table-bordered border-dark">
+    <thead>
+        <tr>
+            <th scope="col">Note</th>
+<?
+            foreach ($buckets as $bucket) {
+?>
+            <th scope="col"><?= htmlspecialchars($bucket['label'], ENT_QUOTES, 'UTF-8') ?></th>
+<?
+            }
+?>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <th scope="row">Anzahl</th>
+<?
+            foreach ($buckets as $bucket) {
+?>
+            <td><?= $bucket['count'] ?></td>
+<?
+            }
+?>
+        </tr>
+        <tr>
+            <th scope="row">Anteil</th>
+<?
+            foreach ($buckets as $bucket) {
+?>
+            <td><?= number_format($total > 0 ? 100 * $bucket['count'] / $total : 0, 1, ',', '') ?> %</td>
+<?
+            }
+?>
+        </tr>
+    </tbody>
+</table>
+<?
+        }
+
+        public function print_statistics_diagram(array $bucket_sizes): void {
+            $buckets = $this->get_statistics_buckets($bucket_sizes);
+            $total = array_sum(array_column($buckets, 'count'));
+            $id = 'grading-statistics-' . next_unique_id();
+            $json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR;
+?>
+<div style="position: relative; height: 320px;">
+    <canvas id="<?= $id ?>" role="img" aria-label="Notenverteilung">
+<?
+            foreach ($buckets as $bucket) {
+?>
+        <?= htmlspecialchars($bucket['label'], ENT_QUOTES, 'UTF-8') ?>: <?= $bucket['count'] ?> (<?= number_format($total > 0 ? 100 * $bucket['count'] / $total : 0, 1, ',', '') ?> %).
+<?
+            }
+?>
+    </canvas>
+</div>
+<script>
+(() => {
+    const total = <?= $total ?>;
+    new Chart(document.getElementById(<?= json_encode($id, $json_flags) ?>), {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode(array_column($buckets, 'label'), $json_flags) ?>,
+            datasets: [{
+                label: 'Anzahl',
+                data: <?= json_encode(array_column($buckets, 'count'), $json_flags) ?>,
+                backgroundColor: 'rgba(54, 162, 235, 0.65)',
+                borderColor: 'rgb(54, 162, 235)',
+                borderWidth: 1,
+            }],
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                x: { title: { display: true, text: 'Note' } },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Anzahl' },
+                    ticks: { precision: 0 },
+                },
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: context => {
+                            const count = context.parsed.y;
+                            const percentage = (total > 0 ? 100 * count / total : 0)
+                                .toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                            return `Anzahl: ${count} (${percentage} %)`;
+                        },
+                    },
+                },
+            },
+        },
+    });
+})();
+</script>
+<?
+        }
+
         private function get_total_max_points(): int {
             return array_sum($this->max_points) - $this->converted_to_bonus_points;
         }

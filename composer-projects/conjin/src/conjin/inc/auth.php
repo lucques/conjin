@@ -1,4 +1,5 @@
 <?
+    require_once __DIR__ . '/auth_submission_tokens.php';
     use Jumbojett\OpenIDConnectClient;
 
     interface ResolvedUser {
@@ -49,20 +50,10 @@
 
     // Gets called during app initialization.
     // After return...
-    // - Session is started
+    // - Existing session is resumed, if supplied by the client
     // - `$GLOBALS['user']` is set, based on session etc.
     function auth_init() {
-        // Start session
-        session_start();
-
-        // Temporary migration from array-based session users to ResolvedUser
-        // objects. Clear the complete old session and issue a fresh session ID
-        // instead of trying to translate potentially stale session state.
-        // TODO: Remove after 2026-08-15.
-        if (isset($_SESSION['user']) && !($_SESSION['user'] instanceof ResolvedUser)) {
-            session_unset();
-            session_regenerate_id(delete_old_session: true);
-        }
+        auth_resume_session_if_present();
 
         // 1. Auth as trusted local deployment user
         // Local deployment jobs reach Apache through a dedicated, unexposed
@@ -92,11 +83,8 @@
         }
         // 3. Auth by login session
         else {
-            // Become "guest" if session is new or resume otherwise
-            if (!isset($_SESSION['user'])) {
-                $_SESSION['user'] = auth_aux_make_guest_resolved_user();
-            }
-            $GLOBALS['user'] = $_SESSION['user'];
+            // Guests need no persistent session state.
+            $GLOBALS['user'] = $_SESSION['user'] ?? auth_aux_make_guest_resolved_user();
         }
     }
 
@@ -118,9 +106,8 @@
             $user = auth_aux_try_login($_POST['password']);
 
             if ($user !== null) {
-                // Password correct
-                $_SESSION['user'] = $user;
-                $GLOBALS['user']  = $user;
+                // Persist successful authentication; merely displaying the form needs no session.
+                auth_persist_authenticated_user($user);
             }
             else {
                 // Password incorrect
@@ -158,17 +145,13 @@
     // - User is not currently logged in
     // - Login profile exists
     function auth_handle_oidc_start_and_exit(string $provider_name, LoginProfile $login_profile): never {
+        auth_ensure_session_started();
         $provider = auth_aux_get_openid_provider($provider_name);
         if ($provider === null) {
             process_not_found_and_exit();
         }
 
-        if (isset($_GET['redirect'])) {
-            if (!is_string($_GET['redirect'])) {
-                send_response_and_exit(400);
-            }
-            $_SESSION['redirect'] = $_GET['redirect'];
-        }
+        auth_capture_login_redirect();
 
         $_SESSION['oidc_provider_name'] = $provider_name;
         $_SESSION['oidc_login_profile_id'] = $login_profile->id;
@@ -186,6 +169,7 @@
     // Preconditions:
     // - User is not currently logged in
     function auth_handle_oidc_callback_and_exit(string $provider_name, LoginProfile $login_profile): never {
+        auth_ensure_session_started();
         if (!isset($_GET['code']) && !isset($_GET['error'])) {
             send_response_and_exit(400);
         }
@@ -204,14 +188,24 @@
             $oidc->authenticate();
             $user = auth_aux_resolve_openid_user($provider_name, $provider, $oidc);
 
-            $_SESSION['user'] = $user;
-            $GLOBALS['user']  = $user;
+            // The OIDC client can commit and close the session during authentication.
+            auth_persist_authenticated_user($user);
         }
         catch (Exception $e) {
             auth_aux_handle_oidc_failure_and_exit($provider_name, $login_profile, $e);
         }
 
         auth_redirect_after_successful_login_and_exit();
+    }
+
+    // Cross the authentication boundary with a fresh ID before storing identity.
+    function auth_persist_authenticated_user(ResolvedUser $user): void {
+        auth_ensure_session_started();
+        if (!session_regenerate_id(true)) {
+            throw new RuntimeException('Could not rotate the authentication session ID.');
+        }
+        $_SESSION['user'] = $user;
+        $GLOBALS['user'] = $user;
     }
 
     function auth_aux_get_openid_provider(string $provider_name): ?array {
@@ -289,6 +283,7 @@
         LoginProfile $login_profile,
         Exception $exception
     ): never {
+        auth_ensure_session_started();
         $_SESSION['oidc_fail'] = [
             'providerName' => $provider_name,
             'message'      => $exception->getMessage(),
@@ -296,14 +291,24 @@
         unset($_SESSION['oidc_provider_name']);
         unset($_SESSION['oidc_login_profile_id']);
 
-        $queries = isset($_SESSION['redirect']) && is_string($_SESSION['redirect'])
-            ? ['redirect' => $_SESSION['redirect']]
-            : [];
+        $redirect = auth_validate_login_redirect($_SESSION['redirect'] ?? null);
+        if ($redirect === null) {
+            unset($_SESSION['redirect']);
+        }
+        $queries = $redirect === null ? [] : ['redirect' => $redirect];
         redirect_see_other_and_exit(auth_get_login_url($login_profile->id) . make_query_string($queries));
     }
 
-    // Precondition: User is eligible to logout.
+    // Logout changes only session authentication; password cookies remain untouched.
     function auth_handle_logout_and_exit() {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            header('Allow: POST');
+            send_response_and_exit(405);
+        }
+        if (auth_consume_submission_token($_POST['logout_token'] ?? null, 'auth:logout') !== SubmissionTokenResult::Valid) {
+            send_response_and_exit(403);
+        }
+        auth_ensure_session_started();
         $_SESSION['logout_successful'] = true;
         $_SESSION['user']              = auth_aux_make_guest_resolved_user();
         $GLOBALS['user']               = $_SESSION['user'];
@@ -312,28 +317,55 @@
     }
 
 
-    // Redirect from login page to the page the user wanted to access.
-    function auth_redirect_after_successful_login_and_exit() {
-        unset($_SESSION['oidc_provider_name']);
-        unset($_SESSION['oidc_login_profile_id']);
-
-        // There are three options:
-        // 1. Redirect is in the query string
-        // 2. Redirect is in the session variable
-        // 3. No redirect; go to home page
-        if (isset($_GET['redirect'])) {
-            redirect_see_other_and_exit($_GET['redirect']);
+    // Validate the value after PHP has decoded the outer query parameter.
+    // Return the original URL so query strings and fragments retain their meaning.
+    function auth_validate_login_redirect(mixed $redirect): ?string {
+        if (!is_string($redirect) || !str_starts_with($redirect, '/') ||
+            str_starts_with($redirect, '//') || str_contains($redirect, ' ') || preg_match('/%(?![0-9a-f]{2})/i', $redirect)) {
+            return null;
         }
-        elseif (isset($_SESSION['redirect'])) {
-            // Retrieve and remove from session var
-            $redirect = $_SESSION['redirect'];
+        // Reject dangerous characters even when nested percent encoding hides them.
+        $decoded = $redirect;
+        do {
+            if (preg_match('/[\x00-\x1f\x7f\\\\]/', $decoded)) {
+                return null;
+            }
+            $previous = $decoded;
+            $decoded = rawurldecode($decoded);
+        } while ($decoded !== $previous);
+
+        $path = substr($redirect, 0, strcspn($redirect, '?#'));
+        // Encoded separators and nested encoding make path interpretation ambiguous.
+        if (preg_match('/%(?:2f|5c|25)/i', $path)) {
+            return null;
+        }
+        $path = rawurldecode($path);
+        if (preg_match('~(?:^|/)\.{1,2}(?:/|$)~', $path)) {
+            return null;
+        }
+        $base = rtrim(url(), '/');
+        if ($base !== '' && $path !== $base && !str_starts_with($path, $base . '/')) {
+            return null;
+        }
+        return $redirect;
+    }
+
+    // An explicitly invalid new destination supersedes any older session value.
+    function auth_capture_login_redirect(): void {
+        if (array_key_exists('redirect', $_GET)) {
             unset($_SESSION['redirect']);
+            $redirect = auth_validate_login_redirect($_GET['redirect']);
+            if ($redirect !== null) {
+                $_SESSION['redirect'] = $redirect;
+            }
+        }
+    }
 
-            redirect_see_other_and_exit($redirect);
-        }
-        else {
-            redirect_see_other_and_exit(url());
-        }
+    // Both password and OIDC completion must validate immediately before redirecting.
+    function auth_redirect_after_successful_login_and_exit() {
+        $candidate = array_key_exists('redirect', $_GET) ? $_GET['redirect'] : ($_SESSION['redirect'] ?? null);
+        unset($_SESSION['redirect'], $_SESSION['oidc_provider_name'], $_SESSION['oidc_login_profile_id']);
+        redirect_see_other_and_exit(auth_validate_login_redirect($candidate) ?? url());
     }
 
     function auth_handle_unauthorized_and_exit(?string $login_profile_id = null) {
@@ -398,55 +430,6 @@
     function auth_aux_is_trusted_internal_request(): bool {
         return getenv('CONJIN_ENABLE_INTERNAL_AUTH') === '1'
             && getenv('CONJIN_INTERNAL_REQUEST') === '1';
-    }
-
-
-    ////////////////////////////////////////////////////////
-    // Session management: Functions available after init //
-    ////////////////////////////////////////////////////////
-
-    // The following three functions are used to manage the deduplication of
-    // multiple POST requests. Any form that uses it must include a hidden
-    // UUID that identifies the current request, obtained by
-    // `auth_get_cur_postdedup_uuid()`. Then on receiving a POST request,
-    // first check that the UUID is set at all, using
-    // `auth_has_postdedup_uuid()`. If so, check whether under that UUID a POST
-    // request has already been registered, via
-    // `auth_register_check_postdedup_uuid()`.
-    // If yes: Duplicate POST request detected.
-    // If no: Register the UUID for future requests.
-
-    $GLOBALS['request_uuid'] = null;
-
-    function auth_get_cur_postdedup_uuid(): string {
-        if ($GLOBALS['request_uuid'] === null) {
-            $GLOBALS['request_uuid'] = bin2hex(random_bytes(16));
-        }
-        return $GLOBALS['request_uuid'];
-    }
-
-    function auth_has_postdedup_uuid(): bool {
-        return isset($_POST['request_uuid']);
-    }
-
-    function auth_register_check_postdedup_uuid(): bool {
-        if (!isset($_SESSION['postdedup_burned_uuids'])) {
-            $_SESSION['postdedup_burned_uuids'] = [];
-        }
-        
-        if (in_array($_POST['request_uuid'], $_SESSION['postdedup_burned_uuids'])) {
-            // Duplicate request detected
-            return false;
-        }
-        else {
-            // Register UUID for future requests
-            $_SESSION['postdedup_burned_uuids'][] = $_POST['request_uuid'];
-            // Limit the size of the burned UUIDs list to avoid memory issues
-            if (count($_SESSION['postdedup_burned_uuids']) > 20) {
-                $_SESSION['postdedup_burned_uuids'] = array_slice($_SESSION['postdedup_burned_uuids'], -20);
-            }
-            return true;
-        }
     }
 
 

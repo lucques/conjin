@@ -71,6 +71,9 @@
             echo implode("\n", doc_extensions_get_body_bottom_elements());
         }
 ?>
+<? if ($syslet->has_activated_module('page-prep')) { ?>
+        <script>pagePrep.closeRegistration();</script>
+<? } ?>
     </body>
 </html>
 <?

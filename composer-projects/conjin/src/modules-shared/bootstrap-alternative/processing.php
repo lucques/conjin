@@ -31,8 +31,8 @@
     };
 
     $add_styles = function(Module $module) use ($add_primary_color_overrides) {
-        doc_extensions_add_head_element('<link rel="stylesheet" href="' . $module->get_url() . '/res/core.css?v=3">');
-        doc_extensions_add_head_element('<link rel="stylesheet" href="' . $module->get_url() . '/res/acc.css?v=3">');
+        doc_extensions_add_head_element('<link rel="stylesheet" href="' . $module->get_url() . '/res/core.css?v=4">');
+        doc_extensions_add_head_element('<link rel="stylesheet" href="' . $module->get_url() . '/res/acc.css?v=5">');
         doc_extensions_add_head_element('<link rel="stylesheet" href="' . $module->get_url() . '/res/badge.css">');
         doc_extensions_add_head_element('<link rel="stylesheet" href="' . $module->get_url() . '/res/card.css">');
         doc_extensions_add_head_element('<link rel="stylesheet" href="' . $module->get_url() . '/res/collapse.css?v=2">');
@@ -42,19 +42,19 @@
         $add_primary_color_overrides($module);
     };
 
-    $init_processing_syslet = function(Module $module, Syslet $syslet, Target $root_target) use ($add_styles) {
+    $process_syslet = function(Module $module, Syslet $syslet, Target $root_target) use ($add_styles) {
         $add_styles($module);
     };
 
-    $init_processing_target = function(Module $module, Target $target) use ($add_styles) {
+    $process_target = function(Module $module, Target $target) use ($add_styles) {
         $add_styles($module);
 
-        doc_extensions_add_head_element('<script src="' . $module->get_url() . '/res/acc.js" defer></script>');
+        doc_extensions_add_head_element('<script src="' . $module->get_url() . '/res/acc.js?v=4" defer></script>');
         doc_extensions_add_head_element('<script src="' . $module->get_url() . '/res/collapse.js" defer></script>');
         doc_extensions_add_head_element('<script src="' . $module->get_url() . '/res/modal.js?v=3" defer></script>');
 
-        load_def_from_script_and_call(__DIR__ . '/acc.php', 'init_processing_target', $module, $target);
-        load_def_from_script_and_call(__DIR__ . '/collapse.php', 'init_processing_target', $module, $target);
+        load_def_from_script_and_call(__DIR__ . '/acc.php', 'process_target', $module, $target);
+        load_def_from_script_and_call(__DIR__ . '/collapse.php', 'process_target', $module, $target);
     };
 
     // Kept identical to bootstrap-extended because the accordion macros expose

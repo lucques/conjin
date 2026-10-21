@@ -3,8 +3,54 @@
 
     use Conjin\ModulesShared\GraphingTypes\Checkbox;
     use Conjin\ModulesShared\GraphingTypes\CommonElement;
+    use Conjin\ModulesShared\GraphingTypes\FontSize;
     use Conjin\ModulesShared\GraphingTypes\Slider;
     use Conjin\ModulesShared\GraphingTypes\Stroke;
+
+
+    //////////////////////
+    // JSXGraph defaults //
+    //////////////////////
+
+    const POINT_LABEL_AUTO_POSITION_MIN_DISTANCE = 8;
+    const POINT_LABEL_AUTO_POSITION_MAX_DISTANCE = 14;
+
+    function jsx_validate_point_label_auto_position_distances(
+        float $min_distance,
+        float $max_distance,
+        string $plot_name,
+    ): void {
+        if (!is_finite($min_distance) || $min_distance <= 0) {
+            throw new \InvalidArgumentException("$plot_name point-label auto-position minimum distance must be finite and greater than zero");
+        }
+        if (!is_finite($max_distance) || $max_distance <= $min_distance) {
+            throw new \InvalidArgumentException("$plot_name point-label auto-position maximum distance must be finite and greater than its minimum distance");
+        }
+    }
+
+
+    //////////////////////////
+    // Print mode resolution //
+    //////////////////////////
+
+    // Purpose: Make lines thicker, more contrast etc.
+    enum PrintMode {
+        case Disabled;
+        case Enabled;
+        case Auto; // Automatically determine whether print mode module is activated
+    }
+
+    function jsx_resolve_print_mode(PrintMode $print_mode): bool {
+        return match($print_mode) {
+            PrintMode::Disabled => false,
+            PrintMode::Enabled  => true,
+            PrintMode::Auto     => $GLOBALS['jsxgraph_helpers_print_mode_module_active'] ?? false,
+        };
+    }
+
+    function jsx_resolve_axis_thickness(float $axis_thickness, bool $print_mode): float {
+        return $print_mode ? 2 * $axis_thickness : $axis_thickness;
+    }
 
 
     /////////////
@@ -17,6 +63,18 @@
             Stroke::Dotted => 1,
             Stroke::Dashed => 2,
         };
+    }
+
+    function translate_font_size_to_pixels(FontSize $font_size, int $font_size_adjust = 0): int {
+        $font_size_pixels = match($font_size) {
+            FontSize::XS => 10,
+            FontSize::SM => 12,
+            FontSize::MD => 14,
+            FontSize::LG => 16,
+            FontSize::XL => 18,
+        };
+
+        return $font_size_pixels + 2 * $font_size_adjust;
     }
 
     function print_slider(Slider $s, int $decimal_places = 2, bool $enabled = true, ?string $hook_oninput_fun_js = null, bool $reset_button = false) {

@@ -13,8 +13,8 @@ The following software must be installed:
 
 Run `./setup.sh` from the repository root. It performs the dependency setup in this order:
 
-1. **Check required setup tools:** The script verifies all tools needed by the complete checkout, including Composer, npm, download and archive tools, Dhall, Docker 26 or newer, and the Docker Compose plugin before changing dependencies or generated assets. An unreachable Docker daemon produces a warning but does not stop dependency setup.
-2. **Install locked Conjin development dependencies:** Composer installs the versions in `composer-projects/conjin/composer.lock` into `composer-projects/conjin/vendor`.
+1. **Check required setup tools:** The script verifies all tools needed by the complete checkout, including Python 3, PHP/Composer, npm, download and archive tools, Dhall, Docker 26 or newer, and the Docker Compose plugin before changing dependencies or generated assets. Docker must be reachable for PHP runtime preparation.
+2. **Prepare PHP and install locked Conjin development dependencies:** `bin/test prepare php` builds the isolated PHP test target and runs Composer inside it to install `composer-projects/conjin/composer.lock` into `composer-projects/conjin/vendor`, including PHPUnit. This avoids imposing PHPUnit's PHP version and extension requirements on the host. It prepares no application deployment or CSS. For PHP tests alone, this command followed by `bin/test php` is sufficient; see [tests](tests.md).
 3. **Install the demo app:** Composer installs `composer-projects/demo-app/composer.lock`; its path repository exposes the sibling Conjin package through `vendor/lucques/conjin`.
 4. **Install the integration-test app:** Composer independently installs `composer-projects/integration-test-app/composer.lock`, keeping the automated fixture separate from the demo.
 5. **Build Conjin assets:** `build-assets.sh` installs the locked browser dependencies, collects their legal metadata and notice files, downloads and resolves the pinned Dhall dependencies, and stages the shared-module assets in the development tree.

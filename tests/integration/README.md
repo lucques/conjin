@@ -1,36 +1,15 @@
-# Integration tests
+# Deployed HTTP and browser tests
 
-The integration-test package is an npm workspace managed by the repository root. Run the root-level `npm ci` (or `./setup.sh`) to install its editor dependencies. The Docker test image continues to use the integration package's own lockfile.
-
-Run `./tests/run all` to execute `demo-linkchecker`, `integration-linkchecker`, and `integration-playwright` in that order. The repository-level runner builds each app's single `deployments/test` deployment, prepares isolated Compose state, and invokes only the requested capability. In `all` mode, each target gets an independent attempt; later targets still run after a failure, and the final command status reports whether any target failed.
-
-Run LinkChecker at the application root or at a specific target:
+This npm workspace uses Playwright in Docker. `specs/http/` runs HTTP contracts under the `http` project; `specs/e2e/` runs deployed browser behavior under `chromium`. Both trees retain successful and expected-error fixture branches. Preparation installs locked dependencies in the image, which includes Chromium and its system dependencies. Component tests reuse this image and Compose service with their own fixtures and configuration.
 
 ```sh
-./tests/run demo-linkchecker
-./tests/run demo-linkchecker bootstrap-alternative
-./tests/run integration-linkchecker
-./tests/run integration-linkchecker module-tests-expect-success/db-mysql/query
+bin/test prepare e2e-playwright
+bin/test integration-http
+bin/test e2e-playwright
+bin/test e2e-playwright /expect-success/module-tests/anchors.spec.ts
+bin/test integration-linkchecker module-tests-expect-success/db-mysql/query
 ```
 
-Run all Playwright tests or select a path below `tests/integration/specs/`:
+Both suites use the same prepared integration environment. The runner preprocesses once through the internal endpoint and reuses the integration deployment across HTTP, browser and LinkChecker suites in an `all` run. Direct Playwright invocation can use the setup dependency by providing `PREPROCESS_BASE_URL` and `PREPROCESS_USER`.
 
-```sh
-./tests/run integration-playwright
-./tests/run integration-playwright /expect-fail
-./tests/run integration-playwright /expect-success/module-tests/anchors.spec.ts
-```
-
-For focused local reruns, pass `--skip-build` to reuse an existing generated test deployment:
-
-```sh
-./tests/run integration-playwright /expect-success/module-tests/anchors.spec.ts --skip-build
-```
-
-This skips only test-deployment generation. SCSS compilation, Docker service builds, preprocessing, isolated volumes, and cleanup still run. Run without the flag after changing deployment configuration or generation code.
-
-The integration deployment's LinkChecker configuration excludes `module-tests-expect-fail`; Playwright can access both `expect-success` and `expect-fail`. The Playwright setup project preprocesses the fixture before selected specs run.
-
-Read-only repository inputs are bind-mounted. Database files, preprocessing output, compiled CSS, and the optional application store use project-scoped named volumes that are removed after the run. Each invocation creates a directory such as `tests/artifacts/2026-07-23.12-23/`; LinkChecker results are stored in `linkchecker/` and Playwright results in `playwright/`.
-
-Set `CONJIN_TEST_PROJECT` to choose the Compose project-name prefix or `CONJIN_TEST_KEEP=1` to keep stacks for inspection.
+Reports replace root `test-artifacts/` on each invocation. The two Playwright suites write `integration-http/` and `e2e-playwright/`, with individual results included in root `summary.json` and `junit.xml`. See [tests](../../doc/tests.md) and the [coverage map](../../doc/test_inventory.md) for classification, requirements and limitations. Isolated component browser tests live in `tests/components/`.

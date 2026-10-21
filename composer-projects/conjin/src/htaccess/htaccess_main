@@ -1,48 +1,37 @@
-# Module resources
-RewriteRule ^modules/([a-zA-Z0-9-_.]+)/res/(.+)$                modules/$1/res/$2 [L]
-RewriteRule ^modules-shared/([a-zA-Z0-9-_.]+)/res/(.+)$         modules-shared/$1/res/$2 [L]
-RewriteRule ^modules-ext/([a-zA-Z0-9-_.]+)/res/(.+)$            modules-ext/$1/res/$2 [L]
-RewriteRule ^modules-shared-ext/([a-zA-Z0-9-_.]+)/res/(.+)$     modules-shared-ext/$1/res/$2 [L]
-RewriteRule ^modules-css/([a-zA-Z0-9-_.]+)/res/(.+)$            modules-css/$1/res/$2 [L]
-RewriteRule ^modules-shared-css/([a-zA-Z0-9-_.]+)/res/(.+)$     modules-shared-css/$1/res/$2 [L]
-RewriteRule ^modules-ext-css/([a-zA-Z0-9-_.]+)/res/(.+)$        modules-ext-css/$1/res/$2 [L]
-RewriteRule ^modules-shared-ext-css/([a-zA-Z0-9-_.]+)/res/(.+)$ modules-shared-ext-css/$1/res/$2 [L]
+# Public module resources are read from private storage, never executed.
+# Sass outputs CSS and source maps directly beneath the compiled module directory.
+RewriteRule ^(modules(?:-shared)?(?:-ext)?-css)/([a-zA-Z0-9_.-]+)/(.+)$ module-resource.php?group=$1&module=$2&res=$3 [B,L]
+RewriteRule ^(modules(?:-shared)?(?:-ext)?)/([a-zA-Z0-9_.-]+)/res/(.+)$ module-resource.php?group=$1&module=$2&res=$3 [B,L]
 
-# Block any PHP file except top-level files in `conjin` (`conjin/index.php`)
-RewriteRule ^conjin/(.+)/(.+).php$                              - [F,L]
-RewriteRule ^content/(.+).php$                                  - [F,L]
-RewriteRule ^modules/(.+).php$                                  - [F,L]
-RewriteRule ^modules-shared/(.+).php$                           - [F,L]
-RewriteRule ^modules-ext/(.+).php$                              - [F,L]
-RewriteRule ^modules-shared-ext/(.+).php$                       - [F,L]
-RewriteRule ^config.json$                                       - [F,L]
-RewriteRule ^users.json$                                        - [F,L]
+# Public entrypoints; the private directories deny all HTTP access themselves.
+RewriteRule ^index\.php$ - [L]
+RewriteRule ^module-resource\.php$ - [L]
 
 # Misc
-RewriteRule ^preprocess/$                                       conjin/index.php?req=preprocess [L]
-RewriteRule ^debug/$                                            conjin/index.php?req=debug [QSA,L]
-RewriteRule ^login/$                                            conjin/index.php?req=login [QSA,L]
-RewriteRule ^login/([a-zA-Z0-9_-]+)/$                           conjin/index.php?req=login&login_profile=$1 [QSA,L]
-RewriteRule ^logout/$                                           conjin/index.php?req=logout [QSA,L]
+RewriteRule ^preprocess/$                                       index.php?req=preprocess [L]
+RewriteRule ^debug/$                                            index.php?req=debug [QSA,L]
+RewriteRule ^login/$                                            index.php?req=login [QSA,L]
+RewriteRule ^login/([a-zA-Z0-9_-]+)/$                           index.php?req=login&login_profile=$1 [QSA,L]
+RewriteRule ^logout/$                                           index.php?req=logout [QSA,L]
 
 # OpenID Connect
-RewriteRule ^auth/oidc/([a-zA-Z0-9_.-]+)/start$                 conjin/index.php?req=oidc-start&oidc_provider=$1 [QSA,L]
-RewriteRule ^auth/oidc/([a-zA-Z0-9_.-]+)/callback$              conjin/index.php?req=oidc-callback&oidc_provider=$1 [QSA,L]
-RewriteRule ^debug/openid/(.+)$                                 conjin/index.php?req=debug&what=openid&openid=$1 [QSA,L]
+RewriteRule ^auth/oidc/([a-zA-Z0-9_.-]+)/start$                 index.php?req=oidc-start&oidc_provider=$1 [QSA,L]
+RewriteRule ^auth/oidc/([a-zA-Z0-9_.-]+)/callback$              index.php?req=oidc-callback&oidc_provider=$1 [QSA,L]
+RewriteRule ^debug/openid/(.+)$                                 index.php?req=debug&what=openid&openid=$1 [QSA,L]
 
 # Content
 # Explanation: QSA = query string appL; further GET attributes are kept
 # Explanation: B = escape special characters in the target URL
-RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)$                                    conjin/index.php?req=show&target=$1 [QSA,L]
-RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)inc/((?:[a-zA-Z0-9-_.]+/)*)res/(.+)$ conjin/index.php?req=res&target=$1&inc=$2&res=$3 [B,L]
-RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)res/(.+)$                            conjin/index.php?req=res&target=$1&res=$2 [B,L]
+RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)$                                    index.php?req=show&target=$1 [QSA,L]
+RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)inc/((?:[a-zA-Z0-9-_.]+/)*)res/(.+)$ index.php?req=res&target=$1&inc=$2&res=$3 [B,L]
+RewriteRule ^((?:[a-zA-Z0-9-_.]+/)*)res/(.+)$                            index.php?req=res&target=$1&res=$2 [B,L]
 
 
 # Other (anything else)
 # If the requested file or directory does NOT exist...
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.+)$                                              conjin/index.php?req=other&path=$1 [QSA,L]
+RewriteRule ^(.+)$                                              index.php?req=other&path=$1 [QSA,L]
 
 # Mime types
 AddType application/octet-stream fls

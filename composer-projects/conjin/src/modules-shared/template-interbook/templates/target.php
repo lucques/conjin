@@ -22,7 +22,7 @@
         // Augment content //
         /////////////////////
 
-        if ($target->has_activated_module('title') && $target->activated_modules['title']->config->get('is_part_of_content')) {
+        if ($target->has_activated_module('title') && $target->get_activated_modules()['title']->config->get('is_part_of_content')) {
             ob_start();
 ?>
                 <h1><?= $placeholders['title_for_h1'] ?></h1>

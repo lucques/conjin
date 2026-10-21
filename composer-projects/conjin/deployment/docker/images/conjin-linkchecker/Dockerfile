@@ -1,4 +1,4 @@
-ARG BASE_IMAGE
+ARG BASE_IMAGE=ghcr.io/linkchecker/linkchecker:10.6.0
 FROM ${BASE_IMAGE}
 
 COPY ./startup.sh /startup.sh

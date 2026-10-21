@@ -17,16 +17,28 @@ $point = new G2D\Point('() => 1', '() => 2');
 ### Common types
 
 - `Slider`, `Checkbox`, `CustomElement`, and `CoordinateMarker`
-- `Color`, `Stroke`, and `Opacity`
+- `Color`, `Stroke`, `Opacity`, and `FontSize`
 - Element marker interfaces for each graphing mode
 - `translate_color_to_hex()` and `translate_opacity_to_float()`
 
 ### Graphing modes
 
-- **`sequence`**: `ExplicitSequence`, `RecursiveSequence`, and `SequencePlotOptions`; rendered by `plot_sequences()` from `jsxgraph-helpers`.
-- **`system-2d`**: `Point`, `Line`, `FunctionGraph`, and `Integral`; rendered by `plot_2d()` from `jsxgraph-helpers`.
-- **`system-3d-dependent`**: Points, lines, planes, and polygons whose objects refer to each other; available to application-specific renderers.
-- **`system-3d-independent`**: Self-contained points, lines, planes, and polygons; rendered by `plot_3d_dynamic()` or `plot_3d_cavalier()` from `jsxgraph-helpers`.
+- **`sequence`**
+    - `ExplicitSequence`
+    - `RecursiveSequence`
+    - rendered by `plot_sequences()` from `jsxgraph-helpers`.
+- **`system-2d`**
+    - `Point`
+    - `Line`
+    - `FunctionGraph`
+    - `Integral`
+    - rendered by `plot_2d()` from `jsxgraph-helpers`.
+- **`system-3d-dependent`**
+    - Points, lines, planes, and polygons whose objects refer to each other
+    - intended for GeoGebra-based application renderers, where elements can refer to named point objects.
+- **`system-3d-independent`**
+    - Self-contained points, lines, planes, and polygons
+    - rendered by `plot_3d_dynamic()` or `plot_3d_cavalier()` from `jsxgraph-helpers`.
 
 ## Module relationships
 

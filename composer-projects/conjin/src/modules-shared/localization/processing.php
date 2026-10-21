@@ -7,7 +7,7 @@
     // Init defs //
     ///////////////
 
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $languages = $module->config->get('languages');
         $remember_explicit_choice = $module->config->get('rememberExplicitChoice');
         $language_switch = $module->config->get('language_switch');

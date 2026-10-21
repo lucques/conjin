@@ -37,6 +37,8 @@
         while (ob_get_level() > 0) { ob_end_clean(); }
         
         http_response_code(301);
+        header('Cache-Control: no-store');
+        header_remove('Last-Modified');
         header('Location: ' . $url);
         exit();
     }
@@ -46,6 +48,8 @@
         while (ob_get_level() > 0) { ob_end_clean(); }
 
         http_response_code(302);
+        header('Cache-Control: no-store');
+        header_remove('Last-Modified');
         header('Location: ' . $url);
         exit();
     }
@@ -55,6 +59,8 @@
         while (ob_get_level() > 0) { ob_end_clean(); }
 
         http_response_code(303);
+        header('Cache-Control: no-store');
+        header_remove('Last-Modified');
         header('Location: ' . $url);
         exit();
     }
@@ -108,10 +114,14 @@
     function core_save_file($path, $content) {
         $dir = dirname($path);
         if (!is_dir($dir)) {
-            mkdir($dir, recursive: true);
+            if (!mkdir($dir, recursive: true) && !is_dir($dir)) {
+                throw new RuntimeException('Cannot create directory: ' . $dir);
+            }
         }
 
-        file_put_contents($path, $content);
+        if (file_put_contents($path, $content) !== strlen($content)) {
+            throw new RuntimeException('Cannot write complete file: ' . $path);
+        }
     }
 
 

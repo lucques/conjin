@@ -3,6 +3,7 @@
 
     use Conjin\ModulesShared\GraphingTypes\ControlElement;
     use Conjin\ModulesShared\GraphingTypes\CustomElement;
+    use Conjin\ModulesShared\GraphingTypes\FontSize;
     use Conjin\ModulesShared\GraphingTypes\System3DIndepElement;
     use Conjin\ModulesShared\GraphingTypes\System3DIndep\Line;
     use Conjin\ModulesShared\GraphingTypes\System3DIndep\Plane;
@@ -18,6 +19,9 @@
     ////////////////////////////////
 
     readonly class Plot3DCavalierOptions {
+        public Axes3D $axes;
+        public Grid2D $grid;
+
         public function __construct(
             public float $x_min,
             public float $x_max,
@@ -27,32 +31,37 @@
             public float $z_max,
             public int $width,
             public int $height,
-            public ?float $board_x_min = null,
-            public ?float $board_x_max = null,
-            public ?float $board_y_min = null,
-            public ?float $board_y_max = null,
-            public ?float $x_ticks_distance = null,
-            public ?float $y_ticks_distance = null,
-            public ?float $z_ticks_distance = null,
-            public float $ticks_distance = 1,
-            public bool $show_grid = true,
-            public bool $show_ticks = true,
-            public bool $show_axes = true,
-            public bool $show_navigation = true,
-            public bool $enable_pan = true,
-            public bool $enable_zoom = true,
+            ?Axes3D $axes = null,
+            public Spacing3D $spacing = new Spacing3D(),
+            ?Grid2D $grid = null,
+            public bool $show_bounding_box = false,
             public bool $axes_extend_to_negative = false,
-            public string $x_label = 'x',
-            public string $y_label = 'y',
-            public string $z_label = 'z',
             public float $x_axis_angle_degrees = -135,
             public float $x_axis_scale = 1.4142135623730951,
             public float $y_axis_scale = 2,
             public float $z_axis_scale = 2,
-            public float $axis_tick_length = 0.12,
-            public float $plane_fallback_range = 8,
-            public float $plane_mesh_step = 1,
-        ) {}
+            public float $plane_fallback_range = 8, // if a plane is infinite, this is the range used to draw it
+            public float $plane_mesh_step = 1, // if a plane is drawn, this is the step size of the mesh drawn on its surface
+            public PrintMode $print_mode = PrintMode::Auto,
+            public Zoom $zoom = Zoom::Disabled,
+            public Pan $pan = Pan::Disabled,
+            public WheelBehavior $wheel_behavior = WheelBehavior::Disabled,
+            public PinchBehavior $pinch_behavior = PinchBehavior::Disabled,
+            public TwoFingerTranslationBehavior $two_finger_translation_behavior = TwoFingerTranslationBehavior::Disabled,
+            public OneFingerDragBehavior2D $one_finger_drag_behavior = OneFingerDragBehavior2D::AllowForPan,
+            public MouseDragBehavior2D $mouse_drag_behavior = MouseDragBehavior2D::AllowForPan,
+            public FontSize $base_font_size = FontSize::MD,
+            public float $point_label_auto_position_min_distance = POINT_LABEL_AUTO_POSITION_MIN_DISTANCE, // in pixels
+            public float $point_label_auto_position_max_distance = POINT_LABEL_AUTO_POSITION_MAX_DISTANCE, // in pixels
+        ) {
+            $this->axes = $axes ?? Axes3D::enabled();
+            $this->grid = $grid ?? Grid2D::enabled();
+            jsx_validate_point_label_auto_position_distances(
+                $this->point_label_auto_position_min_distance,
+                $this->point_label_auto_position_max_distance,
+                'Cavalier 3D plot',
+            );
+        }
     }
 
 
@@ -64,11 +73,24 @@
         Plot3DCavalierOptions $options,
         array $elements      // array of System3DIndepElement|ControlElement
     ) {
+        $print_mode = jsx_resolve_print_mode($options->print_mode);
+        $axes = jsx_resolve_axes($options->axes, $options->base_font_size, $print_mode);
+        $spacing = jsx_resolve_spacing($options->spacing);
+        jsx_validate_3d_axes($axes, $spacing, $options->grid);
+        $interactions = jsx_resolve_2d_plot_interactions(
+            plot_name: 'plot_3d_cavalier',
+            zoom: $options->zoom,
+            pan: $options->pan,
+            wheel_behavior: $options->wheel_behavior,
+            pinch_behavior: $options->pinch_behavior,
+            two_finger_translation_behavior: $options->two_finger_translation_behavior,
+            one_finger_drag_behavior: $options->one_finger_drag_behavior,
+            mouse_drag_behavior: $options->mouse_drag_behavior,
+        );
         $id = 'jsxgraph-plot-3d-cavalier-' . next_unique_id();
         [$board_x_min, $board_x_max, $board_y_min, $board_y_max] = jsx_cavalier_board_bounds($options);
-        $x_ticks_distance = $options->x_ticks_distance ?? $options->ticks_distance;
-        $y_ticks_distance = $options->y_ticks_distance ?? $options->ticks_distance;
-        $z_ticks_distance = $options->z_ticks_distance ?? $options->ticks_distance;
+        $y_ticks_distance = $spacing['y']->major;
+        $z_ticks_distance = $spacing['z']->major;
         $x_axis_start = jsx_cavalier_axis_start($options->x_min, $options->x_max, $options->axes_extend_to_negative);
         $y_axis_start = jsx_cavalier_axis_start($options->y_min, $options->y_max, $options->axes_extend_to_negative);
         $z_axis_start = jsx_cavalier_axis_start($options->z_min, $options->z_max, $options->axes_extend_to_negative);
@@ -81,16 +103,44 @@
 ?>
         <div id="<?= $id ?>" class="jsxgraph-plot" style="width: <?= $options->width ?>px; height: <?= $options->height ?>px;"></div>
         <script>
-            document.addEventListener("DOMContentLoaded", function() {
+            jsx_register_initial_board('<?= $id ?>', function() {
                 var board = JXG.JSXGraph.initBoard('<?= $id ?>', {
                     showCopyright: false,
                     boundingbox: [<?= jsx_cavalier_num($board_x_min) ?>, <?= jsx_cavalier_num($board_y_max) ?>, <?= jsx_cavalier_num($board_x_max) ?>, <?= jsx_cavalier_num($board_y_min) ?>],
                     axis: false,
-                    grid: <?= $options->show_grid ? "{ majorStep: [" . jsx_cavalier_num($y_ticks_distance) . ", " . jsx_cavalier_num($z_ticks_distance) . "] }" : 'false' ?>,
-                    showNavigation: <?= $options->show_navigation ? 'true' : 'false' ?>,
+<?
+    if ($options->grid->is_enabled) {
+?>
+                    grid: {
+                        majorStep: [<?= jsx_cavalier_num($y_ticks_distance) ?>, <?= jsx_cavalier_num($z_ticks_distance) ?>],
+<?
+        if ($print_mode) {
+?>
+                        strokeColor: 'black',
+<?
+        }
+?>
+                    },
+<?
+    }
+    else {
+?>
+                    grid: false,
+<?
+    }
+?>
+                    showNavigation: <?= $interactions->show_navigation ? 'true' : 'false' ?>,
+                    showZoom: <?= $interactions->show_zoom ? 'true' : 'false' ?>,
                     keepaspectratio: true,
-                    pan: { enabled: <?= $options->enable_pan ? 'true' : 'false' ?> },
-                    zoom: { enabled: <?= $options->enable_zoom ? 'true' : 'false' ?> }
+                    pan: {
+                        enabled: <?= $interactions->pan_enabled ? 'true' : 'false' ?>,
+                        needTwoFingers: <?= $interactions->pan_need_two_fingers ? 'true' : 'false' ?>
+                    },
+                    zoom: {
+                        enabled: <?= $interactions->zoom_enabled ? 'true' : 'false' ?>,
+                        wheel: <?= $interactions->zoom_wheel ? 'true' : 'false' ?>,
+                        pinch: <?= $interactions->zoom_pinch ? 'true' : 'false' ?>
+                    }
                 });
 
                 const __cavXScale = <?= jsx_cavalier_num($options->x_axis_scale) ?>;
@@ -157,28 +207,21 @@
             }
         }
 
-        if ($options->show_axes) {
-            jsx_cavalier_print_axes(
-                $options,
-                $x_axis_start,
-                $y_axis_start,
-                $z_axis_start,
-                $x_ticks_distance,
-                $y_ticks_distance,
-                $z_ticks_distance,
-                $axis_label_margin
-            );
+        if ($options->show_bounding_box) {
+            jsx_cavalier_print_bounding_box($options);
         }
+
+        jsx_cavalier_print_axes($options, $axes, $spacing, $axis_label_margin);
 
         foreach ($elements as $name => $e) {
             if ($e instanceof Line) {
-                jsx_cavalier_print_line((string)$name, $e);
+                jsx_cavalier_print_line((string)$name, $e, $options);
             }
         }
 
         foreach ($elements as $name => $e) {
             if ($e instanceof Point) {
-                jsx_cavalier_print_point((string)$name, $e);
+                jsx_cavalier_print_point((string)$name, $e, $options);
             }
         }
 
@@ -198,114 +241,148 @@
     // Helpers //
     /////////////
 
-    function jsx_cavalier_print_axes(
-        Plot3DCavalierOptions $options,
-        float $x_axis_start,
-        float $y_axis_start,
-        float $z_axis_start,
-        float $x_ticks_distance,
-        float $y_ticks_distance,
-        float $z_ticks_distance,
-        float $axis_label_margin
-    ): void {
-        [$x0_u, $x0_v] = jsx_cavalier_project_php($x_axis_start, 0, 0, $options);
-        [$x1_u, $x1_v] = jsx_cavalier_project_php($options->x_max, 0, 0, $options);
-        [$y0_u, $y0_v] = jsx_cavalier_project_php(0, $y_axis_start, 0, $options);
-        [$y1_u, $y1_v] = jsx_cavalier_project_php(0, $options->y_max, 0, $options);
-        [$z0_u, $z0_v] = jsx_cavalier_project_php(0, 0, $z_axis_start, $options);
-        [$z1_u, $z1_v] = jsx_cavalier_project_php(0, 0, $options->z_max, $options);
-        [$x_label_u, $x_label_v] = jsx_cavalier_project_php($options->x_max + $axis_label_margin, 0, 0, $options);
-        [$y_label_u, $y_label_v] = jsx_cavalier_project_php(0, $options->y_max + $axis_label_margin, 0, $options);
-        [$z_label_u, $z_label_v] = jsx_cavalier_project_php(0, 0, $options->z_max + $axis_label_margin, $options);
+    function jsx_cavalier_print_bounding_box(Plot3DCavalierOptions $options): void {
 ?>
-                const __cavAxisAttrs = {
+                const __cavBoundingBoxEdges = [
+                    [[<?= $options->x_min ?>, <?= $options->y_min ?>, <?= $options->z_min ?>], [<?= $options->x_max ?>, <?= $options->y_min ?>, <?= $options->z_min ?>]],
+                    [[<?= $options->x_min ?>, <?= $options->y_max ?>, <?= $options->z_min ?>], [<?= $options->x_max ?>, <?= $options->y_max ?>, <?= $options->z_min ?>]],
+                    [[<?= $options->x_min ?>, <?= $options->y_min ?>, <?= $options->z_max ?>], [<?= $options->x_max ?>, <?= $options->y_min ?>, <?= $options->z_max ?>]],
+                    [[<?= $options->x_min ?>, <?= $options->y_max ?>, <?= $options->z_max ?>], [<?= $options->x_max ?>, <?= $options->y_max ?>, <?= $options->z_max ?>]],
+                    [[<?= $options->x_min ?>, <?= $options->y_min ?>, <?= $options->z_min ?>], [<?= $options->x_min ?>, <?= $options->y_max ?>, <?= $options->z_min ?>]],
+                    [[<?= $options->x_max ?>, <?= $options->y_min ?>, <?= $options->z_min ?>], [<?= $options->x_max ?>, <?= $options->y_max ?>, <?= $options->z_min ?>]],
+                    [[<?= $options->x_min ?>, <?= $options->y_min ?>, <?= $options->z_max ?>], [<?= $options->x_min ?>, <?= $options->y_max ?>, <?= $options->z_max ?>]],
+                    [[<?= $options->x_max ?>, <?= $options->y_min ?>, <?= $options->z_max ?>], [<?= $options->x_max ?>, <?= $options->y_max ?>, <?= $options->z_max ?>]],
+                    [[<?= $options->x_min ?>, <?= $options->y_min ?>, <?= $options->z_min ?>], [<?= $options->x_min ?>, <?= $options->y_min ?>, <?= $options->z_max ?>]],
+                    [[<?= $options->x_max ?>, <?= $options->y_min ?>, <?= $options->z_min ?>], [<?= $options->x_max ?>, <?= $options->y_min ?>, <?= $options->z_max ?>]],
+                    [[<?= $options->x_min ?>, <?= $options->y_max ?>, <?= $options->z_min ?>], [<?= $options->x_min ?>, <?= $options->y_max ?>, <?= $options->z_max ?>]],
+                    [[<?= $options->x_max ?>, <?= $options->y_max ?>, <?= $options->z_min ?>], [<?= $options->x_max ?>, <?= $options->y_max ?>, <?= $options->z_max ?>]]
+                ];
+                const __cavBoundingBoxAttrs = {
                     fixed: true,
-                    straightFirst: false,
-                    straightLast: false,
-                    lastArrow: true,
-                    strokeColor: 'black',
-                    highlightStrokeColor: 'black',
-                    strokeWidth: 2
+                    strokeColor: '#888888',
+                    highlightStrokeColor: '#888888',
+                    strokeWidth: 1,
+                    strokeOpacity: 0.7,
+                    highlightStrokeOpacity: 0.7
                 };
-                const __cavTickAttrs = {
-                    fixed: true,
-                    straightFirst: false,
-                    straightLast: false,
-                    strokeColor: 'black',
-                    highlightStrokeColor: 'black',
-                    strokeWidth: 1
-                };
-                board.create('line', [[<?= jsx_cavalier_num($x0_u) ?>, <?= jsx_cavalier_num($x0_v) ?>], [<?= jsx_cavalier_num($x1_u) ?>, <?= jsx_cavalier_num($x1_v) ?>]], __cavAxisAttrs);
-                board.create('line', [[<?= jsx_cavalier_num($y0_u) ?>, <?= jsx_cavalier_num($y0_v) ?>], [<?= jsx_cavalier_num($y1_u) ?>, <?= jsx_cavalier_num($y1_v) ?>]], __cavAxisAttrs);
-                board.create('line', [[<?= jsx_cavalier_num($z0_u) ?>, <?= jsx_cavalier_num($z0_v) ?>], [<?= jsx_cavalier_num($z1_u) ?>, <?= jsx_cavalier_num($z1_v) ?>]], __cavAxisAttrs);
-                board.create('text', [<?= jsx_cavalier_num($x_label_u) ?>, <?= jsx_cavalier_num($x_label_v) ?>, <?= json_encode($options->x_label) ?>], { fixed: true, anchorX: 'middle', anchorY: 'middle', fontSize: 14, cssStyle: 'font-weight: 900;' });
-                board.create('text', [<?= jsx_cavalier_num($y_label_u) ?>, <?= jsx_cavalier_num($y_label_v) ?>, <?= json_encode($options->y_label) ?>], { fixed: true, anchorX: 'middle', anchorY: 'middle', fontSize: 14, cssStyle: 'font-weight: 900;' });
-                board.create('text', [<?= jsx_cavalier_num($z_label_u) ?>, <?= jsx_cavalier_num($z_label_v) ?>, <?= json_encode($options->z_label) ?>], { fixed: true, anchorX: 'middle', anchorY: 'middle', fontSize: 14, cssStyle: 'font-weight: 900;' });
+                __cavBoundingBoxEdges.forEach(function(edge) {
+                    board.create('segment', [__cavProject(edge[0]), __cavProject(edge[1])], __cavBoundingBoxAttrs);
+                });
 <?
-        if (!$options->show_ticks) {
-            return;
-        }
-
-        jsx_cavalier_print_x_ticks($options, $x_axis_start, $options->x_max, $x_ticks_distance);
-        jsx_cavalier_print_y_ticks($options, $y_axis_start, $options->y_max, $y_ticks_distance);
-        jsx_cavalier_print_z_ticks($options, $z_axis_start, $options->z_max, $z_ticks_distance);
     }
 
-    function jsx_cavalier_print_x_ticks(Plot3DCavalierOptions $options, float $min, float $max, float $step): void {
-        $angle = deg2rad($options->x_axis_angle_degrees);
-        $nx = -sin($angle);
-        $ny = cos($angle);
-        $half_tick = $options->axis_tick_length / 2;
-        $label_offset = 2.5 * $options->axis_tick_length;
-
-        foreach (jsx_cavalier_tick_values($min, $max, $step) as $tick) {
-            if (abs($tick) < 1e-10) {
+    function jsx_cavalier_print_axes(Plot3DCavalierOptions $options, array $axes, array $spacing, float $axis_label_margin): void {
+?>
+                const __cavInitialUnitX = board.unitX;
+                const __cavInitialUnitY = board.unitY;
+                const __cavTickScaleX = function() { return __cavInitialUnitX / board.unitX; };
+                const __cavTickScaleY = function() { return __cavInitialUnitY / board.unitY; };
+<?
+        $origin_tick_owner = null;
+        $origin_number_owner = null;
+        foreach (['x', 'y', 'z'] as $coordinate) {
+            if ($axes[$coordinate]->ticks->is_enabled) {
+                $origin_tick_owner ??= $coordinate;
+                if ($axes[$coordinate]->ticks->numbers) {
+                    $origin_number_owner ??= $coordinate;
+                }
+            }
+        }
+        foreach (['x', 'y', 'z'] as $index => $coordinate) {
+            $axis = $axes[$coordinate];
+            if (!$axis->is_enabled) {
                 continue;
             }
+            $start = [0, 0, 0];
+            $end = [0, 0, 0];
+            $label_position = [0, 0, 0];
+            $start[$index] = jsx_cavalier_axis_start($options->{$coordinate . '_min'}, $options->{$coordinate . '_max'}, $options->axes_extend_to_negative);
+            $end[$index] = $options->{$coordinate . '_max'};
+            $label_position[$index] = $end[$index] + $axis_label_margin;
+            $projected_start = jsx_cavalier_project_php($start[0], $start[1], $start[2], $options);
+            $projected_end = jsx_cavalier_project_php($end[0], $end[1], $end[2], $options);
+            $projected_label = jsx_cavalier_project_php($label_position[0], $label_position[1], $label_position[2], $options);
+?>
+                {
+                    const __cavAxisThickness = <?= $axis->thickness ?>;
+                    const __cavTickAttrs = { fixed: true, straightFirst: false, straightLast: false, strokeColor: 'black', highlightStrokeColor: 'black', strokeWidth: __cavAxisThickness };
+                    board.create('line', <?= jsx_axes_json([$projected_start, $projected_end]) ?>, { ...__cavTickAttrs, lastArrow: true });
+<?
+            if ($axis->label !== '') {
+?>
+                    board.create('text', <?= jsx_axes_json([...$projected_label, $axis->label]) ?>, { fixed: true, anchorX: 'middle', anchorY: 'middle', fontSize: <?= $axis->label_font_size ?>, cssStyle: 'font-weight: 900;' });
+<?
+            }
+            if ($axis->ticks->is_enabled) {
+                $print_ticks = __NAMESPACE__ . '\\jsx_cavalier_print_' . $coordinate . '_ticks';
+                $print_ticks($options, $axis, $start[$index], $end[$index], $spacing[$coordinate]->major, $origin_tick_owner === $coordinate, $origin_number_owner === $coordinate);
+            }
+?>
+                }
+<?
+        }
+    }
 
+    function jsx_cavalier_print_x_ticks(Plot3DCavalierOptions $options, ResolvedAxis $axis, float $min, float $max, float $step, bool $show_origin_tick, bool $show_origin_number): void {
+        $half_tick = 0.4 / 2;
+        $label_margin_px = $axis->ticks->numbers_font_size / 2;
+
+        foreach (jsx_cavalier_tick_values($min, $max, $step) as $tick) {
             [$u, $v] = jsx_cavalier_project_php($tick, 0, 0, $options);
+            if ($show_origin_tick || abs($tick) >= 1e-10) {
 ?>
-                board.create('line', [[<?= jsx_cavalier_num($u - $nx * $half_tick) ?>, <?= jsx_cavalier_num($v - $ny * $half_tick) ?>], [<?= jsx_cavalier_num($u + $nx * $half_tick) ?>, <?= jsx_cavalier_num($v + $ny * $half_tick) ?>]], __cavTickAttrs);
-                board.create('text', [<?= jsx_cavalier_num($u + $nx * $label_offset) ?>, <?= jsx_cavalier_num($v + $ny * $label_offset) ?>, <?= json_encode(jsx_cavalier_tick_label($tick)) ?>], { fixed: true, anchorX: 'middle', anchorY: 'middle', fontSize: 12 });
+                board.create('line', [[function() { return <?= jsx_cavalier_num($u) ?> - <?= jsx_cavalier_num($half_tick) ?> * __cavTickScaleX() - 0.5 * __cavAxisThickness / board.unitX; }, <?= jsx_cavalier_num($v) ?>], [function() { return <?= jsx_cavalier_num($u) ?> + <?= jsx_cavalier_num($half_tick) ?> * __cavTickScaleX() + 0.5 * __cavAxisThickness / board.unitX; }, <?= jsx_cavalier_num($v) ?>]], __cavTickAttrs);
 <?
+            }
+            if ($axis->ticks->numbers && ($show_origin_number || abs($tick) >= 1e-10)) {
+?>
+                board.create('text', [function() { return <?= jsx_cavalier_num($u) ?> - (<?= jsx_cavalier_num($label_margin_px) ?> + __cavAxisThickness) / board.unitX; }, <?= jsx_cavalier_num($v) ?>, <?= json_encode(jsx_cavalier_tick_label($tick)) ?>], { fixed: true, anchorX: 'right', anchorY: 'middle', fontSize: <?= $axis->ticks->numbers_font_size ?> });
+<?
+            }
         }
     }
 
-    function jsx_cavalier_print_y_ticks(Plot3DCavalierOptions $options, float $min, float $max, float $step): void {
-        $half_tick = $options->axis_tick_length / 2;
-        $label_offset = 2.5 * $options->axis_tick_length;
+    function jsx_cavalier_print_y_ticks(Plot3DCavalierOptions $options, ResolvedAxis $axis, float $min, float $max, float $step, bool $show_origin_tick, bool $show_origin_number): void {
+        $half_tick = 0.4 / 2;
+        $label_margin_px = $axis->ticks->numbers_font_size / 4;
 
         foreach (jsx_cavalier_tick_values($min, $max, $step) as $tick) {
-            if (abs($tick) < 1e-10) {
-                continue;
-            }
 
             [$u, $v] = jsx_cavalier_project_php(0, $tick, 0, $options);
+            if ($show_origin_tick || abs($tick) >= 1e-10) {
 ?>
-                board.create('line', [[<?= jsx_cavalier_num($u) ?>, <?= jsx_cavalier_num($v - $half_tick) ?>], [<?= jsx_cavalier_num($u) ?>, <?= jsx_cavalier_num($v + $half_tick) ?>]], __cavTickAttrs);
-                board.create('text', [<?= jsx_cavalier_num($u) ?>, <?= jsx_cavalier_num($v - $label_offset) ?>, <?= json_encode(jsx_cavalier_tick_label($tick)) ?>], { fixed: true, anchorX: 'middle', anchorY: 'top', fontSize: 12 });
+                board.create('line', [[<?= jsx_cavalier_num($u) ?>, function() { return <?= jsx_cavalier_num($v) ?> - <?= jsx_cavalier_num($half_tick) ?> * __cavTickScaleY() - 0.5 * __cavAxisThickness / board.unitY; }], [<?= jsx_cavalier_num($u) ?>, function() { return <?= jsx_cavalier_num($v) ?> + <?= jsx_cavalier_num($half_tick) ?> * __cavTickScaleY() + 0.5 * __cavAxisThickness / board.unitY; }]], __cavTickAttrs);
 <?
+            }
+            if ($axis->ticks->numbers && ($show_origin_number || abs($tick) >= 1e-10)) {
+?>
+                board.create('text', [<?= jsx_cavalier_num($u) ?>, function() { return <?= jsx_cavalier_num($v) ?> - (<?= jsx_cavalier_num($label_margin_px) ?> + __cavAxisThickness) / board.unitY; }, <?= json_encode(jsx_cavalier_tick_label($tick)) ?>], { fixed: true, anchorX: 'middle', anchorY: 'top', fontSize: <?= $axis->ticks->numbers_font_size ?> });
+<?
+            }
         }
     }
 
-    function jsx_cavalier_print_z_ticks(Plot3DCavalierOptions $options, float $min, float $max, float $step): void {
-        $half_tick = $options->axis_tick_length / 2;
-        $label_offset = 2.5 * $options->axis_tick_length;
+    function jsx_cavalier_print_z_ticks(Plot3DCavalierOptions $options, ResolvedAxis $axis, float $min, float $max, float $step, bool $show_origin_tick, bool $show_origin_number): void {
+        $half_tick = 0.4 / 2;
+        $label_offset = 0.75 * 0.4;
 
         foreach (jsx_cavalier_tick_values($min, $max, $step) as $tick) {
-            if (abs($tick) < 1e-10) {
-                continue;
-            }
 
             [$u, $v] = jsx_cavalier_project_php(0, 0, $tick, $options);
+            if ($show_origin_tick || abs($tick) >= 1e-10) {
 ?>
-                board.create('line', [[<?= jsx_cavalier_num($u - $half_tick) ?>, <?= jsx_cavalier_num($v) ?>], [<?= jsx_cavalier_num($u + $half_tick) ?>, <?= jsx_cavalier_num($v) ?>]], __cavTickAttrs);
-                board.create('text', [<?= jsx_cavalier_num($u - $label_offset) ?>, <?= jsx_cavalier_num($v) ?>, <?= json_encode(jsx_cavalier_tick_label($tick)) ?>], { fixed: true, anchorX: 'right', anchorY: 'middle', fontSize: 12 });
+                board.create('line', [[function() { return <?= jsx_cavalier_num($u) ?> - <?= jsx_cavalier_num($half_tick) ?> * __cavTickScaleX() - 0.5 * __cavAxisThickness / board.unitX; }, <?= jsx_cavalier_num($v) ?>], [function() { return <?= jsx_cavalier_num($u) ?> + <?= jsx_cavalier_num($half_tick) ?> * __cavTickScaleX() + 0.5 * __cavAxisThickness / board.unitX; }, <?= jsx_cavalier_num($v) ?>]], __cavTickAttrs);
 <?
+            }
+            if ($axis->ticks->numbers && ($show_origin_number || abs($tick) >= 1e-10)) {
+?>
+                board.create('text', [function() { return <?= jsx_cavalier_num($u) ?> - <?= jsx_cavalier_num($label_offset) ?> * __cavTickScaleX() - __cavAxisThickness / board.unitX; }, <?= jsx_cavalier_num($v) ?>, <?= json_encode(jsx_cavalier_tick_label($tick)) ?>], { fixed: true, anchorX: 'right', anchorY: 'middle', fontSize: <?= $axis->ticks->numbers_font_size ?> });
+<?
+            }
         }
     }
 
-    function jsx_cavalier_print_point(string $name, Point $point): void {
+    function jsx_cavalier_print_point(string $name, Point $point, Plot3DCavalierOptions $options): void {
 ?>
                 const <?= $name ?> = board.create('point',
                     <?= jsx_cavalier_projected_vec_js($point->vec) ?>,
@@ -313,7 +390,7 @@
 <?
         if ($point->label !== null) {
 ?>
-                        label: { autoPosition: true, strokeColor: '<?= translate_color_to_hex($point->color) ?>', fontSize: <?= $point->label_font_size ?> },
+                        label: { autoPosition: true, autoPositionMinDistance: <?= $options->point_label_auto_position_min_distance ?>, autoPositionMaxDistance: <?= $options->point_label_auto_position_max_distance ?>, strokeColor: '<?= translate_color_to_hex($point->color) ?>', fontSize: <?= translate_font_size_to_pixels($options->base_font_size, $point->label_font_size_adjust) ?> },
                         withLabel: true,
 <?
         }
@@ -332,7 +409,7 @@
 <?
     }
 
-    function jsx_cavalier_print_line(string $name, Line $line): void {
+    function jsx_cavalier_print_line(string $name, Line $line, Plot3DCavalierOptions $options): void {
         $element_type = 'line';
         $point_a = jsx_cavalier_projected_vec_js($line->point_a);
         $point_b = jsx_cavalier_projected_vec_js($line->point_b);
@@ -352,7 +429,7 @@
 ?>
                         name: <?= json_encode($line->label) ?>,
                         withLabel: true,
-                        label: { strokeColor: '<?= translate_color_to_hex($line->color) ?>', fontSize: <?= $line->label_font_size ?>, position: '50% left', anchorX: 'middle', anchorY: 'middle' },
+                        label: { strokeColor: '<?= translate_color_to_hex($line->color) ?>', fontSize: <?= translate_font_size_to_pixels($options->base_font_size, $line->label_font_size_adjust) ?>, position: '50% left', anchorX: 'middle', anchorY: 'middle' },
 <?
         }
 ?>
@@ -533,10 +610,10 @@
         $margin = 0.08 * $span + 0.5;
 
         return [
-            $options->board_x_min ?? $u_min - $margin,
-            $options->board_x_max ?? $u_max + $margin,
-            $options->board_y_min ?? $v_min - $margin,
-            $options->board_y_max ?? $v_max + $margin,
+            $u_min - $margin,
+            $u_max + $margin,
+            $v_min - $margin,
+            $v_max + $margin,
         ];
     }
 

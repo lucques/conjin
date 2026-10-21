@@ -1,5 +1,5 @@
 <?
-    $init_preprocessing_target = function(Module $m, TargetPreprocessContext $c) {
+    $preprocess_target = function(Module $m, TargetPreprocessContext $c) {
         
         $path = path_collect($c->target_ids);
         $items = scandir($path);

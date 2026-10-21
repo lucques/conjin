@@ -15,6 +15,53 @@
         flex: 1 1 auto;
     }
 
+    .accordion-header-with-anchor {
+        position: relative;
+
+        &:not(.accordion-header-with-action) {
+            display: block;
+        }
+
+        > .accordion-button,
+        > .block-title {
+            padding-right: calc(var(--bs-accordion-btn-padding-x) + 2.6rem);
+        }
+
+        @media screen {
+            &:not(.block-header) {
+                > .accordion-button {
+                    padding-right: var(--bs-accordion-btn-padding-x);
+
+                    &::after {
+                        margin-left: 2.6rem;
+                    }
+                }
+
+                > .accordion-button ~ a.accordion-anchor {
+                    right: calc(var(--bs-accordion-btn-padding-x) + var(--bs-accordion-btn-icon-width));
+                }
+            }
+        }
+    }
+
+    a.accordion-anchor {
+        position: absolute;
+        // Bootstrap raises the collapse button on hover and focus.
+        z-index: 4;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.6rem;
+        color: var(--bs-secondary);
+
+        &:focus-visible {
+            outline-offset: -3px;
+        }
+    }
+
     .accordion-header-with-action {
         display: flex;
         align-items: stretch;

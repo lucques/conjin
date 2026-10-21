@@ -6,11 +6,13 @@ It also exposes PHP helpers for aligned equation sets:
 
 ```php
 mjax_eqset_start();
-mjax_eqset_line($left, $right, $transformation = null, $show_bar = true, $sign = '=', $margin_bottom_cm = null);
+mjax_eqset_line($left, $right, $transformation = null, $show_bar = true, $sign = '=', $margin_bottom_cm = null, $connector_sign = '\\Leftrightarrow');
 mjax_eqset_end();
 ```
 
 If `margin_bottom_cm` is set, the helper emits `\\[<margin_bottom_cm>cm]`, which adds extra vertical space after that row.
+
+`connector_sign` controls the connector printed before every line except the first one. It defaults to `\Leftrightarrow`; pass `connector_sign: '\Rightarrow'` for an implication step.
 
 When an equivalence transformation uses `\pm \sqrt{...}`, the result is two equations. End the active equation set with `mjax_eqset_end()` at that point and continue the two cases below, using separate equation sets if the cases need further transformations.
 
@@ -62,3 +64,5 @@ You can also use it together with an `alignedat` environment.
 ## Examples
 
 See the [demo page](../../../../demo-app/src/content/module-demos/mathjax-extensions/index.php).
+
+When page-prep is active, MathJax post-render hooks run after its explicit render pass; on ordinary pages they run after the automatic initial pass.

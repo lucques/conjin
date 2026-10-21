@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         doc_extensions_add_body_class('language-' . $module->config->get('language'));
         doc_extensions_add_body_class(($module->config->get('line_numbers') ? '' : 'no-') . 'line-numbers');
 

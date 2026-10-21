@@ -135,7 +135,8 @@ let DockerDeplT = {
     , conjinDir            : Text
     , appDir               : Text
     , targetDir            : Text
-    , cssVolDir               : Text
+    , cssVolDir            : Text
+    , targetSplitDepth     : Natural
 
     , authentication       : AuthenticationT
     , authorization        : AuthorizationT
@@ -174,6 +175,7 @@ let RemoteDeplT = {
     , depl: DockerDeplT
     , desktopIntegration: DesktopIntegration
     , host: Text
+    , internalDir: Text
     , pathBase: Text
     , urlBase: Text
     , https: HTTPST

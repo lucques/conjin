@@ -1,8 +1,11 @@
 <?
     use Conjin\ModulesShared\GraphingTypes as GT;
-    use Conjin\ModulesShared\GraphingTypes\System2D as G2D;
+use Conjin\ModulesShared\GraphingTypes\FontSize;
+use Conjin\ModulesShared\GraphingTypes\System2D as G2D;
     use Conjin\ModulesShared\GraphingTypes\System3DIndep as G3DI;
     use Conjin\ModulesShared\JSXGraphHelpers as JSX;
+use Conjin\ModulesShared\JSXGraphHelpers\Pan;
+use Conjin\ModulesShared\JSXGraphHelpers\Zoom;
 
     $preprocess = function (TargetPreprocessContext $c) {
         $c->activate_template('template-interbook');
@@ -23,22 +26,25 @@
 
 <?
     JSX\plot_sequences(
-        new GT\SequencePlotOptions(
-            n_max: 10,
-            y_min: 0,
+        new JSX\SequencePlotOptions(
+            x_min: -0.5,
+            x_max: 10.5,
+            y_min: -1,
             y_max: 12,
             width: 700,
-            height: 400
+            height: 400,
+            zoom: Zoom::EnabledWithNav,
+            pan: Pan::EnabledWithNav,
         ),
         [
             'explicit' => new GT\ExplicitSequence(
                 function_js: '(n) => Math.sqrt(n) + 1',
-                color: GT\Color::Blue
+                color: GT\Color::Blue,
             ),
             'recursive' => new GT\RecursiveSequence(
                 init_val_js: '10',
                 step_fun_js: '(a, n) => 0.7 * a + 1',
-                color: GT\Color::Orange
+                color: GT\Color::Orange,
             ),
         ]
     );
@@ -46,17 +52,26 @@
 
 <h2>Two-dimensional system</h2>
 
-<p>A Cartesian board can combine function graphs, integrals, lines, and points.</p>
+<p>A Cartesian board can combine function graphs, integrals, lines, and points. Here, ticks and grid lines share unit intervals divided into five parts; axis appearance is configured separately.</p>
 
 <?
     JSX\plot_2d(
         new JSX\GraphOptions(
-            x_min: -5,
-            x_max: 5,
-            y_min: -4,
-            y_max: 6,
-            width: 700,
-            height: 450
+            viewport: new JSX\Viewport2D(
+                width: 700,
+                height: 450,
+                x_min: -5,
+                x_max: 5,
+                y_min: -4,
+                y_max: 6,
+            ),
+            axes: JSX\Axes2D::enabled(
+                default: JSX\Axis::enabled(thickness: 1.25),
+            ),
+            spacing: new JSX\Spacing2D(default: JSX\Spacing::fixed(major: 1, subdivisions: 5)),
+            grid: JSX\Grid2D::enabled(minor: true),
+            zoom: Zoom::EnabledWithNav,
+            pan: Pan::EnabledWithNav,
         ),
         [
             'graph_f' => new G2D\FunctionGraph(
@@ -66,8 +81,8 @@
             ),
             'integral' => new G2D\Integral(
                 graph_element_id: 'graph_f',
-                x_start_fun_js: '-2',
-                x_end_fun_js: '2',
+                x_start_fun_js: '() => -2',
+                x_end_fun_js: '() => 2',
                 label: 'Area',
                 color: GT\Color::Orange
             ),
@@ -140,8 +155,11 @@
             z_max: 4,
             width: 700,
             height: 500,
-            show_bounding_box: true,
-            axes_extend_to_negative: true
+            azimuth: M_PI / 4 + M_PI / 8,
+            // show_bounding_box: true,
+            axes_extend_to_negative: false,
+            zoom: Zoom::EnabledWithNav,
+            pan: Pan::EnabledWithNav,
         ),
         $scene_3d
     );
@@ -162,9 +180,10 @@
             z_max: 4,
             width: 700,
             height: 500,
-            enable_pan: false,
-            enable_zoom: false,
-            axes_extend_to_negative: true
+            show_bounding_box: true,
+            axes_extend_to_negative: true,
+            zoom: Zoom::EnabledWithNav,
+            pan: Pan::EnabledWithNav,
         ),
         $scene_3d
     );

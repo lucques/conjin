@@ -32,6 +32,47 @@
     background: var(--bs-accordion-active-bg);
 }
 
+.accordion-header-with-anchor {
+    position: relative;
+}
+
+.accordion-header-with-anchor > .accordion-button,
+.accordion-header-with-anchor > .block-title {
+    padding-right: calc(.85rem + 2.6rem);
+}
+
+a.accordion-anchor {
+    position: absolute;
+    z-index: 4;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    color: var(--bs-secondary, #6c757d);
+}
+
+a.accordion-anchor:focus-visible {
+    outline-offset: -3px;
+}
+
+@media screen {
+    .accordion-header-with-anchor > .accordion-button {
+        padding-right: .85rem;
+    }
+
+    .accordion-header-with-anchor > .accordion-button::after {
+        margin-left: 2.6rem;
+    }
+
+    .accordion-header-with-anchor > .accordion-button ~ a.accordion-anchor {
+        /* The icon's content width plus its right border. */
+        right: calc(.85rem + .65rem + 2px);
+    }
+}
+
 .accordion-header-with-action:has(.accordion-button.collapsed) {
     border-bottom-width: 0;
     background: var(--bs-accordion-btn-bg);

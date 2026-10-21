@@ -43,6 +43,18 @@ Returns each grade's inclusive minimum and maximum score for the given total poi
 
 `__construct(array $grading_config, array $max_points, int $converted_to_bonus_points = 0)` creates a list. `add(string $student_last, string $student_first, ?array $points = null, ?float $bonus_points = 0)` adds a populated or blank row, and `print()` renders the table.
 
+`print_statistics_table(array $bucket_sizes): void` prints grade buckets from worst to best, with separate count and percentage rows. Each positive integer specifies the number of consecutive grades in a bucket; the sizes must cover every grade in the configuration exactly, otherwise an `InvalidArgumentException` is thrown. Entries without assigned points are excluded from both counts and the percentage denominator. Percentages use one decimal place and a decimal comma; an empty list shows zero counts and `0,0 %`.
+
+For a 0–15 configuration, `$list->print_statistics_table([5, 3, 3, 3, 2])` produces headers `0 bis 4`, `5 bis 7`, `8 bis 10`, `11 bis 13`, and `14 bis 15`. A bucket containing one grade uses that grade alone as its header. Other configurations follow the same worst-to-best order, including grades with tendencies.
+
+`print_statistics_diagram(array $bucket_sizes): void` renders the same buckets as a responsive vertical bar chart using the `chart-js` module. Bar heights show counts; tooltips show counts and percentages. Validation and exclusion of ungraded entries match `print_statistics_table()`. Multiple diagrams can be printed on the same page.
+
+The grading module automatically activates `chart-js` during preprocessing.
+
+```php
+$list->print_statistics_diagram([5, 3, 3, 3, 2]);
+```
+
 ### `GradeListEntry`
 
 `get_total_points()` returns exercise and bonus points; `get_grade(array $grading_config, int $max_points)` returns the matching grade. Both require assigned exercise points.
@@ -52,6 +64,7 @@ Returns each grade's inclusive minimum and maximum score for the given total poi
 ### Requirements
 
 - Compatible Bootstrap table styles for the intended `GradeList` presentation.
+- `chart-js` is automatically activated by the grading module.
 
 ## Examples
 

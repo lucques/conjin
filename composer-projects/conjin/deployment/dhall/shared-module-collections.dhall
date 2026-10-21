@@ -19,6 +19,7 @@ let minimal = [
     , SharedBareModule.NavCommon {=}
     , SharedBareModule.NavView {=}
     , SharedBareModule.Nuggets {=}
+    , SharedBareModule.PagePrep {=}
     , SharedBareModule.PrintMode {=}
     , SharedBareModule.References {=}
     , SharedBareModule.Source {=}
@@ -41,6 +42,7 @@ let full = minimal # [
     -- Local
     , SharedBareModule.DbMysql {=}
     , SharedBareModule.Exercise {=}
+    , SharedBareModule.FeedbackCollector {=}
     , SharedBareModule.Grading {=}
     , SharedBareModule.GraphingTypes {=}
     , SharedBareModule.Hamster {=}
@@ -63,9 +65,10 @@ let full = minimal # [
     -- External
     , SharedBareModule.ChartJs {=}
     , SharedBareModule.Fullcalendar {=}
+    , SharedBareModule.JsonEditor {=}
+    , SharedBareModule.JsxGraph {=}
     , SharedBareModule.Mathjs {=}
     , SharedBareModule.Nerdamer {=}
-    , SharedBareModule.JsxGraph {=}
     , SharedBareModule.PagedJs {=}
     , SharedBareModule.Picocss {=}
     , SharedBareModule.SpinningWheel {=}

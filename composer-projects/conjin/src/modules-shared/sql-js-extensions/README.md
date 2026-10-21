@@ -5,7 +5,7 @@ This module adds PHP helpers for creating and querying sql.js databases and Java
 ## Dependencies
 
 - `sql-js`: Provides the browser-side SQLite runtime and is activated automatically.
-- `js-standard-lib`: Provides unique browser-side IDs for collapsible schema results and is activated automatically.
+- `js-standard-lib`: Provides unique browser-side IDs and is activated automatically.
 
 ## Database helpers
 
@@ -23,7 +23,7 @@ All dynamic strings emitted into inline scripts are JSON encoded. Fetch helpers 
 - `sql_js_print_schema_with_queried_results($db_var, $tables, $show_button = true)`: Renders schema metadata and optional query results. Result rows can be collapsed when buttons are enabled.
 - `sql_js_print_schema($tables)`: Renders schema metadata without querying a database.
 
-The print helpers leave rejected promises unhandled so that SQL and loading failures remain observable as browser JavaScript errors. Call the lower-level promise helpers directly when an application needs custom error handling.
+When page-prep is active, asynchronous result and queried-schema helpers register their rendering promises through pagePrep, including the DOM update, before initialContentReady. A failure rejects that barrier and prevents pagination. Without page-prep, the same queries and DOM updates run asynchronously with no readiness tracking. Call the lower-level promise helpers directly when an application needs custom error handling or recurring interactive updates.
 
 Each schema table has a `name` and a `columns` list. A data column uses `['type' => 'data', 'name' => 'column_name']` and may set `isPartOfPrimaryKey` or `isPartOfForeignKey`; an ellipsis column uses `['type' => 'ellipsis']`. A table may additionally define `sql`, `truncated`, and `open`.
 

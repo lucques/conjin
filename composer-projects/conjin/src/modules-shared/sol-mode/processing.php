@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $is_always_on  = $module->config->get('always_on');
         $is_always_off = $module->config->get('always_off');
         assert(!$is_always_on && !$is_always_off, 'Incompatible options');

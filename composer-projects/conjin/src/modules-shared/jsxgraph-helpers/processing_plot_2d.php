@@ -3,6 +3,7 @@
 
     use Conjin\ModulesShared\GraphingTypes\Color;
     use Conjin\ModulesShared\GraphingTypes\CustomElement;
+    use Conjin\ModulesShared\GraphingTypes\FontSize;
     use Conjin\ModulesShared\GraphingTypes\Stroke;
     use Conjin\ModulesShared\GraphingTypes\System2D\FunctionGraph;
     use Conjin\ModulesShared\GraphingTypes\System2D\Integral;
@@ -16,27 +17,34 @@
     /////////////////////
 
     readonly class GraphOptions {
+        public Axes2D $axes;
+        public Grid2D $grid;
+
         public function __construct(
-            public float   $x_min,
-            public float   $x_max,
-            public float   $y_min,
-            public float   $y_max,
-            public int     $width,
-            public int     $height,
-            public ?float  $x_ticks_distance = null,
-            public ?float  $y_ticks_distance = null,
-            public int     $x_ticks_minors = 4,
-            public int     $y_ticks_minors = 4,
-            // JavaScript formatter function taking the x coordinate and returning the tick label text, e.g. "(x) => x*60 + '/60'".
-            public ?string $x_ticks_label_formatter = null,
-            // JavaScript formatter function taking the y coordinate and returning the tick label text, e.g. "(y) => y*60 + '/60'".
-            public ?string $y_ticks_label_formatter = null,
-            public string  $x_label = 'x',
-            public string  $y_label = 'y',
-            public bool    $show_grid  = true,  // Grid has same distances as ticks.
-            public bool    $show_ticks = true,  // When ticks are shown, grid is implicitly also shown.
-            public bool    $high_contrast = false,
-        ) {}
+            public Viewport2D $viewport,
+            ?Axes2D $axes = null,
+            public Spacing2D $spacing = new Spacing2D(),
+            ?Grid2D $grid = null,
+            public PrintMode $print_mode = PrintMode::Auto,
+            public Zoom $zoom = Zoom::Disabled,
+            public Pan $pan = Pan::Disabled,
+            public WheelBehavior $wheel_behavior = WheelBehavior::Disabled,
+            public PinchBehavior $pinch_behavior = PinchBehavior::Disabled,
+            public TwoFingerTranslationBehavior $two_finger_translation_behavior = TwoFingerTranslationBehavior::Disabled,
+            public OneFingerDragBehavior2D $one_finger_drag_behavior = OneFingerDragBehavior2D::Disabled,
+            public MouseDragBehavior2D $mouse_drag_behavior = MouseDragBehavior2D::Disabled,
+            public FontSize $base_font_size = FontSize::MD,
+            public float $point_label_auto_position_min_distance = POINT_LABEL_AUTO_POSITION_MIN_DISTANCE, // in pixels
+            public float $point_label_auto_position_max_distance = POINT_LABEL_AUTO_POSITION_MAX_DISTANCE, // in pixels
+        ) {
+            $this->axes = $axes ?? Axes2D::enabled();
+            $this->grid = $grid ?? Grid2D::enabled();
+            jsx_validate_point_label_auto_position_distances(
+                $this->point_label_auto_position_min_distance,
+                $this->point_label_auto_position_max_distance,
+                '2D plot',
+            );
+        }
     }
 
 
@@ -48,71 +56,45 @@
         GraphOptions $options,
         array $elements      // array of System2DElement|ControlElement
     ) {
+        $print_mode = jsx_resolve_print_mode($options->print_mode);
+        $axes = jsx_resolve_axes($options->axes, $options->base_font_size, $print_mode);
+        $spacing = jsx_resolve_spacing($options->spacing);
+        $interactions = jsx_resolve_2d_plot_interactions(
+            plot_name: 'plot_2d',
+            zoom: $options->zoom,
+            pan: $options->pan,
+            wheel_behavior: $options->wheel_behavior,
+            pinch_behavior: $options->pinch_behavior,
+            two_finger_translation_behavior: $options->two_finger_translation_behavior,
+            one_finger_drag_behavior: $options->one_finger_drag_behavior,
+            mouse_drag_behavior: $options->mouse_drag_behavior,
+        );
         $id = 'jsxgraph-plot-' . next_unique_id();
 ?>
-        <div id="<?= $id ?>" class="jsxgraph-plot" style="width: <?= $options->width ?>px; height: <?= $options->height ?>px;"></div>
+        <div id="<?= $id ?>" class="jsxgraph-plot" style="width: <?= $options->viewport->width ?>px; height: <?= $options->viewport->height ?>px;"></div>
         <script>
-            document.addEventListener("DOMContentLoaded", function() {
+            jsx_register_initial_board('<?= $id ?>', function() {
                 var board = JXG.JSXGraph.initBoard('<?= $id ?>', {
                     showCopyright: false,
-                    boundingbox: [<?= $options->x_min ?>, <?= $options->y_max ?>, <?= $options->x_max ?>, <?= $options->y_min ?>],
-                    axis: true,
-                    grid: <?= $options->show_grid ? "{ majorStep: [" . ($options->x_ticks_distance ?? "'auto'") . ", " . ($options->y_ticks_distance ?? "'auto'") . "] }" : 'false' ?>,
-                    showNavigation: false,
+                    boundingbox: [<?= $options->viewport->x_min ?>, <?= $options->viewport->y_max ?>, <?= $options->viewport->x_max ?>, <?= $options->viewport->y_min ?>],
+                    axis: false,
+                    grid: false,
+                    showNavigation: <?= $interactions->show_navigation ? 'true' : 'false' ?>,
+                    showZoom: <?= $interactions->show_zoom ? 'true' : 'false' ?>,
                     keepaspectratio: false,
-                    pan: { enabled: false },
-                    zoom: { enabled: false },
-                    defaultAxes: {
-                        x : {
-<?
-    if ($options->high_contrast) {
-?>
-                            strokeColor: 'black',
-<?
-    }
-?>
-                            name: '<?= $options->x_label ?>',
-                            withLabel: true,
-                            label: { fontSize: 14, cssStyle: 'font-weight: 900;', position: 'last', offset: [5, 3], anchorX: 'right', anchorY: 'bottom'},
-<?
-    if (!$options->show_ticks) {
-?>
-                            ticks: { visible: false },
-<?
-    }
-    else {
-?>
-                            ticks: { insertTicks: <?= $options->x_ticks_distance !== null ? 'false' : 'true' ?>, generateLabelText: function(tick, zero) { const coord = tick.usrCoords[1]; const formatter = <?= $options->x_ticks_label_formatter ?? 'null' ?>; return formatter === null ? String(Math.round(coord*100)/100) : formatter(coord); }, <?= $options->x_ticks_distance !== null ? 'ticksDistance: ' . $options->x_ticks_distance . ', ' : '' ?>minorTicks: <?= $options->x_ticks_minors ?> },
-<?
-    }
-?>
-                        },
-                        y : {
-<?
-    if ($options->high_contrast) {
-?>
-                            strokeColor: 'black',
-<?
-    }
-?>
-                            withLabel: true,
-                            name: '<?= $options->y_label ?>',
-                            label: { fontSize: 14, cssStyle: 'font-weight: 900;', position: 'last', offset: [6, 5], anchorX: 'left'},
-<?
-    if (!$options->show_ticks) {
-?>
-                            ticks: { visible: false },
-<?
-    }
-    else {
-?>
-                            ticks: { insertTicks: <?= $options->y_ticks_distance !== null ? 'false' : 'true' ?>, generateLabelText: function(tick, zero) { const coord = tick.usrCoords[2]; const formatter = <?= $options->y_ticks_label_formatter ?? 'null' ?>; return formatter === null ? String(Math.round(coord*100)/100) : formatter(coord); }, <?= $options->y_ticks_distance !== null ? 'ticksDistance: ' . $options->y_ticks_distance . ', ' : '' ?>minorTicks: <?= $options->y_ticks_minors ?> },
-<?
-    }
-?>
-                        }
-                    }
+                    pan: {
+                        enabled: <?= $interactions->pan_enabled ? 'true' : 'false' ?>,
+                        needTwoFingers: <?= $interactions->pan_need_two_fingers ? 'true' : 'false' ?>
+                    },
+                    zoom: {
+                        enabled: <?= $interactions->zoom_enabled ? 'true' : 'false' ?>,
+                        wheel: <?= $interactions->zoom_wheel ? 'true' : 'false' ?>,
+                        pinch: <?= $interactions->zoom_pinch ? 'true' : 'false' ?>
+                    },
                 });
+<?
+        jsx_print_2d_axes_setup($axes, $spacing, $options->grid, $print_mode);
+?>
 <?
                 // Go through elements
                 foreach ($elements as $name => $e) {
@@ -133,7 +115,7 @@
 <?
                         if ($e->label !== null) {   
 ?>
-                        label: { autoPosition: true, strokeColor: '<?= translate_color_to_hex($e->color) ?>', fontSize: <?= $e->label_font_size ?> },
+                        label: { autoPosition: true, autoPositionMinDistance: <?= $options->point_label_auto_position_min_distance ?>, autoPositionMaxDistance: <?= $options->point_label_auto_position_max_distance ?>, strokeColor: '<?= translate_color_to_hex($e->color) ?>', fontSize: <?= translate_font_size_to_pixels($options->base_font_size, $e->label_font_size_adjust) ?> },
 <?
                         }
 ?>
@@ -256,9 +238,13 @@
                         if ($e->label !== null) {   
 ?>
                         name: '<?= $e->label ?>',
-                        withLabel: true,
-                        label: { strokeColor: '<?= translate_color_to_hex($e->color) ?>', fontSize: <?= $e->label_font_size ?>, position: '50% left', anchorX: 'middle', anchorY: 'middle'},
+                        withLabel: <?= $e->is_segment ? 'false' : 'true' ?>,
 <?
+                            if (!$e->is_segment) {
+?>
+                        label: { strokeColor: '<?= translate_color_to_hex($e->color) ?>', fontSize: <?= translate_font_size_to_pixels($options->base_font_size, $e->label_font_size_adjust) ?>, position: '50% left', anchorX: 'middle', anchorY: 'middle'},
+<?
+                            }
                         }
 ?>
                         fixed: true,
@@ -271,8 +257,32 @@
                     }
                 );
 <?
+                        if ($e->is_segment && $e->label !== null) {
+                            $label_font_size = translate_font_size_to_pixels($options->base_font_size, $e->label_font_size_adjust);
+?>
+                jsx_create_segment_midpoint_label(
+                    board,
+                    <?= $name ?>,
+                    '<?= $e->label ?>',
+                    <?= 0.75 * $label_font_size ?>,
+                    {
+                        fixed: true,
+                        anchorX: 'middle',
+                        anchorY: 'middle',
+                        strokeColor: '<?= translate_color_to_hex($e->color) ?>',
+                        highlightStrokeColor: '<?= translate_color_to_hex($e->color) ?>',
+                        fontSize: <?= $label_font_size ?>,
+                        useMathJax: true,
+                        visible: <?= $e->visible_fun_js ?>,
+                    }
+                );
+<?
+                        }
                     }
                     elseif ($e instanceof FunctionGraph) {
+
+                        $graph_x_start_js = $e->x_start_fun_js ?? '() => board.getBoundingBox()[0]';
+                        $graph_x_end_js = $e->x_end_fun_js ?? '() => board.getBoundingBox()[2]';
 
                         ///////////////////
                         // FunctionGraph //
@@ -280,7 +290,7 @@
 ?>
                 const <?= $name ?> = board.create(
                     'functiongraph',
-                    [<?= $e->function_js ?>, <?= $e->x_start_fun_js !== null ? $e->x_start_fun_js : $options->x_min ?>, <?= $e->x_end_fun_js !== null ? $e->x_end_fun_js : $options->x_max ?>],
+                    [<?= $e->function_js ?>, <?= $graph_x_start_js ?>, <?= $graph_x_end_js ?>],
                     {
                         strokeColor: '<?= translate_color_to_hex($e->color) ?>',
                         strokeWidth: <?= $e->thickness ?>,
@@ -289,7 +299,7 @@
 ?>
                         name: '<?= $e->label ?>',
                         withLabel: true,
-                        label: { strokeColor: '<?= translate_color_to_hex($e->color) ?>', fontSize: <?= $e->label_font_size ?>, position: '50% left', anchorX: 'middle', anchorY: 'middle'},
+                        label: { strokeColor: '<?= translate_color_to_hex($e->color) ?>', fontSize: <?= translate_font_size_to_pixels($options->base_font_size, $e->label_font_size_adjust) ?>, position: '50% left', anchorX: 'middle', anchorY: 'middle'},
 <?
                         }
 ?>
@@ -331,7 +341,7 @@
                     {
                         anchorX: 'middle',
                         anchorY: 'middle',
-                        strokeColor: '<?= translate_color_to_hex($e->color) ?>', fontSize: <?= $e->label_font_size ?>
+                        strokeColor: '<?= translate_color_to_hex($e->color) ?>', fontSize: <?= translate_font_size_to_pixels($options->base_font_size, $e->label_font_size_adjust) ?>
                     }
                 );
 <?
@@ -376,12 +386,12 @@
 
             plot_2d(
                 new GraphOptions(
-                    x_min: -5,
-                    x_max: 5,
-                    y_min: -5,
-                    y_max: 5,
-                    width: 250,
-                    height: 250
+                    viewport: Viewport2D::fromXRange(
+                        width: 250,
+                        height: 250,
+                        x_min: -5,
+                        x_max: 5,
+                    ),
                 ),
                 $elements
             );

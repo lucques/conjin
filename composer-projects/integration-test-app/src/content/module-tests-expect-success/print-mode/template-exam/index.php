@@ -6,7 +6,6 @@
             'title'       => 'Print mode',
         ]);
         $c->activate_module('nav-build');
-        $c->activate_module('mathjax-extensions');
     };
 ?>
 
@@ -21,7 +20,14 @@
         css_print_mode_end();
 ?>
 
-<p id="first-page">First page: $x = 1$</p>
+<p id="first-page">First page</p>
+<?
+        if (isset($_GET['load_gate'])) {
+?>
+<img id="print-mode-load-gate" src="./res/load-gate.svg" alt="">
+<?
+        }
+?>
 <?
         page_break('a4', false);
 ?>

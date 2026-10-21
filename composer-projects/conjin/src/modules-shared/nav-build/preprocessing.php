@@ -37,7 +37,7 @@
 
             $this->nav_item = new TargetNavItem(
                 target_ids:        $this->ctx->target_ids,
-                has_content:       $this->ctx->content_location == ContentLocation::INLINE || $this->ctx->content_location == ContentLocation::EXTRA,
+                has_content:       $this->ctx->content_location == ContentLocation::INLINE,
                 title:             $title,
                 privileged_actors: $this->ctx->actions_ser_2_actorlist_ser[$view_action_ser] ?? [],
             );
@@ -59,7 +59,7 @@
 
     }
 
-    $init_preprocessing_target = function(Module $m, TargetPreprocessContext $c) {
+    $preprocess_target = function(Module $m, TargetPreprocessContext $c) {
         $c->activate_module('nav-common');
         $c->activate_module('html');     // The function `nav_h` depends on `html_h`
         $c->activate_module('anchors');  // The function `nav_h` depends on `anchor_create`

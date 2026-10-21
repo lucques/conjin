@@ -4,6 +4,7 @@ from common import (
     phase_build_dhall_artifacts,
     phase_build_dirs,
     phase_build_htaccess,
+    phase_build_public_entrypoints,
     phase_build_users_json,
     phase_generate_password_hashes,
     phase_read_config,
@@ -34,7 +35,8 @@ def build_test_depl(config_path, check_vol_source_paths_exist):
     # Create target dirs #
     ######################
 
-    phase_build_dirs('target', [target_dir, target_dir / 'bin', target_dir / 'htdocs'])
+    phase_build_dirs('target', [target_dir, target_dir / 'bin', target_dir / 'htdocs', target_dir / 'conjin'])
+    phase_build_public_entrypoints(target_dir, '../conjin/framework')
 
 
     #########################################
@@ -47,7 +49,7 @@ def build_test_depl(config_path, check_vol_source_paths_exist):
             'format': 'yaml',
         },
         'config-json': {
-            'path': target_dir / 'htdocs' / 'config.json',
+            'path': target_dir / 'conjin' / 'config.json',
             'format': 'json',
         },
     }
@@ -116,8 +118,11 @@ def build_test_depl(config_path, check_vol_source_paths_exist):
             conjin_dir / 'src' / 'conjin',
             app_dir / 'vendor',
             target_dir / 'htdocs' / '.htaccess',
-            target_dir / 'htdocs' / 'config.json',
-            target_dir / 'htdocs' / 'users.json',
+            target_dir / 'htdocs' / 'index.php',
+            target_dir / 'htdocs' / 'module-resource.php',
+            target_dir / 'conjin' / '.htaccess',
+            target_dir / 'conjin' / 'config.json',
+            target_dir / 'conjin' / 'users.json',
         }
 
         if config.get('playwrightTestsDir') is not None:

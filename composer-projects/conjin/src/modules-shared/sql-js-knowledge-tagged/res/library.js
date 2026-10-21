@@ -3,7 +3,7 @@ function sql_js_installTaggedDb(db, tagsDivId, itemsDivId) {
     // Install tags //
     //////////////////
 
-    db.then(function(dbRes) {
+    const tagsReady = db.then(function(dbRes) {
         const tagResults = dbRes.exec('SELECT COUNT(*) FROM items; SELECT tag, COUNT(*) AS size FROM items_to_tags GROUP BY tag ORDER BY size DESC, tag');
 
         if (tagResults.length > 0) {
@@ -121,7 +121,7 @@ function sql_js_installTaggedDb(db, tagsDivId, itemsDivId) {
     // Initially update the items //
     ////////////////////////////////
 
-    sql_js_updateTaggedDbItems(db, tagsDivId, itemsDivId);
+    return tagsReady.then(() => sql_js_updateTaggedDbItems(db, tagsDivId, itemsDivId));
 }
 
 function sql_js_updateTaggedDbItems(db, tagsDivId, itemsDivId) {
@@ -129,7 +129,7 @@ function sql_js_updateTaggedDbItems(db, tagsDivId, itemsDivId) {
     const curTag = getURLParameter('tag');
     const whereClause = curTag ? ` WHERE items.id IN (SELECT item_id FROM items_to_tags WHERE tag='${curTag}')` : '';
 
-    db.then(function(dbRes) {
+    return db.then(function(dbRes) {
 
         //////////////////
         // Update items //

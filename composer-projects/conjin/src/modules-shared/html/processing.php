@@ -6,6 +6,12 @@
         echo "<h$level$html_id$html_class$html_style>$content</h$level>";
     }
 
+    function html_h_with_anchor(int $level, string $content, ?string $id = null, string $class = '', string $style = '') {
+        $id ??= kebabize($content);
+        $content = '<span style="min-width: 0;">' . $content . '</span><a class="html-heading-anchor" href="#' . $id . '" style="margin-left: auto; flex-shrink: 0;">#</a>';
+        html_h($level, $content, $id, $class, 'display: flex; align-items: baseline; gap: 0.5em; ' . $style);
+    }
+
     function html_img(
         string $url,
         string $alt = '',

@@ -24,12 +24,14 @@ Documentation is spread out over multiple files.
     - [Preprocess](./preprocess.md)
     - [Process](./process.md)
 - [Modules](./modules.md)
+- [Document readiness](./document_readiness.md): Asynchronous rendering and print preparation before pagination
 - Authentication + Authorization:
     - [Authentication](./auth_authentication.md): Login, logout etc.
     - [Authorization](./auth_authorization.md): Who can view what
 - [Versioning](./versioning.md)
 - [Changelog](./changelog.md)
 - [Ideas](./ideas.md): Ideas for future development
+- [TODOs](./todos.md): Outstanding development tasks
 - [Known bugs + limitations](./known_bugs_limitations.md)
 - [MIME types](./mime_types.md): Reference list
 
@@ -42,9 +44,9 @@ Documentation is spread out over multiple files.
         - Targets are organized in a tree structure, where each node...
             - is represented by a `Target` object
             - has a target ID (a list of target IDs therefore specifies the path to a specific target)
-        - Usually contains content, three types:
-            - **Inline**: In `index.php`, there is a `process` function
-            - **Extra**: In `content.php`, the content is hardcoded (no function)
+        - Has one of three content locations:
+            - **Inline**: In `index.php`, there is a `$process` closure that produces the content
+            - **Redirect**: In `index.php`, `$redirect` specifies the destination target IDs
             - **None**: No content. The node is just a container and cannot be requested by itself 
     - **Syslet**
         - External view: A webpage that fulfills a pre-defined system function such as "login", "not found" etc.

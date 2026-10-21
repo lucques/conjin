@@ -28,7 +28,7 @@
         public function __construct(
             public Vec $vec,
             public ?string $label = null,
-            public int $label_font_size = 14,
+            public int $label_font_size_adjust = 0, // in relative font size (FontSize enum)
             public Color $color = Color::Black,
             public float $size = 3,          // in pixels, e.g. `3`
             public string $visible_fun_js = '() => true'
@@ -46,7 +46,7 @@
             ?bool $extend_before_point_a = null,
             ?bool $extend_after_point_b = null,
             public ?string $label = null,
-            public int $label_font_size = 14,
+            public int $label_font_size_adjust = 0, // in relative font size (FontSize enum)
             public Color $color = Color::Red,
             public Stroke $stroke = Stroke::Solid,
             public float $thickness = 2,     // in pixels, e.g. `2`

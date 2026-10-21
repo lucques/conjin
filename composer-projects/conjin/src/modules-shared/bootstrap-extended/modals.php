@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         $GLOBALS['modals_started'] = false;
         $GLOBALS['modals_next_id'] = 0;
 

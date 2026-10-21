@@ -11,6 +11,7 @@ let TT = ./types-tagged.dhall
 let ConfigJsonFile = {
     , path_base: Text
     , path_preprocess: Text
+    , target_split_depth: Natural
     , path_store: Optional Text
     , https: Bool
     , host: Text
@@ -27,6 +28,7 @@ let ConfigJsonFile = {
 let ConfigJsonFileT = {
     , path_base: Text
     , path_preprocess: Text
+    , target_split_depth: Natural
     , path_store: Optional Text
     , https: Bool
     , host: Text

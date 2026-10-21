@@ -61,8 +61,8 @@ See [./doc/main.md](./doc/main.md).
 
 
 ## TODO
-- Repair HTTP caching for Conjin-served pages and resources. `session_start()` currently applies PHP's default `nocache` session cache limiter and emits `Cache-Control: no-store`, while `cache.php` sends `Last-Modified` only after receiving `If-Modified-Since`; browsers therefore receive no validator with the initial `200` response and cannot naturally make a conditional request. Disable or replace the automatic session cache limiter, define deliberate policies for public, private, and redirect responses, send a validator with cacheable `200` responses, return `304 Not Modified` when it matches, and calculate HTML validators from every rendering dependency—including the page, templates, modules, and nuggets—rather than only the page's `index.php` modification time.
-- Add unit test layer, e.g. for the localization negotiator
+
+See [TODOs](./doc/todos.md).
 
 
 ## Version + Changelog

@@ -1,5 +1,5 @@
 <?
-    $init_processing_target = function(Module $module, Target $target) {
+    $process_target = function(Module $module, Target $target) {
         // State
         $GLOBALS['mathjax_eqset_number_of_lines'] = -1;  // -1 means no eqset is active
 
@@ -67,7 +67,7 @@
 <?
     }
 
-    function mjax_eqset_line(?string $left, string $right, ?string $transformation = null, $show_bar = true, $sign = '=', $margin_bottom_cm = null) {
+    function mjax_eqset_line(?string $left, string $right, ?string $transformation = null, $show_bar = true, $sign = '=', $margin_bottom_cm = null, string $connector_sign = '\\Leftrightarrow') {
         // There must be an active eqset
         assert($GLOBALS['mathjax_eqset_number_of_lines'] != -1, 'No equation set is active');
 
@@ -78,7 +78,7 @@
             $line = '&';
         }
         else {
-            $line = '\\Leftrightarrow~&';
+            $line = $connector_sign . '~&';
         }
 
         // Main part
